@@ -1,0 +1,9 @@
+[test]
+# Always enable coverage
+coverage = true
+# To require 75% line-level and function-level coverage
+# Don't cover too much, we're not keeping code,
+# we're keeping behavior and expectations.
+# Tests should survive refactoring.
+coverageThreshold = 0.75
+preload = ["./happydom.ts"]

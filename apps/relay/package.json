@@ -1,0 +1,90 @@
+{
+  "name": "@alsafa/relay",
+  "description": "CLI for managing AI API providers — switch, rotate, track usage across Z.AI, MiniMax, and more",
+  "version": "2.1.0",
+  "author": {
+    "name": "Imamuzzaki Abu Salam",
+    "email": "imamuzzaki@gmail.com",
+    "url": "https://github.com/ImBIOS"
+  },
+  "bin": {
+    "relay": "./bin/relay.js"
+  },
+  "exports": {
+    ".": "./src/oclif/base.tsx",
+    "./sdk": "./src/sdk/index.ts"
+  },
+  "oclif": {
+    "bin": "relay",
+    "dirname": "relay",
+    "commands": {
+      "strategy": "pattern",
+      "target": "./src/commands",
+      "glob": "**/*.tsx"
+    },
+    "default": "help",
+    "topicSeparator": " ",
+    "topics": {
+      "profile": {
+        "description": "Manage configuration profiles"
+      },
+      "account": {
+        "description": "Multi-account management"
+      },
+      "mcp": {
+        "description": "MCP server management"
+      },
+      "auto": {
+        "description": "Cross-provider auto-rotation"
+      },
+      "alert": {
+        "description": "Alert configuration"
+      },
+      "dashboard": {
+        "description": "Web dashboard management"
+      },
+      "compare": {
+        "description": "Side-by-side Claude comparison"
+      }
+    },
+    "flexibleTaxonomy": true
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.29",
+    "@anthropic-ai/sdk": "^0.72.1",
+    "@inkjs/ui": "^2.0.0",
+    "@oclif/core": "^4.8.0",
+    "ink": "^6.6.0",
+    "jsonc": "^2.0.0",
+    "react": "^19.2.4",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^20.5.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/bun": "^1.3.8",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.4"
+  },
+  "keywords": [
+    "anthropic",
+    "api",
+    "claude-code",
+    "cli",
+    "glm",
+    "minimax",
+    "opencode",
+    "provider",
+    "rotation"
+  ],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "bun build src/cli.ts --outfile=bin/relay.bundled.js --target=node --packages=external",
+    "dev": "bun --hot src/cli.ts",
+    "test": "bun test",
+    "test:coverage": "bun test --coverage",
+    "test:watch": "bun test --watch"
+  },
+  "type": "module"
+}
