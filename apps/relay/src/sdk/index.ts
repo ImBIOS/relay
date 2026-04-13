@@ -1,5 +1,6 @@
 /**
  * ImBIOS SDK - Auto-rotation wrapper for Claude Agent SDK
+ * @deprecated We use OpenCode
  *
  * Provides automatic provider rotation when using the Claude Agent SDK.
  * Uses the same rotation strategies as `relay claude` command.
