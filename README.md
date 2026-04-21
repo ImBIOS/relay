@@ -79,7 +79,3 @@ relay/
 │   └── plugins/         # OpenCode-compatible plugins
 └── bin/relay.js
 ```
-
-## License
-
-MIT
