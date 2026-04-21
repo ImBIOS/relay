@@ -8,12 +8,42 @@
     "url": "https://github.com/ImBIOS"
   },
   "bin": {
-    "relay": "./bin/relay.js"
+    "relay": "./src/run.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.85",
+    "@anthropic-ai/sdk": "^0.72.1",
+    "@inkjs/ui": "^2.0.0",
+    "@oclif/core": "^4.8.0",
+    "ink": "^6.6.0",
+    "jsonc": "^2.0.0",
+    "react": "^19.2.4",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@happy-dom/global-registrator": "^20.5.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/bun": "^1.3.12",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.2.4"
   },
   "exports": {
     ".": "./src/oclif/base.tsx",
     "./sdk": "./src/sdk/index.ts"
   },
+  "keywords": [
+    "anthropic",
+    "api",
+    "claude-code",
+    "cli",
+    "glm",
+    "minimax",
+    "opencode",
+    "provider",
+    "proxy",
+    "rotation"
+  ],
   "oclif": {
     "bin": "relay",
     "dirname": "relay",
@@ -52,43 +82,13 @@
     },
     "flexibleTaxonomy": true
   },
-  "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.2.29",
-    "@anthropic-ai/sdk": "^0.72.1",
-    "@inkjs/ui": "^2.0.0",
-    "@oclif/core": "^4.8.0",
-    "ink": "^6.6.0",
-    "jsonc": "^2.0.0",
-    "react": "^19.2.4",
-    "zod": "^4.0.0"
-  },
-  "devDependencies": {
-    "@happy-dom/global-registrator": "^20.5.0",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
-    "@types/bun": "^1.3.8",
-    "@types/node": "^24.0.0",
-    "@types/react": "^19.2.4"
-  },
-  "keywords": [
-    "anthropic",
-    "api",
-    "claude-code",
-    "cli",
-    "glm",
-    "minimax",
-    "opencode",
-    "proxy",
-    "provider",
-    "rotation"
-  ],
   "scripts": {
-    "typecheck": "tsc --noEmit",
     "build": "bun build src/cli.ts --outfile=bin/relay.bundled.js --target=node --packages=external",
     "dev": "bun --hot src/cli.ts",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
-    "test:watch": "bun test --watch"
+    "test:watch": "bun test --watch",
+    "typecheck": "tsc --noEmit"
   },
   "type": "module",
   "workspaces": [

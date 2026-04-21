@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 const CLIController = async () => {
   const args = process.argv.slice(2);

@@ -11,8 +11,8 @@ Claude Code caches the model name and base URL at session start. Swapping provid
 ## Quick start
 
 ```bash
-# Install
-bun install -g relay
+# Install (not on npm — install directly from GitHub)
+bun install -g github:ImBIOS/relay
 
 # Add your accounts
 relay account add --name zai --provider zai --key sk-xxx
