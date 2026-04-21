@@ -1,5 +1,5 @@
 {
-  "name": "@alsafa/relay",
+  "name": "relay",
   "description": "CLI for managing AI API providers — switch, rotate, track usage across Z.AI, MiniMax, and more",
   "version": "2.1.0",
   "author": {
@@ -43,6 +43,9 @@
       "dashboard": {
         "description": "Web dashboard management"
       },
+      "proxy": {
+        "description": "Anthropic API proxy server for hot-switching providers"
+      },
       "compare": {
         "description": "Side-by-side Claude comparison"
       }
@@ -75,6 +78,7 @@
     "glm",
     "minimax",
     "opencode",
+    "proxy",
     "provider",
     "rotation"
   ],
@@ -86,5 +90,8 @@
     "test:coverage": "bun test --coverage",
     "test:watch": "bun test --watch"
   },
-  "type": "module"
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ]
 }
