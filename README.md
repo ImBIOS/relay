@@ -1,7 +1,6 @@
 # relay
 
 [![Bun](https://img.shields.io/badge/Bun-1.2.0+-black?logo=bun)](https://bun.sh)
-[![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 A CLI for managing AI API providers — **Z.AI**, **MiniMax**, and more — with a built-in HTTP proxy for seamless [Claude Code](https://claude.ai/code) integration.
 
