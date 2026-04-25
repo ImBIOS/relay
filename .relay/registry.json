@@ -52,5 +52,23 @@
       }
     }
   },
-  "required": ["features"]
+  "required": ["features"],
+  "features": [
+    {
+      "id": "000",
+      "slug": "init-relay",
+      "title": "Initialize Relay Directory",
+      "status": "implemented",
+      "hasPatch": false,
+      "lastUpdated": "2026-04-25T00:00:00Z"
+    },
+    {
+      "id": "001",
+      "slug": "proxy",
+      "title": "Relay Proxy Server",
+      "status": "implemented",
+      "hasPatch": false,
+      "lastUpdated": "2026-04-25T00:00:00Z"
+    }
+  ]
 }

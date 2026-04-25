@@ -3,6 +3,14 @@ name: Relay Patch
 on:
   workflow_dispatch:
     inputs:
+      action:
+        description: "Action to perform"
+        required: false
+        default: "apply"
+        type: choice
+        options:
+          - apply
+          - check-merged
       feature:
         description: "Feature slug to apply patch for (e.g., '001-proxy'), or 'all' for all features with patch.md"
         required: false
@@ -17,9 +25,12 @@ on:
 
 permissions:
   contents: write
+  issues: write
+  pull-requests: write
 
 jobs:
   apply-patches:
+    if: ${{ github.event.inputs.action != 'check-merged' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
 
@@ -116,4 +127,149 @@ jobs:
           git config user.email "relay-patch[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet || git commit -m "chore: apply relay patches [skip ci]"
+          git push
+
+  check-merged:
+    if: ${{ github.event.inputs.action == 'check-merged' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Find features with patches
+        id: features
+        run: |
+          FEATURES=""
+          if [ -d .relay/features ]; then
+            for dir in .relay/features/*/; do
+              if [ -f "${dir}patch.md" ]; then
+                NAME=$(basename "$dir")
+                FEATURES="$FEATURES $NAME"
+              fi
+            done
+          fi
+
+          echo "features=$FEATURES" >> "$GITHUB_OUTPUT"
+          echo "Features with patches:$FEATURES"
+
+      - name: Check upstream merge status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          FEATURES="${{ steps.features.outputs.features }}"
+
+          if [ -z "$FEATURES" ]; then
+            echo "No features with patches to check."
+            exit 0
+          fi
+
+          CHANGED=0
+          for FEATURE in $FEATURES; do
+            FEATURE_ID=$(echo "$FEATURE" | grep -o '^[0-9]*')
+            PATCH_FILE=".relay/features/${FEATURE}/patch.md"
+
+            echo "--- Checking: $FEATURE ---"
+
+            # Look up upstream issue and PR from registry
+            UPSTREAM_ISSUE=$(jq -r --arg id "$FEATURE_ID" \
+              '.features[] | select(.id==$id) | .upstreamIssue // empty' \
+              .relay/registry.json 2>/dev/null)
+
+            UPSTREAM_PR=$(jq -r --arg id "$FEATURE_ID" \
+              '.features[] | select(.id==$id) | .upstreamPR // empty' \
+              .relay/registry.json 2>/dev/null)
+
+            if [ -z "$UPSTREAM_ISSUE" ]; then
+              echo "  No upstream issue configured. Skipping."
+              echo ""
+              continue
+            fi
+
+            echo "  Upstream issue: $UPSTREAM_ISSUE"
+
+            # Check if the upstream issue is closed
+            ISSUE_STATE=$(gh issue view "$UPSTREAM_ISSUE" --json state -q '.state' 2>/dev/null || echo "unknown")
+            echo "  Issue state: $ISSUE_STATE"
+
+            if [ "$ISSUE_STATE" != "CLOSED" ]; then
+              echo "  Issue is still open. Skipping."
+              echo ""
+              continue
+            fi
+
+            # Check if the upstream PR is merged (if configured)
+            if [ -n "$UPSTREAM_PR" ]; then
+              echo "  Upstream PR: $UPSTREAM_PR"
+              PR_STATE=$(gh pr view "$UPSTREAM_PR" --json state -q '.state' 2>/dev/null || echo "unknown")
+              PR_MERGED=$(gh pr view "$UPSTREAM_PR" --json mergedAt -q '.mergedAt' 2>/dev/null || echo "null")
+              echo "  PR state: $PR_STATE, mergedAt: $PR_MERGED"
+
+              if [ "$PR_STATE" = "MERGED" ] || [ "$PR_MERGED" != "null" ]; then
+                echo "  PR is merged! Feature is fully upstream."
+
+                # Remove patch.md
+                rm -f "$PATCH_FILE"
+                echo "  Removed patch.md"
+
+                # Update registry.json: clear hasPatch, upstreamIssue, upstreamPR
+                FEATURE_ID_ESCAPED=$(echo "$FEATURE_ID" | sed 's/"/\\"/g')
+                jq --arg id "$FEATURE_ID_ESCAPED" \
+                  '(.features[] | select(.id==$id)) |= del(.hasPatch, .upstreamIssue, .upstreamPR) | (.features[] | select(.id==$id)) += {"hasPatch": false}' \
+                  .relay/registry.json > .relay/registry.json.tmp
+                mv .relay/registry.json.tmp .relay/registry.json
+                echo "  Updated registry.json"
+
+                # Post thank-you comment on the upstream issue
+                gh issue comment "$UPSTREAM_ISSUE" \
+                  --body "Thank you for merging this contribution! The fork patch for this feature has been cleaned up automatically." \
+                  2>/dev/null || echo "  WARNING: Failed to post comment on upstream issue."
+
+                CHANGED=$((CHANGED + 1))
+                echo "  Feature $FEATURE marked as upstream."
+              else
+                echo "  PR is not yet merged. Skipping."
+              fi
+            else
+              echo "  No upstream PR configured. Issue is closed but no PR link."
+              echo "  Removing patch and updating registry."
+
+              # Remove patch.md since issue is closed
+              rm -f "$PATCH_FILE"
+              echo "  Removed patch.md"
+
+              # Update registry.json
+              FEATURE_ID_ESCAPED=$(echo "$FEATURE_ID" | sed 's/"/\\"/g')
+              jq --arg id "$FEATURE_ID_ESCAPED" \
+                '(.features[] | select(.id==$id)) |= del(.hasPatch, .upstreamIssue, .upstreamPR) | (.features[] | select(.id==$id)) += {"hasPatch": false}' \
+                .relay/registry.json > .relay/registry.json.tmp
+              mv .relay/registry.json.tmp .relay/registry.json
+              echo "  Updated registry.json"
+
+              # Post thank-you comment
+              gh issue comment "$UPSTREAM_ISSUE" \
+                --body "Thank you for addressing this issue! The fork patch has been cleaned up automatically." \
+                2>/dev/null || echo "  WARNING: Failed to post comment on upstream issue."
+
+              CHANGED=$((CHANGED + 1))
+            fi
+
+            echo ""
+          done
+
+          echo "=== Summary ==="
+          echo "Features cleaned up: $CHANGED"
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "relay-patch[bot]"
+          git config user.email "relay-patch[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "chore: clean up merged upstream patches [skip ci]"
           git push
