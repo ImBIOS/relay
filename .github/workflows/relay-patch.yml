@@ -1,0 +1,115 @@
+name: Relay Patch
+
+on:
+  workflow_dispatch:
+    inputs:
+      patch-name:
+        description: "Patch name (slug) to apply, or 'all' for all active patches"
+        required: false
+        default: "all"
+      dry-run:
+        description: "Dry run (show what would be applied without making changes)"
+        type: boolean
+        default: false
+  schedule:
+    # Run daily at 7:00 UTC (after fork-sync if scheduled)
+    - cron: "0 7 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  apply-patches:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Read patch registry
+        id: registry
+        run: |
+          if [ ! -f .relay/patches/registry.json ]; then
+            echo "No patch registry found. Creating empty registry."
+            echo '{"patches":[]}' > .relay/patches/registry.json
+          fi
+
+          ACTIVE_PATCHES=$(jq -r '.patches[] | select(.status=="active") | .id' .relay/patches/registry.json)
+          echo "active_patches=$ACTIVE_PATCHES" >> "$GITHUB_OUTPUT"
+          echo "Active patches: $ACTIVE_PATCHES"
+
+      - name: Apply patches
+        env:
+          PATCH_NAME: ${{ github.event.inputs.patch-name || 'all' }}
+          DRY_RUN: ${{ github.event.inputs.dry-run || 'false' }}
+        run: |
+          echo "=== Relay Patch ==="
+          echo "Patch target: $PATCH_NAME"
+          echo "Dry run: $DRY_RUN"
+          echo ""
+
+          if [ "$PATCH_NAME" = "all" ]; then
+            PATCHES="${{ steps.registry.outputs.active_patches }}"
+          else
+            PATCHES="$PATCH_NAME"
+          fi
+
+          if [ -z "$PATCHES" ]; then
+            echo "No active patches to apply."
+            exit 0
+          fi
+
+          CHANGED=0
+          for PATCH_ID in $PATCHES; do
+            PATCH_FILE=".relay/patches/${PATCH_ID}.md"
+            if [ ! -f "$PATCH_FILE" ]; then
+              echo "WARNING: Patch file not found: $PATCH_FILE"
+              continue
+            fi
+
+            echo "--- Applying patch: $PATCH_ID ---"
+            echo "File: $PATCH_FILE"
+
+            if [ "$DRY_RUN" = "true" ]; then
+              echo "[DRY RUN] Would apply patch from $PATCH_FILE"
+              continue
+            fi
+
+            # Extract intent and reconciliation notes from the patch file
+            INTENT=$(awk '/^## Intent$/,/^## [^I]/' "$PATCH_FILE" | head -n -1 | tail -n +2)
+            RECONCILIATION=$(awk '/^## Reconciliation Notes$/,/^## [^R]/' "$PATCH_FILE" | head -n -1 | tail -n +2)
+
+            echo "Intent: $(echo "$INTENT" | head -1)"
+            echo ""
+
+            # The actual patch application would be done by an AI agent (Claude Code)
+            # in a real implementation. For now, we just verify the patch file exists
+            # and log the intent.
+
+            # Check if patch references an upstream issue
+            UPSTREAM_ISSUE=$(jq -r --arg id "$PATCH_ID" '.patches[] | select(.id==$id) | .upstreamIssue // empty' .relay/patches/registry.json)
+            if [ -n "$UPSTREAM_ISSUE" ]; then
+              echo "Upstream issue: $UPSTREAM_ISSUE"
+            fi
+
+            CHANGED=$((CHANGED + 1))
+            echo ""
+          done
+
+          echo "=== Summary ==="
+          echo "Patches processed: $CHANGED"
+
+      - name: Commit changes
+        if: ${{ github.event.inputs.dry-run != 'true' }}
+        run: |
+          git config user.name "relay-patch[bot]"
+          git config user.email "relay-patch[bot]@users.noreply.github.com"
+          git add -A
+          git diff --cached --quiet || git commit -m "chore: apply relay patches [skip ci]"
+          git push

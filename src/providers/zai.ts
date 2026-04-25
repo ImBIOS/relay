@@ -1,9 +1,11 @@
+import { getDefaultBaseUrl } from "../config/provider-metadata";
 import { testAnthropicConnection } from "../utils/anthropic-connection-test";
 import type {
   Provider,
   ProviderConfig,
   UsageOptions,
   UsageStats,
+  WeeklyUsageStats,
 } from "./base";
 
 export class ZAIProvider implements Provider {
@@ -13,7 +15,7 @@ export class ZAIProvider implements Provider {
   getConfig(): ProviderConfig {
     return {
       apiKey: process.env.ZAI_API_KEY || "",
-      baseUrl: process.env.ZAI_BASE_URL || "https://api.z.ai/api/anthropic",
+      baseUrl: process.env.ZAI_BASE_URL || getDefaultBaseUrl("zai"),
     };
   }
 
@@ -56,7 +58,7 @@ export class ZAIProvider implements Provider {
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        return { used: 0, limit: 0, remaining: 0, percentUsed: 0 };
+        return { used: 0, limit: 0, remaining: 0, percentUsed: 0, resetsAt: undefined };
       }
 
       const data = (await response.json()) as {
@@ -68,6 +70,11 @@ export class ZAIProvider implements Provider {
             currentValue: number;
             remaining: number;
             percentage: number;
+            nextResetTime?: number; // Unix timestamp in milliseconds
+            windowStart?: number; // Weekly window start (ms)
+            windowEnd?: number; // Weekly window end (ms)
+            windowTotal?: number; // Weekly total limit
+            windowUsed?: number; // Weekly used amount
           }>;
         };
       };
@@ -81,7 +88,7 @@ export class ZAIProvider implements Provider {
       );
 
       if (!(timeLimit || tokenLimit)) {
-        return { used: 0, limit: 0, remaining: 0, percentUsed: 0 };
+        return { used: 0, limit: 0, remaining: 0, percentUsed: 0, resetsAt: undefined };
       }
 
       // Handle TIME_LIMIT - always has full fields (minutes)
@@ -118,6 +125,49 @@ export class ZAIProvider implements Provider {
         modelUsage.percentUsed,
         mcpUsage.percentUsed
       );
+
+      // Extract reset time from token limit (they share the same 5-hour window)
+      // Extract reset time from token limit (they share the same 5-hour window)
+      const resetsAt = tokenLimit?.nextResetTime
+        ? new Date(tokenLimit.nextResetTime).toISOString()
+        : undefined;
+
+
+      // Look for weekly limit data (might be in a separate limit entry)
+      let weeklyUsage: WeeklyUsageStats | undefined;
+      const weeklyLimit = data.data?.limits?.find(
+        (limit) => limit.type === "WEEKLY_LIMIT"
+      );
+      if (weeklyLimit && weeklyLimit.windowTotal && weeklyLimit.windowTotal > 0) {
+        const weeklyUsed = weeklyLimit.windowUsed ?? 0;
+        const weeklyLimit_ = weeklyLimit.windowTotal;
+        weeklyUsage = {
+          used: weeklyUsed,
+          limit: weeklyLimit_,
+          remaining: Math.max(0, weeklyLimit_ - weeklyUsed),
+          percentUsed: weeklyLimit_ > 0 ? (weeklyUsed / weeklyLimit_) * 100 : 0,
+          resetsAt: weeklyLimit.windowEnd
+            ? new Date(weeklyLimit.windowEnd).toISOString()
+            : undefined,
+        };
+      } else if (
+        tokenLimit?.windowTotal &&
+        tokenLimit.windowTotal > 0
+      ) {
+        // Weekly data might be embedded in token limit
+        const weeklyUsed = tokenLimit.windowUsed ?? 0;
+        const weeklyLimit_ = tokenLimit.windowTotal;
+        weeklyUsage = {
+          used: weeklyUsed,
+          limit: weeklyLimit_,
+          remaining: Math.max(0, weeklyLimit_ - weeklyUsed),
+          percentUsed: weeklyLimit_ > 0 ? (weeklyUsed / weeklyLimit_) * 100 : 0,
+          resetsAt: tokenLimit.windowEnd
+            ? new Date(tokenLimit.windowEnd).toISOString()
+            : undefined,
+        };
+      }
+
       return {
         used: modelUsage.used + mcpUsage.used,
         limit: modelUsage.limit + mcpUsage.limit,
@@ -125,9 +175,11 @@ export class ZAIProvider implements Provider {
         percentUsed: combinedPercent,
         modelUsage,
         mcpUsage,
+        resetsAt,
+        weeklyUsage,
       };
     } catch {
-      return { used: 0, limit: 0, remaining: 0, percentUsed: 0 };
+      return { used: 0, limit: 0, remaining: 0, percentUsed: 0, resetsAt: undefined };
     }
   }
 }

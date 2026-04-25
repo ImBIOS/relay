@@ -5,15 +5,20 @@ import * as os from "node:os";
 import * as path from "node:path";
 
 const TEST_DIR = path.join(os.tmpdir(), `relay-hooks-test-${Date.now()}`);
-const RELAY_BIN = path.join(process.cwd(), "bin", "relay.js");
+const RELAY_BIN = path.join(process.cwd(), "src", "run.ts");
 
 // Helper to run CLI commands with stdin
-function runCli(args: string[], stdin?: string, cwd?: string) {
+function runCli(
+  args: string[],
+  stdin?: string,
+  cwd?: string,
+  envOverrides?: Record<string, string>
+) {
   return spawnSync("bun", [RELAY_BIN, ...args], {
     input: stdin,
     timeout: 30_000,
     cwd,
-    env: { ...process.env, RELAY_TEST_MODE: "1" },
+    env: { ...process.env, ...envOverrides, RELAY_TEST_MODE: "1" },
     stdio: stdin ? ["pipe", "pipe", "pipe"] : undefined,
   });
 }
@@ -305,7 +310,12 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
       const settingsPath = path.join(configDir, "settings.json");
       fs.writeFileSync(settingsPath, JSON.stringify({ hooks: {} }, null, 2));
 
-      const result = runCli(["auto", "hook", "--silent"], undefined, TEST_DIR);
+      const result = runCli(
+        ["auto", "hook", "--silent"],
+        undefined,
+        TEST_DIR,
+        { HOME: TEST_DIR }
+      );
       expect([0, null]).toContain(result.status);
     });
 
@@ -313,7 +323,12 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
       const fakeHome = path.join(TEST_DIR, "nonexistent-home");
       fs.mkdirSync(fakeHome, { recursive: true });
 
-      const result = runCli(["auto", "hook", "--silent"], undefined, fakeHome);
+      const result = runCli(
+        ["auto", "hook", "--silent"],
+        undefined,
+        fakeHome,
+        { HOME: fakeHome }
+      );
       expect(result.status).toBeDefined();
     });
   });

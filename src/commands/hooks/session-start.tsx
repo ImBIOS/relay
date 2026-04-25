@@ -1,22 +1,173 @@
 import { execSync } from "node:child_process";
-import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Flags } from "@oclif/core";
 import * as accountsConfig from "../../config/accounts-config";
 import { BaseCommand } from "../../oclif/base";
+
+const DEFAULT_PROXY_PORT = 8787;
+const DEFAULT_PROXY_TOKEN = "relay";
+const DEFAULT_OPUS_MODEL = "glm-5.1";
+const DEFAULT_SONNET_MODEL = "glm-5-turbo";
+const DEFAULT_HAIKU_MODEL = "MiniMax-M2.7";
+
+function getHomeDir(): string {
+  return process.env.HOME || homedir();
+}
+
+function getPidFilePath(homeDir = getHomeDir()): string {
+  return join(homeDir, ".claude", "relay-proxy.pid");
+}
+
+function resolveProxyServerScriptPath(): string | null {
+  for (const relativePath of ["../../proxy/server.ts", "../../proxy/server.js"]) {
+    const candidatePath = fileURLToPath(new URL(relativePath, import.meta.url));
+    if (existsSync(candidatePath)) {
+      return candidatePath;
+    }
+  }
+
+  return null;
+}
+
+function isProcessRunning(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function getProxyPort(existingBaseUrl: unknown): number {
+  const envPort = Number.parseInt(process.env.RELAY_PROXY_PORT ?? "", 10);
+  if (Number.isInteger(envPort) && envPort > 0) {
+    return envPort;
+  }
+
+  if (typeof existingBaseUrl === "string") {
+    try {
+      const url = new URL(existingBaseUrl);
+      const isLocalHost =
+        url.hostname === "127.0.0.1" || url.hostname.toLowerCase() === "localhost";
+      if (isLocalHost && url.pathname.startsWith("/api/anthropic")) {
+        const parsedPort = Number.parseInt(url.port || String(DEFAULT_PROXY_PORT), 10);
+        if (Number.isInteger(parsedPort) && parsedPort > 0) {
+          return parsedPort;
+        }
+      }
+    } catch {
+      // Ignore malformed URLs and fall back to the default port.
+    }
+  }
+
+  return DEFAULT_PROXY_PORT;
+}
+
+function getProxyBaseUrl(port: number): string {
+  return `http://127.0.0.1:${port}/api/anthropic`;
+}
+
+async function isProxyHealthy(port: number): Promise<boolean> {
+  try {
+    const res = await fetch(`http://127.0.0.1:${port}/health`, {
+      signal: AbortSignal.timeout(1000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureRelayProxyRunning(
+  port: number,
+  silent: boolean,
+): Promise<void> {
+  if (await isProxyHealthy(port)) {
+    return;
+  }
+
+  const pidFilePath = getPidFilePath();
+  if (existsSync(pidFilePath)) {
+    try {
+      const pid = Number(readFileSync(pidFilePath, "utf-8").trim());
+      if (isProcessRunning(pid)) {
+        for (let attempt = 0; attempt < 5; attempt++) {
+          if (await isProxyHealthy(port)) {
+            return;
+          }
+          await Bun.sleep(200);
+        }
+
+        if (!silent) {
+          console.error(
+            `Relay proxy process ${pid} is running but not healthy on port ${port}.`,
+          );
+        }
+        return;
+      }
+
+      unlinkSync(pidFilePath);
+    } catch {
+      // Ignore stale/unreadable PID files and try to start a fresh proxy.
+    }
+  }
+
+  const serverScript = resolveProxyServerScriptPath();
+  if (!serverScript) {
+    if (!silent) {
+      console.error("Unable to locate the relay proxy server entrypoint.");
+    }
+    return;
+  }
+  const child = Bun.spawn([process.execPath, serverScript], {
+    env: {
+      ...process.env,
+      RELAY_PROXY_PORT: String(port),
+    },
+    stdout: null,
+    stderr: null,
+    stdin: null,
+  });
+
+  for (let attempt = 0; attempt < 10; attempt++) {
+    if (await isProxyHealthy(port)) {
+      child.unref();
+      if (!silent) {
+        console.log(`Relay proxy ensured on port ${port}.`);
+      }
+      return;
+    }
+    await Bun.sleep(200);
+  }
+
+  child.unref();
+  if (!silent) {
+    console.error(`Failed to auto-start relay proxy on port ${port}.`);
+  }
+}
 
 /**
  * Hook command for Claude Code SessionStart event.
  *
  * This command is designed to be called from Claude Code hooks.
- * It performs three actions:
+ * It performs four actions:
  * 1. Rotates to the least-used provider (if rotation is enabled)
- * 2. Installs Z.AI coding plugins (if active provider is Z.AI)
- * 3. Updates ~/.claude/settings.json with the active account credentials
+ * 2. Ensures the local relay proxy is running
+ * 3. Installs Z.AI coding plugins (if the active provider is Z.AI)
+ * 4. Updates ~/.claude/settings.json to point Claude Code at the local proxy
  *
- * The rotation happens BEFORE applying credentials, so the CURRENT session
- * always uses the optimal provider based on the rotation strategy.
+ * The rotation happens BEFORE the proxy starts handling requests, so the CURRENT
+ * session always uses the optimal provider based on the rotation strategy.
  *
  * Usage: relay hooks session-start [--silent]
  */
@@ -24,7 +175,7 @@ export default class HooksSessionStart extends BaseCommand<
   typeof HooksSessionStart
 > {
   static description =
-    "SessionStart hook - apply current credentials and rotate";
+    "SessionStart hook - rotate provider, ensure proxy, and apply Claude settings";
   static examples = [
     "<%= config.bin %> hooks session-start",
     "<%= config.bin %> hooks session-start --silent",
@@ -62,15 +213,84 @@ export default class HooksSessionStart extends BaseCommand<
       }
     }
 
-    // Get the active model provider account for Claude Code sessions
-    // activeModelProviderId is specifically for choosing which API key to use for models
     const currentAccount = config.activeModelProviderId
       ? config.accounts[config.activeModelProviderId]
       : null;
 
+    const homeDir = getHomeDir();
+    const claudeDir = join(homeDir, ".claude");
+    const settingsFilePath = join(claudeDir, "settings.json");
+
+    let settings: Record<string, unknown> = {};
+    if (existsSync(settingsFilePath)) {
+      try {
+        const settingsContent = readFileSync(settingsFilePath, "utf-8");
+        const parsed = JSON.parse(settingsContent);
+        if (typeof parsed === "object" && parsed !== null) {
+          settings = parsed as Record<string, unknown>;
+        }
+      } catch (error) {
+        if (!flags.silent) {
+          console.error("Failed to read settings.json, recreating it:", error);
+        }
+      }
+    }
+
+    const existingEnv =
+      typeof settings.env === "object" && settings.env !== null
+        ? (settings.env as Record<string, unknown>)
+        : {};
+    const { ANTHROPIC_MODEL: _anthropicModel, ...restEnv } = existingEnv;
+    const proxyPort = getProxyPort(existingEnv.ANTHROPIC_BASE_URL);
+
+    if (!process.env.RELAY_TEST_MODE) {
+      await ensureRelayProxyRunning(proxyPort, flags.silent);
+    }
+
+    // --- Persist to settings.json for future sessions ---
+    // NOTE: Claude Code reads settings.json env vars BEFORE SessionStart hooks
+    // run, so writing to settings.json only takes effect on the NEXT session.
+    // The settings must already contain relay proxy values before claude starts.
+    settings.env = {
+      ...restEnv,
+      ANTHROPIC_AUTH_TOKEN: DEFAULT_PROXY_TOKEN,
+      ANTHROPIC_BASE_URL: getProxyBaseUrl(proxyPort),
+      API_TIMEOUT_MS:
+        typeof restEnv.API_TIMEOUT_MS === "string"
+          ? restEnv.API_TIMEOUT_MS
+          : "3000000",
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:
+        restEnv.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC ?? 1,
+      ANTHROPIC_DEFAULT_OPUS_MODEL:
+        typeof restEnv.ANTHROPIC_DEFAULT_OPUS_MODEL === "string"
+          ? restEnv.ANTHROPIC_DEFAULT_OPUS_MODEL
+          : DEFAULT_OPUS_MODEL,
+      ANTHROPIC_DEFAULT_SONNET_MODEL:
+        typeof restEnv.ANTHROPIC_DEFAULT_SONNET_MODEL === "string"
+          ? restEnv.ANTHROPIC_DEFAULT_SONNET_MODEL
+          : DEFAULT_SONNET_MODEL,
+      ANTHROPIC_DEFAULT_HAIKU_MODEL:
+        typeof restEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL === "string"
+          ? restEnv.ANTHROPIC_DEFAULT_HAIKU_MODEL
+          : DEFAULT_HAIKU_MODEL,
+    };
+
+    try {
+      mkdirSync(claudeDir, { recursive: true });
+      const tempFilePath = `${settingsFilePath}.tmp`;
+      writeFileSync(tempFilePath, JSON.stringify(settings, null, 2));
+      renameSync(tempFilePath, settingsFilePath);
+    } catch (error) {
+      if (!flags.silent) {
+        console.error("Failed to update settings.json:", error);
+      }
+    }
+
     if (!currentAccount) {
       if (!flags.silent) {
-        console.error("No active model provider found");
+        console.error(
+          "No active model provider found. Relay proxy was ensured, but requests will fail until an account is activated.",
+        );
       }
       return;
     }
@@ -84,44 +304,6 @@ export default class HooksSessionStart extends BaseCommand<
         // Silent fail - plugin installation errors shouldn't break the session
       }
     }
-
-    // Update settings.json with current account credentials
-    // This is what Claude Code will use for the current session
-    // Use HOME env var if set (for testing), otherwise use os.homedir()
-    const homeDir = process.env.HOME || homedir();
-    const settingsFilePath = join(homeDir, ".claude", "settings.json");
-    if (existsSync(settingsFilePath)) {
-      try {
-        const settingsContent = readFileSync(settingsFilePath, "utf-8");
-        const settings = JSON.parse(settingsContent);
-
-        // Update the env section
-        // Note: ANTHROPIC_MODEL is NOT set here - it causes errors when
-        // switching providers on-the-fly. The provider and model are
-        // determined via activeModelProviderId in .claude/settings.json
-        settings.env = {
-          ANTHROPIC_AUTH_TOKEN: currentAccount.apiKey,
-          ANTHROPIC_BASE_URL: currentAccount.baseUrl,
-          API_TIMEOUT_MS: "3000000",
-          CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: 1,
-        };
-
-        // Atomic write: write to temp file first, then rename
-        // This prevents data loss if write fails midway
-        const tempFilePath = `${settingsFilePath}.tmp`;
-        writeFileSync(tempFilePath, JSON.stringify(settings, null, 2));
-        renameSync(tempFilePath, settingsFilePath);
-      } catch (error) {
-        // Silent fail - don't break the session if settings update fails
-        if (!flags.silent) {
-          console.error("Failed to update settings.json:", error);
-        }
-      }
-    }
-
-    // Play session start sound (unless silent mode)
-    if (!flags.silent) {
-    }
   }
 
   /**
@@ -131,7 +313,7 @@ export default class HooksSessionStart extends BaseCommand<
    */
   private installZaiPlugins(silent: boolean): void {
     // Check cache marker to avoid spawning claude CLI processes every session
-    const homeDir = process.env.HOME || homedir();
+    const homeDir = getHomeDir();
     const cacheMarker = join(homeDir, ".claude", ".zai-plugins-installed");
     const PLUGIN_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
     const PLUGIN_COMMAND_TIMEOUT_MS = 5000; // 5 second timeout for plugin commands
@@ -140,7 +322,7 @@ export default class HooksSessionStart extends BaseCommand<
       try {
         const markerTime = Number.parseInt(
           readFileSync(cacheMarker, "utf-8").trim(),
-          10
+          10,
         );
         if (Date.now() - markerTime < PLUGIN_CACHE_TTL_MS) {
           return; // Plugins were installed recently, skip
@@ -187,7 +369,7 @@ export default class HooksSessionStart extends BaseCommand<
           encoding: "utf-8",
           stdio: "pipe",
           timeout: PLUGIN_COMMAND_TIMEOUT_MS,
-        }
+        },
       );
 
       // Install each available plugin if not already installed
@@ -213,7 +395,7 @@ export default class HooksSessionStart extends BaseCommand<
               {
                 stdio: silent ? "pipe" : "inherit",
                 timeout: PLUGIN_COMMAND_TIMEOUT_MS,
-              }
+              },
             );
           }
         }

@@ -1,29 +1,157 @@
 import { PasswordInput, Select, TextInput } from "@inkjs/ui";
+import { Flags } from "@oclif/core";
 import { Box, Text, useApp } from "ink";
 import { useState } from "react";
-import { addAccount } from "../../config/accounts-config";
+import { addAccount, getActiveAccount, switchAccount } from "../../config/accounts-config";
+import {
+  getDefaultBaseUrl,
+  getProviderCliLabel,
+  isRelayProvider,
+  listRelayProviders,
+  type RelayProvider,
+} from "../../config/provider-metadata";
+import * as settings from "../../config/settings";
 import { BaseCommand } from "../../oclif/base";
-import type { Provider } from "../../providers/base";
-import { minimaxProvider } from "../../providers/minimax";
-import { zaiProvider } from "../../providers/zai";
 import { Error as ErrorBadge, Info, Section, Success } from "../../ui/index";
 
-const PROVIDERS: Record<string, () => Provider> = {
-  zai: () => zaiProvider,
-  minimax: () => minimaxProvider,
-};
+const PROVIDER_OPTIONS = listRelayProviders().map((provider) => ({
+  label: getProviderCliLabel(provider),
+  value: provider,
+}));
 
-const PROVIDER_OPTIONS = [
-  { label: "Z.AI (zai)", value: "zai" },
-  { label: "MiniMax (minimax)", value: "minimax" },
-];
+function isRawModeSupported(): boolean {
+  const stdin = process.stdin as { isRawModeSupported?: boolean };
+  return (
+    typeof stdin.isRawModeSupported === "boolean" && stdin.isRawModeSupported
+  );
+}
 
 export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
   static description = "Add a new account";
-  static examples = ["<%= config.bin %> account add"];
+  static examples = [
+    "<%= config.bin %> account add",
+    "<%= config.bin %> account add --name zai --provider zai --key sk-xxx",
+    "<%= config.bin %> account add --name minimax --provider minimax --api-key mmkey-xxx --group-id grp-123",
+  ];
+
+  static flags = {
+    name: Flags.string({ description: "Account name" }),
+    provider: Flags.string({
+      description: "Provider for the account",
+      options: listRelayProviders(),
+    }),
+    "api-key": Flags.string({ description: "API key for the account" }),
+    key: Flags.string({ description: "Alias for --api-key" }),
+    "base-url": Flags.string({ description: "Override provider base URL" }),
+    "group-id": Flags.string({
+      description: "MiniMax GroupId for usage tracking (optional)",
+    }),
+    activate: Flags.boolean({
+      description: "Make the new account active immediately",
+      default: false,
+    }),
+  };
 
   async run(): Promise<void> {
+    const { flags } = await this.parse(AccountAdd);
+    const providedApiKey = flags["api-key"] || flags.key;
+    const hasFlagInput = Boolean(
+      flags.name ||
+        flags.provider ||
+        providedApiKey ||
+        flags["base-url"] ||
+        flags["group-id"] ||
+        flags.activate
+    );
+
+    if (hasFlagInput) {
+      await this.runNonInteractive({
+        name: flags.name,
+        provider: flags.provider,
+        apiKey: flags["api-key"],
+        key: flags.key,
+        baseUrl: flags["base-url"],
+        groupId: flags["group-id"],
+        activate: flags.activate,
+      });
+      return;
+    }
+
+    if (!isRawModeSupported()) {
+      await this.renderApp(
+        <Section title="Add Account">
+          <Box flexDirection="column">
+            <ErrorBadge>
+              Interactive account setup requires a TTY-enabled terminal.
+            </ErrorBadge>
+            <Info>
+              Use a non-interactive command instead, for example:
+            </Info>
+            <Info>
+              relay account add --name zai --provider zai --key sk-xxx
+            </Info>
+          </Box>
+        </Section>
+      );
+      return;
+    }
+
     await this.renderApp(<AccountAddUI />);
+  }
+
+  private async runNonInteractive(input: {
+    name?: string;
+    provider?: string;
+    apiKey?: string;
+    key?: string;
+    baseUrl?: string;
+    groupId?: string;
+    activate: boolean;
+  }): Promise<void> {
+    const apiKey = input.apiKey || input.key;
+
+    if (input.apiKey && input.key && input.apiKey !== input.key) {
+      throw new Error("Provide only one of --api-key or --key.");
+    }
+
+    if (!input.name || !input.provider || !apiKey) {
+      throw new Error(
+        "Non-interactive mode requires --name, --provider, and --api-key/--key."
+      );
+    }
+
+    if (!isRelayProvider(input.provider)) {
+      throw new Error(
+        `Unsupported provider \"${input.provider}\". Use one of: ${listRelayProviders().join(", ")}.`
+      );
+    }
+
+    const provider = input.provider;
+    const baseUrl = input.baseUrl || getDefaultBaseUrl(provider);
+    const hadActiveAccount = Boolean(getActiveAccount());
+    const account = addAccount(
+      input.name,
+      provider,
+      apiKey,
+      baseUrl,
+      input.groupId || undefined
+    );
+
+    settings.setProviderConfig(provider, apiKey, baseUrl);
+
+    const activated = input.activate || !hadActiveAccount;
+    if (activated) {
+      switchAccount(account.id);
+      settings.setActiveProvider(provider);
+    }
+
+    console.log(`Added account \"${account.name}\" (${account.provider}).`);
+    console.log(`Account ID: ${account.id}`);
+    console.log(`Base URL: ${account.baseUrl}`);
+    if (account.groupId) {
+      console.log(`Group ID: ${account.groupId}`);
+    }
+    console.log(`Active: ${activated ? "yes" : "no"}`);
   }
 }
 
@@ -40,7 +168,7 @@ function AccountAddUI(): React.ReactElement {
   const { exit } = useApp();
   const [step, setStep] = useState<AddStep>("name");
   const [name, setName] = useState("");
-  const [provider, setProvider] = useState<"zai" | "minimax">("zai");
+  const [provider, setProvider] = useState<RelayProvider>("zai");
   const [apiKey, setApiKey] = useState("");
   const [groupId, setGroupId] = useState("");
   const [_baseUrl, setBaseUrl] = useState("");
@@ -59,7 +187,14 @@ function AccountAddUI(): React.ReactElement {
   };
 
   const handleProviderChange = (value: string) => {
-    setProvider(value as "zai" | "minimax");
+    if (!isRelayProvider(value)) {
+      setError(`Unsupported provider: ${value}`);
+      setStep("error");
+      setTimeout(() => exit(), 500);
+      return;
+    }
+
+    setProvider(value);
     setStep("api-key");
   };
 
@@ -71,24 +206,18 @@ function AccountAddUI(): React.ReactElement {
       return;
     }
     setApiKey(value);
-    setBaseUrl(PROVIDERS[provider]().getConfig().baseUrl);
-    // Skip group-id step for Z.AI, go straight to base-url
+    setBaseUrl(getDefaultBaseUrl(provider));
     setStep(provider === "minimax" ? "group-id" : "base-url");
   };
 
   const handleGroupIdSubmit = (value: string) => {
-    if (!value) {
-      setError("GroupId is required for MiniMax accounts.");
-      setStep("error");
-      setTimeout(() => exit(), 500);
-      return;
-    }
     setGroupId(value);
     setStep("base-url");
   };
 
   const handleBaseUrlSubmit = (value: string) => {
-    const finalBaseUrl = value || PROVIDERS[provider]().getConfig().baseUrl;
+    const finalBaseUrl = value || getDefaultBaseUrl(provider);
+    const hadActiveAccount = Boolean(getActiveAccount());
 
     const account = addAccount(
       name,
@@ -97,6 +226,13 @@ function AccountAddUI(): React.ReactElement {
       finalBaseUrl,
       groupId || undefined
     );
+
+    settings.setProviderConfig(provider, apiKey, finalBaseUrl);
+    if (!hadActiveAccount) {
+      switchAccount(account.id);
+      settings.setActiveProvider(provider);
+    }
+
     setAccountId(account.id);
     setStep("done");
     setTimeout(() => exit(), 500);
@@ -140,13 +276,13 @@ function AccountAddUI(): React.ReactElement {
         {step === "group-id" && provider === "minimax" && (
           <Box flexDirection="column">
             <Box>
-              <Text>MiniMax GroupId (required for usage tracking): </Text>
+              <Text>MiniMax GroupId (optional, improves usage tracking): </Text>
             </Box>
             <Box>
               <TextInput
                 defaultValue=""
                 onSubmit={handleGroupIdSubmit}
-                placeholder="Enter GroupId..."
+                placeholder="Enter GroupId or leave blank..."
               />
             </Box>
             <Box>
@@ -162,7 +298,7 @@ function AccountAddUI(): React.ReactElement {
           <Box>
             <Text>Base URL: </Text>
             <TextInput
-              defaultValue={PROVIDERS[provider]().getConfig().baseUrl}
+              defaultValue={getDefaultBaseUrl(provider)}
               onSubmit={handleBaseUrlSubmit}
             />
           </Box>
@@ -173,6 +309,7 @@ function AccountAddUI(): React.ReactElement {
             <Success>Account "{name}" added successfully!</Success>
             <Info>Account ID: {accountId}</Info>
             <Info>Provider: {provider}</Info>
+            <Info>Base URL: {_baseUrl || getDefaultBaseUrl(provider)}</Info>
             {groupId && <Info>GroupId: {groupId}</Info>}
           </Box>
         )}

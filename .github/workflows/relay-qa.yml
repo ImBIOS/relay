@@ -1,0 +1,127 @@
+name: Relay QA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "src/**"
+      - ".relay/**"
+  pull_request:
+    branches: [main]
+    paths:
+      - "src/**"
+      - ".relay/**"
+  workflow_dispatch:
+    inputs:
+      spec-name:
+        description: "Run QA for a specific spec (slug), or 'all' for all"
+        required: false
+        default: "all"
+
+permissions:
+  contents: read
+
+jobs:
+  check-specs:
+    runs-on: ubuntu-latest
+    outputs:
+      specs: ${{ steps.specs.outputs.list }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Find specs needing QA
+        id: specs
+        run: |
+          if [ ! -d .relay/specs ]; then
+            echo "No .relay/specs directory found."
+            echo "list=" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Find all spec files (excluding template)
+          SPECS=""
+          for f in .relay/specs/*.md; do
+            [ "$(basename "$f")" = "_template.md" ] && continue
+            NAME=$(basename "$f" .md)
+            SPECS="$SPECS $NAME"
+          done
+
+          echo "list=$SPECS" >> "$GITHUB_OUTPUT"
+          echo "Found specs:$SPECS"
+
+  validate-spec-qa-pairs:
+    runs-on: ubuntu-latest
+    needs: check-specs
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate every spec has a QA doc
+        run: |
+          MISSING=0
+          for SPEC in ${{ needs.check-specs.outputs.specs }}; do
+            if [ ! -f ".relay/qa/${SPEC}.md" ]; then
+              echo "MISSING: .relay/qa/${SPEC}.md (spec exists but no QA doc)"
+              MISSING=$((MISSING + 1))
+            else
+              echo "OK: ${SPEC} has QA doc"
+            fi
+          done
+
+          # Also check for orphan QA docs (QA without spec)
+          for QA in .relay/qa/*.md; do
+            [ "$(basename "$QA")" = "_template.md" ] && continue
+            NAME=$(basename "$QA" .md)
+            if [ ! -f ".relay/specs/${NAME}.md" ]; then
+              echo "ORPHAN: $QA (QA doc exists but no matching spec)"
+            fi
+          done
+
+          if [ $MISSING -gt 0 ]; then
+            echo "::warning::$MISSING spec(s) missing QA documentation"
+          fi
+
+  run-tests:
+    runs-on: ubuntu-latest
+    needs: check-specs
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: bun install
+      - name: Run tests
+        run: bun test
+
+  lint-specs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check spec format
+        run: |
+          if [ ! -d .relay/specs ]; then
+            exit 0
+          fi
+
+          ERRORS=0
+          for f in .relay/specs/*.md; do
+            [ "$(basename "$f")" = "_template.md" ] && continue
+
+            # Check required sections
+            for SECTION in "Overview" "Requirements" "Acceptance Criteria"; do
+              if ! grep -q "## $SECTION" "$f"; then
+                echo "ERROR: $f missing '## $SECTION' section"
+                ERRORS=$((ERRORS + 1))
+              fi
+            done
+
+            # Check status frontmatter
+            if ! head -5 "$f" | grep -q "Status:"; then
+              echo "ERROR: $f missing Status frontmatter"
+              ERRORS=$((ERRORS + 1))
+            fi
+          done
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS spec format error(s) found"
+            exit 1
+          fi
+
+          echo "All specs pass format validation."

@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { Flags } from "@oclif/core";
 import { Box, Text } from "ink";
 import { BaseCommand } from "../../oclif/base.js";
@@ -14,6 +15,17 @@ function isRunning(pid: number): boolean {
   } catch {
     return false;
   }
+}
+
+function resolveProxyServerScriptPath(): string | null {
+  for (const relativePath of ["../../proxy/server.ts", "../../proxy/server.js"]) {
+    const candidatePath = fileURLToPath(new URL(relativePath, import.meta.url));
+    if (existsSync(candidatePath)) {
+      return candidatePath;
+    }
+  }
+
+  return null;
 }
 
 export default class ProxyStart extends BaseCommand<typeof ProxyStart> {
@@ -58,8 +70,18 @@ export default class ProxyStart extends BaseCommand<typeof ProxyStart> {
       } catch {}
     }
 
-    const serverScript = new URL("../../proxy/server.js", import.meta.url)
-      .pathname;
+    const serverScript = resolveProxyServerScriptPath();
+
+    if (!serverScript) {
+      await this.renderApp(
+        <Box>
+          <Text color="red">
+            Failed to locate the relay proxy server entrypoint.
+          </Text>
+        </Box>,
+      );
+      return;
+    }
 
     if (flags.foreground) {
       // Run in foreground — useful for debugging

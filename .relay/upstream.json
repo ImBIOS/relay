@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Relay Fork Sync Configuration",
+  "description": "Configuration for syncing this fork with upstream. Used by the fork-sync GitHub workflow.",
+  "type": "object",
+  "properties": {
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Enable automatic fork sync. Set to true only if this is a fork."
+    },
+    "upstream": {
+      "type": "string",
+      "description": "Upstream repo in format 'owner/repo'"
+    },
+    "upstreamBranch": {
+      "type": "string",
+      "default": "main",
+      "description": "Branch to track from upstream"
+    },
+    "syncSchedule": {
+      "type": "string",
+      "default": "0 6 * * *",
+      "description": "Cron schedule for automatic sync (default: daily at 6:00 UTC)"
+    },
+    "reapplyPatches": {
+      "type": "boolean",
+      "default": true,
+      "description": "After sync, attempt to re-apply active patches from .relay/patches/"
+    },
+    "manageUpstreamIssues": {
+      "type": "boolean",
+      "default": true,
+      "description": "Create/update issues and PRs in the upstream repo for each active patch"
+    },
+    "conflictStrategy": {
+      "type": "string",
+      "enum": ["fail", "skip", "attempt-rebase"],
+      "default": "attempt-rebase",
+      "description": "How to handle merge conflicts during sync"
+    }
+  },
+  "required": ["enabled"]
+}

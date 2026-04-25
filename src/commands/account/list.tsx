@@ -51,7 +51,7 @@ function AccountListUI({
             <Box key={acc.id}>
               <Text color={isActive ? "green" : undefined}>
                 {isActive ? "●" : "○"} {acc.name} ({acc.provider}) -{" "}
-                {acc.isActive ? "active" : "inactive"}
+                {acc.isActive ? "active" : "inactive"} - {acc.id}
               </Text>
             </Box>
           );

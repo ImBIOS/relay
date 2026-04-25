@@ -1,6 +1,7 @@
 import { Box } from "ink";
 import type React from "react";
 import * as accountsConfig from "../config/accounts-config";
+import { getProviderDisplayName } from "../config/provider-metadata";
 import * as profiles from "../config/profiles";
 import * as settings from "../config/settings";
 import { BaseCommand } from "../oclif/base";
@@ -14,38 +15,68 @@ const PROVIDERS: Record<string, () => Provider> = {
   minimax: () => minimaxProvider,
 };
 
+function getProviderFactory(provider: string): (() => Provider) | null {
+  return PROVIDERS[provider] ?? null;
+}
+
 export default class Status extends BaseCommand<typeof Status> {
   static description = "Show current provider and status";
   static examples = ["<%= config.bin %> status"];
 
   async run(): Promise<void> {
-    const activeProvider = settings.getActiveProvider();
-    const provider = PROVIDERS[activeProvider]();
-    const config = provider.getConfig();
-    const hasApiKey = Boolean(config.apiKey);
+    const activeAccount = accountsConfig.getActiveAccount();
+    const activeProviderKey = activeAccount?.provider ?? settings.getActiveProvider();
+    const providerFactory = getProviderFactory(activeProviderKey);
+
+    if (!providerFactory) {
+      throw new Error(`Unsupported active provider \"${activeProviderKey}\".`);
+    }
+
+    const provider = providerFactory();
+    const providerConfig = activeAccount
+      ? {
+          apiKey: activeAccount.apiKey,
+          baseUrl: activeAccount.baseUrl,
+        }
+      : provider.getConfig();
+    const hasApiKey = Boolean(providerConfig.apiKey);
 
     // Other provider status
-    const otherProviderKey = activeProvider === "zai" ? "minimax" : "zai";
-    const otherProvider = PROVIDERS[otherProviderKey]();
+    const otherProviderKey = activeProviderKey === "zai" ? "minimax" : "zai";
+    const otherProviderFactory = getProviderFactory(otherProviderKey);
+
+    if (!otherProviderFactory) {
+      throw new Error(`Unsupported provider \"${otherProviderKey}\".`);
+    }
+
+    const otherProvider = otherProviderFactory();
     const otherConfig = otherProvider.getConfig();
-    const otherHasKey = Boolean(otherConfig.apiKey);
+    const otherHasAccount = accountsConfig
+      .listAccounts()
+      .some((account) => account.provider === otherProviderKey && account.isActive);
+    const otherHasKey = otherHasAccount || Boolean(otherConfig.apiKey);
 
     // Profile info
     const activeProfile = profiles.getActiveProfile();
 
     // v2 account info
     const v2Config = accountsConfig.loadConfig();
-    const activeAccount = accountsConfig.getActiveAccount();
 
     await this.renderApp(
       <StatusUI
         activeAccount={activeAccount}
         activeProfile={activeProfile?.name}
-        activeProvider={provider.displayName}
-        apiKey={
-          hasApiKey ? `••••••••${config.apiKey.slice(-4)}` : "Not configured"
+        activeProvider={
+          activeAccount
+            ? `${getProviderDisplayName(activeAccount.provider)} via ${activeAccount.name}`
+            : provider.displayName
         }
-        baseUrl={config.baseUrl}
+        apiKey={
+          hasApiKey
+            ? `••••••••${providerConfig.apiKey.slice(-4)}`
+            : "Not configured"
+        }
+        baseUrl={providerConfig.baseUrl}
         connection={hasApiKey ? "Ready" : "Not configured"}
         otherConfigured={otherHasKey}
         otherProvider={otherProvider.displayName}

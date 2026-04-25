@@ -8,6 +8,14 @@ export interface UsageOptions {
   groupId?: string; // For MiniMax usage tracking
 }
 
+export interface WeeklyUsageStats {
+  used: number;
+  limit: number;
+  remaining: number;
+  percentUsed: number;
+  resetsAt?: string; // ISO timestamp
+}
+
 export interface UsageStats {
   used: number;
   limit: number;
@@ -18,6 +26,10 @@ export interface UsageStats {
   // For ZAI provider: separate model and MCP usage
   modelUsage?: UsageStats;
   mcpUsage?: UsageStats;
+  // Reset time information
+  resetsAt?: string; // ISO 8601 timestamp of when the quota resets
+  // Weekly limits (if available)
+  weeklyUsage?: WeeklyUsageStats;
 }
 
 export interface Provider {

@@ -22,7 +22,7 @@ function HelpUI({ version }: { version: string }): React.ReactElement {
 
   return (
     <Box flexDirection="column">
-      <Text bold>RELAY - Z.AI & MiniMax Provider Manager v{version}</Text>
+      <Text bold>RELAY - Z.AI &amp; MiniMax Provider Manager v{version}</Text>
       <Text />
       <Text>Usage: relay &lt;command&gt; [options]</Text>
       <Text />
@@ -63,8 +63,14 @@ function HelpUI({ version }: { version: string }): React.ReactElement {
       </Text>
       <Text> relay config # Configure providers</Text>
       <Text> relay init # First-time setup wizard</Text>
-      <Text> relay switch minimax # Switch to MiniMax</Text>
-      <Text> relay account add work # Add work account</Text>
+      <Text>
+        relay init --providers zai,minimax --zai-api-key sk-xxx --minimax-api-key mmkey-xxx --install-hooks
+      </Text>
+      <Text> relay switch minimax # Switch the legacy active provider</Text>
+      <Text> relay account switch minimax # Switch account by provider/name/id</Text>
+      <Text>
+        relay account add --name work --provider zai --key sk-xxx --activate # Add account
+      </Text>
       <Text> relay rotate zai # Rotate Z.AI key</Text>
       <Text> relay dashboard start # Start web dashboard</Text>
       <Text> relay mcp add-predefined zai # Add Z.AI MCP servers</Text>
@@ -72,7 +78,7 @@ function HelpUI({ version }: { version: string }): React.ReactElement {
       <Text> relay compare "Write a React component"</Text>
       <Text> eval "$(relay env export)" # Export env vars</Text>
       <Text />
-      <Text>For more info, visit: https://github.com/ImBIOS/coding-helper</Text>
+      <Text>For more info, visit: https://github.com/ImBIOS/relay</Text>
     </Box>
   );
 }

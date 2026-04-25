@@ -16,7 +16,8 @@ import * as path from "node:path";
 const TEST_DIR = path.join(os.tmpdir(), `relay-hook-test-${Date.now()}`);
 const CONFIG_PATH = path.join(TEST_DIR, ".claude", "relay.json");
 const SETTINGS_PATH = path.join(TEST_DIR, ".claude", "settings.json");
-const RELAY_BIN = path.join(process.cwd(), "bin", "relay.js");
+const RELAY_BIN = path.join(process.cwd(), "src", "run.ts");
+const EXPECTED_PROXY_BASE_URL = "http://127.0.0.1:8787/api/anthropic";
 
 describe("relay hook - Disaster Prevention Tests", () => {
   beforeEach(() => {
@@ -144,7 +145,7 @@ describe("relay hook - Disaster Prevention Tests", () => {
   });
 
   describe("Hook Functionality", () => {
-    test("should update settings.json with current account credentials", () => {
+    test("should update settings.json with relay proxy settings", () => {
       // Disable rotation to test credential application without rotation
       const config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
       config.rotation.enabled = false;
@@ -157,10 +158,11 @@ describe("relay hook - Disaster Prevention Tests", () => {
 
       expect([0, null]).toContain(result.status);
 
-      // Verify settings.json was updated with account 1 credentials (activeAccountId)
+      // Verify settings.json was updated to keep Claude pointed at the relay proxy
       const settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, "utf-8"));
-      expect(settings.env.ANTHROPIC_AUTH_TOKEN).toBe("test-key-1");
-      expect(settings.env.ANTHROPIC_BASE_URL).toBe("https://api.test1.com");
+      expect(settings.env.ANTHROPIC_AUTH_TOKEN).toBe("relay");
+      expect(settings.env.ANTHROPIC_BASE_URL).toBe(EXPECTED_PROXY_BASE_URL);
+      expect(settings.env.ANTHROPIC_MODEL).toBeUndefined();
     });
 
     test("should rotate to next account when enabled", () => {
@@ -237,7 +239,8 @@ describe("relay hook - Disaster Prevention Tests", () => {
       });
 
       let settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, "utf-8"));
-      expect(settings.env.ANTHROPIC_AUTH_TOKEN).toBe("test-key-1");
+      expect(settings.env.ANTHROPIC_AUTH_TOKEN).toBe("relay");
+      expect(settings.env.ANTHROPIC_BASE_URL).toBe(EXPECTED_PROXY_BASE_URL);
 
       // Test MiniMax provider (account 2)
       config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
@@ -252,7 +255,8 @@ describe("relay hook - Disaster Prevention Tests", () => {
       });
 
       settings = JSON.parse(fs.readFileSync(SETTINGS_PATH, "utf-8"));
-      expect(settings.env.ANTHROPIC_AUTH_TOKEN).toBe("test-key-2");
+      expect(settings.env.ANTHROPIC_AUTH_TOKEN).toBe("relay");
+      expect(settings.env.ANTHROPIC_BASE_URL).toBe(EXPECTED_PROXY_BASE_URL);
     });
   });
 });

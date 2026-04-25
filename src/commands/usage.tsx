@@ -91,7 +91,8 @@ export default class Usage extends BaseCommand<typeof Usage> {
                 )
             )}
           </Section>
-        </Box>
+        </Box>,
+        { autoExit: true }
       );
       return;
     }
@@ -107,7 +108,8 @@ export default class Usage extends BaseCommand<typeof Usage> {
       await this.renderApp(
         <Warning>
           No active account configured. Run "relay config" first.
-        </Warning>
+        </Warning>,
+        { autoExit: true }
       );
       return;
     }
@@ -144,7 +146,8 @@ export default class Usage extends BaseCommand<typeof Usage> {
         provider={provider.displayName}
         usage={usage}
         verbose={verbose}
-      />
+      />,
+      { autoExit: true }
     );
   }
 }
@@ -169,6 +172,28 @@ function UsageUI({
     return num.toString();
   };
 
+  // Format reset time as relative time (e.g., "2h 30m")
+  const formatResetsAt = (isoTime: string | undefined): string => {
+    if (!isoTime) return "N/A";
+    try {
+      const resetDate = new Date(isoTime);
+      const now = new Date();
+      const diffMs = resetDate.getTime() - now.getTime();
+
+      if (diffMs <= 0) return "Now";
+
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      }
+      return `${minutes}m`;
+    } catch {
+      return "N/A";
+    }
+  };
+
   const data: Record<string, string> = {
     Provider: provider,
     Used: formatNumber(usage.used),
@@ -184,6 +209,16 @@ function UsageUI({
     if (usage.mcpUsage) {
       data["MCP Usage"] = formatNumber(usage.mcpUsage.used);
     }
+  }
+
+  // Always show reset time
+  data["Resets In"] = formatResetsAt(usage.resetsAt);
+
+  // Show weekly limits if available
+  if (usage.weeklyUsage) {
+    data["Weekly Used"] = formatNumber(usage.weeklyUsage.used);
+    data["Weekly Limit"] = formatNumber(usage.weeklyUsage.limit);
+    data["Weekly Reset"] = formatResetsAt(usage.weeklyUsage.resetsAt);
   }
 
   return (
@@ -220,6 +255,28 @@ function AccountUsageItem({
     return num.toString();
   };
 
+  // Format reset time as relative time (e.g., "2h 30m")
+  const formatResetsAt = (isoTime: string | undefined): string => {
+    if (!isoTime) return "N/A";
+    try {
+      const resetDate = new Date(isoTime);
+      const now = new Date();
+      const diffMs = resetDate.getTime() - now.getTime();
+
+      if (diffMs <= 0) return "Now";
+
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      }
+      return `${minutes}m`;
+    } catch {
+      return "N/A";
+    }
+  };
+
   return (
     <Box flexDirection="column" marginBottom={1}>
       <Box>
@@ -231,7 +288,17 @@ function AccountUsageItem({
           {formatNumber(usage.used)} / {formatNumber(usage.limit)} (
           {usage.percentUsed.toFixed(1)}%)
         </Info>
+        <Info> · Resets: {formatResetsAt(usage.resetsAt)}</Info>
       </Box>
+      {usage.weeklyUsage && (
+        <Box>
+          <Info>
+            Weekly: {formatNumber(usage.weeklyUsage.used)} / {formatNumber(usage.weeklyUsage.limit)} (
+            {usage.weeklyUsage.percentUsed.toFixed(1)}%)
+          </Info>
+          <Info> · Resets: {formatResetsAt(usage.weeklyUsage.resetsAt)}</Info>
+        </Box>
+      )}
     </Box>
   );
 }
