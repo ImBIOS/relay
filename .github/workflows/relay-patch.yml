@@ -3,8 +3,8 @@ name: Relay Patch
 on:
   workflow_dispatch:
     inputs:
-      patch-name:
-        description: "Patch name (slug) to apply, or 'all' for all active patches"
+      feature:
+        description: "Feature slug to apply patch for (e.g., '001-proxy'), or 'all' for all features with patch.md"
         required: false
         default: "all"
       dry-run:
@@ -32,48 +32,52 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Read patch registry
-        id: registry
+      - name: Find features with patches
+        id: features
         run: |
-          if [ ! -f .relay/patches/registry.json ]; then
-            echo "No patch registry found. Creating empty registry."
-            echo '{"patches":[]}' > .relay/patches/registry.json
+          FEATURES=""
+          if [ -d .relay/features ]; then
+            for dir in .relay/features/*/; do
+              if [ -f "${dir}patch.md" ]; then
+                NAME=$(basename "$dir")
+                FEATURES="$FEATURES $NAME"
+              fi
+            done
           fi
 
-          ACTIVE_PATCHES=$(jq -r '.patches[] | select(.status=="active") | .id' .relay/patches/registry.json)
-          echo "active_patches=$ACTIVE_PATCHES" >> "$GITHUB_OUTPUT"
-          echo "Active patches: $ACTIVE_PATCHES"
+          echo "features=$FEATURES" >> "$GITHUB_OUTPUT"
+          echo "Features with patches:$FEATURES"
 
       - name: Apply patches
         env:
-          PATCH_NAME: ${{ github.event.inputs.patch-name || 'all' }}
+          TARGET: ${{ github.event.inputs.feature || 'all' }}
           DRY_RUN: ${{ github.event.inputs.dry-run || 'false' }}
         run: |
           echo "=== Relay Patch ==="
-          echo "Patch target: $PATCH_NAME"
+          echo "Target: $TARGET"
           echo "Dry run: $DRY_RUN"
           echo ""
 
-          if [ "$PATCH_NAME" = "all" ]; then
-            PATCHES="${{ steps.registry.outputs.active_patches }}"
+          if [ "$TARGET" = "all" ]; then
+            FEATURES="${{ steps.features.outputs.features }}"
           else
-            PATCHES="$PATCH_NAME"
+            FEATURES="$TARGET"
           fi
 
-          if [ -z "$PATCHES" ]; then
-            echo "No active patches to apply."
+          if [ -z "$FEATURES" ]; then
+            echo "No features with patches to apply."
             exit 0
           fi
 
           CHANGED=0
-          for PATCH_ID in $PATCHES; do
-            PATCH_FILE=".relay/patches/${PATCH_ID}.md"
+          for FEATURE in $FEATURES; do
+            PATCH_FILE=".relay/features/${FEATURE}/patch.md"
             if [ ! -f "$PATCH_FILE" ]; then
               echo "WARNING: Patch file not found: $PATCH_FILE"
               continue
             fi
 
-            echo "--- Applying patch: $PATCH_ID ---"
+            echo "--- Applying patch: $FEATURE ---"
             echo "File: $PATCH_FILE"
 
             if [ "$DRY_RUN" = "true" ]; then
@@ -88,14 +92,14 @@ jobs:
             echo "Intent: $(echo "$INTENT" | head -1)"
             echo ""
 
-            # The actual patch application would be done by an AI agent (Claude Code)
-            # in a real implementation. For now, we just verify the patch file exists
-            # and log the intent.
-
-            # Check if patch references an upstream issue
-            UPSTREAM_ISSUE=$(jq -r --arg id "$PATCH_ID" '.patches[] | select(.id==$id) | .upstreamIssue // empty' .relay/patches/registry.json)
-            if [ -n "$UPSTREAM_ISSUE" ]; then
-              echo "Upstream issue: $UPSTREAM_ISSUE"
+            # Check if feature references an upstream issue
+            if [ -f .relay/registry.json ]; then
+              UPSTREAM_ISSUE=$(jq -r --arg id "$(echo $FEATURE | grep -o '^[0-9]*')" \
+                '.features[] | select(.id==$id) | .upstreamIssue // empty' \
+                .relay/registry.json 2>/dev/null)
+              if [ -n "$UPSTREAM_ISSUE" ]; then
+                echo "Upstream issue: $UPSTREAM_ISSUE"
+              fi
             fi
 
             CHANGED=$((CHANGED + 1))

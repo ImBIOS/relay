@@ -13,8 +13,8 @@ on:
       - ".relay/**"
   workflow_dispatch:
     inputs:
-      spec-name:
-        description: "Run QA for a specific spec (slug), or 'all' for all"
+      feature:
+        description: "Run QA for a specific feature (e.g., '001-proxy'), or 'all' for all"
         required: false
         default: "all"
 
@@ -22,65 +22,63 @@ permissions:
   contents: read
 
 jobs:
-  check-specs:
+  check-features:
     runs-on: ubuntu-latest
     outputs:
-      specs: ${{ steps.specs.outputs.list }}
+      features: ${{ steps.features.outputs.list }}
     steps:
       - uses: actions/checkout@v4
-      - name: Find specs needing QA
-        id: specs
+      - name: Find features
+        id: features
         run: |
-          if [ ! -d .relay/specs ]; then
-            echo "No .relay/specs directory found."
+          if [ ! -d .relay/features ]; then
+            echo "No .relay/features directory found."
             echo "list=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          # Find all spec files (excluding template)
-          SPECS=""
-          for f in .relay/specs/*.md; do
-            [ "$(basename "$f")" = "_template.md" ] && continue
-            NAME=$(basename "$f" .md)
-            SPECS="$SPECS $NAME"
+          FEATURES=""
+          for dir in .relay/features/*/; do
+            NAME=$(basename "$dir")
+            FEATURES="$FEATURES $NAME"
           done
 
-          echo "list=$SPECS" >> "$GITHUB_OUTPUT"
-          echo "Found specs:$SPECS"
+          echo "list=$FEATURES" >> "$GITHUB_OUTPUT"
+          echo "Found features:$FEATURES"
 
   validate-spec-qa-pairs:
     runs-on: ubuntu-latest
-    needs: check-specs
+    needs: check-features
     steps:
       - uses: actions/checkout@v4
-      - name: Validate every spec has a QA doc
+      - name: Validate every feature folder has spec.md and qa.md
         run: |
           MISSING=0
-          for SPEC in ${{ needs.check-specs.outputs.specs }}; do
-            if [ ! -f ".relay/qa/${SPEC}.md" ]; then
-              echo "MISSING: .relay/qa/${SPEC}.md (spec exists but no QA doc)"
+          for FEATURE in ${{ needs.check-features.outputs.features }}; do
+            DIR=".relay/features/${FEATURE}"
+
+            if [ ! -f "${DIR}/spec.md" ]; then
+              echo "MISSING: ${DIR}/spec.md (feature folder exists but no spec)"
               MISSING=$((MISSING + 1))
             else
-              echo "OK: ${SPEC} has QA doc"
+              echo "OK: ${FEATURE}/spec.md exists"
             fi
-          done
 
-          # Also check for orphan QA docs (QA without spec)
-          for QA in .relay/qa/*.md; do
-            [ "$(basename "$QA")" = "_template.md" ] && continue
-            NAME=$(basename "$QA" .md)
-            if [ ! -f ".relay/specs/${NAME}.md" ]; then
-              echo "ORPHAN: $QA (QA doc exists but no matching spec)"
+            if [ ! -f "${DIR}/qa.md" ]; then
+              echo "MISSING: ${DIR}/qa.md (spec exists but no QA doc)"
+              MISSING=$((MISSING + 1))
+            else
+              echo "OK: ${FEATURE}/qa.md exists"
             fi
           done
 
           if [ $MISSING -gt 0 ]; then
-            echo "::warning::$MISSING spec(s) missing QA documentation"
+            echo "::warning::$MISSING missing doc(s) in feature folders"
           fi
 
   run-tests:
     runs-on: ubuntu-latest
-    needs: check-specs
+    needs: check-features
     steps:
       - uses: actions/checkout@v4
       - name: Setup Bun
@@ -96,25 +94,26 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check spec format
         run: |
-          if [ ! -d .relay/specs ]; then
+          if [ ! -d .relay/features ]; then
             exit 0
           fi
 
           ERRORS=0
-          for f in .relay/specs/*.md; do
-            [ "$(basename "$f")" = "_template.md" ] && continue
+          for dir in .relay/features/*/; do
+            SPEC="${dir}spec.md"
+            [ ! -f "$SPEC" ] && continue
 
             # Check required sections
             for SECTION in "Overview" "Requirements" "Acceptance Criteria"; do
-              if ! grep -q "## $SECTION" "$f"; then
-                echo "ERROR: $f missing '## $SECTION' section"
+              if ! grep -q "## $SECTION" "$SPEC"; then
+                echo "ERROR: $SPEC missing '## $SECTION' section"
                 ERRORS=$((ERRORS + 1))
               fi
             done
 
             # Check status frontmatter
-            if ! head -5 "$f" | grep -q "Status:"; then
-              echo "ERROR: $f missing Status frontmatter"
+            if ! head -5 "$SPEC" | grep -q "Status:"; then
+              echo "ERROR: $SPEC missing Status frontmatter"
               ERRORS=$((ERRORS + 1))
             fi
           done

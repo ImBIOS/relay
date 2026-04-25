@@ -6,34 +6,38 @@ Inspired by [github/spec-kit](https://github.com/github/spec-kit), this folder p
 
 ```
 .relay/
-├── specs/          # Feature specifications (one .md per feature)
-├── qa/             # QA test plans (one .md per spec, always paired)
-├── patches/        # Relay Patches — fork customizations with intent
-│   └── registry.json
-└── upstream.json   # Fork sync configuration (if this is a fork)
+├── registry.json          # Master registry of all features
+├── upstream.json          # Fork sync configuration (if this is a fork)
+└── features/
+    └── <NNN>-<slug>/
+        ├── spec.md        # Feature specification
+        ├── qa.md          # QA test plan (always paired with spec)
+        └── patch.md       # Fork patch with intent (only if forked)
 ```
 
 ## Principles
 
-1. **Every spec has a QA doc** — specs describe what to build; QA describes how to verify it
-2. **AI agents must document here** — when Claude Code (or any AI agent) implements a feature, it must create/update the corresponding spec and QA files
-3. **Patches survive upstream sync** — Relay Patches encode intent, not just diffs, so they can be re-applied after upstream changes
-4. **Tidy and consistent** — use the templates, follow the format
+1. **Every feature is a folder** — one folder per feature, named `<NNN>-<slug>` (e.g., `001-proxy`)
+2. **Every spec has a QA doc** — `spec.md` describes what to build; `qa.md` describes how to verify it
+3. **Fork features get a patch.md** — records intent, not just diffs, so they survive upstream sync
+4. **AI agents must document here** — when implementing a feature, create/update the feature folder
+5. **Tidy and consistent** — use the templates, follow the format
 
 ## For AI Agents
 
 When working on this repo, follow these rules:
 
-- **Before implementing a feature**: Check if a spec exists in `.relay/specs/`. If not, create one using the template.
-- **After implementing a feature**: Update the spec status and create/update the corresponding QA doc in `.relay/qa/`.
-- **When forking**: Use `.relay/patches/` to record customizations with intent. The fork sync workflow will preserve these.
-- **When syncing with upstream**: Run the sync workflow. It will re-apply patches using their intent descriptions.
+- **Before implementing a feature**: Check if a feature folder exists in `.relay/features/`. If not, create one with `spec.md`.
+- **After implementing a feature**: Update `spec.md` status and create/update `qa.md`.
+- **When forking**: Add `patch.md` to the feature folder with intent and reconciliation notes.
+- **When syncing with upstream**: The fork-sync workflow will re-apply patches using their intent descriptions.
 
 ## Quick Reference
 
-| Action | Command |
-|--------|---------|
-| Create a new spec | Copy `.relay/specs/_template.md` to `.relay/specs/<feature>.md` |
-| Create QA for a spec | Copy `.relay/qa/_template.md` to `.relay/qa/<feature>.md` |
-| Add a fork patch | Copy `.relay/patches/_template.md` to `.relay/patches/<patch-name>.md` |
-| Sync fork with upstream | `gh workflow run fork-sync.yml` or wait for schedule |
+| Action | How |
+|--------|-----|
+| Create a new feature | `mkdir .relay/features/<NNN>-<slug>` + create `spec.md` |
+| Add QA for a feature | Create `qa.md` in the feature folder |
+| Add a fork patch | Create `patch.md` in the feature folder |
+| Register a feature | Add entry to `.relay/registry.json` |
+| Sync fork with upstream | `gh workflow run fork-sync.yml` |

@@ -178,36 +178,38 @@ jobs:
         run: |
           UPSTREAM="${{ needs.check-fork.outputs.upstream }}"
 
-          if [ ! -f .relay/patches/registry.json ]; then
-            echo "No patch registry found."
+          if [ ! -f .relay/registry.json ]; then
+            echo "No feature registry found."
             exit 0
           fi
 
-          # For each active patch with an upstreamIssue field, check status
-          ACTIVE_PATCHES=$(jq -r '.patches[] | select(.status=="active") | .id' .relay/patches/registry.json)
+          # Find features with patches that have upstream issues
+          PATCHED_FEATURES=$(jq -r '.features[] | select(.hasPatch==true) | "\(.id)-\(.slug)"' .relay/registry.json)
 
-          for PATCH_ID in $ACTIVE_PATCHES; do
-            UPSTREAM_ISSUE=$(jq -r --arg id "$PATCH_ID" '.patches[] | select(.id==$id) | .upstreamIssue // empty' .relay/patches/registry.json)
+          for FEATURE in $PATCHED_FEATURES; do
+            FEATURE_ID=$(echo "$FEATURE" | grep -o '^[0-9]*')
+            PATCH_FILE=".relay/features/${FEATURE}/patch.md"
+
+            UPSTREAM_ISSUE=$(jq -r --arg id "$FEATURE_ID" \
+              '.features[] | select(.id==$id) | .upstreamIssue // empty' \
+              .relay/registry.json)
 
             if [ -z "$UPSTREAM_ISSUE" ]; then
-              echo "Patch $PATCH_ID has no upstream issue reference. Creating one..."
+              echo "Feature $FEATURE has a patch but no upstream issue. Creating one..."
 
-              # Read patch intent for issue body
-              PATCH_FILE=".relay/patches/${PATCH_ID}.md"
               if [ -f "$PATCH_FILE" ]; then
                 INTENT=$(awk '/^## Intent$/,/^## [^I]/' "$PATCH_FILE" | head -n -1 | tail -n +2 | tr '\n' ' ' | cut -c1-500)
               else
-                INTENT="See .relay/patches/${PATCH_ID}.md in the fork for details."
+                INTENT="See .relay/features/${FEATURE}/patch.md in the fork for details."
               fi
 
-              # Create issue in upstream repo
               ISSUE_URL=$(gh issue create \
                 --repo "$UPSTREAM" \
-                --title "[Fork Patch] ${PATCH_ID}" \
+                --title "[Fork Patch] ${FEATURE}" \
                 --body "This feature request originates from a fork customization.
 
           **Fork**: ${{ github.repository }}
-          **Patch**: ${PATCH_ID}
+          **Feature**: ${FEATURE}
 
           ## Intent
 
@@ -219,15 +221,13 @@ jobs:
 
               if [ -n "$ISSUE_URL" ]; then
                 echo "Created upstream issue: $ISSUE_URL"
-                # Update registry with the issue URL
-                jq --arg id "$PATCH_ID" --arg url "$ISSUE_URL" \
-                  '(.patches[] | select(.id==$id)).upstreamIssue = $url' \
-                  .relay/patches/registry.json > .relay/patches/registry.tmp.json
-                mv .relay/patches/registry.tmp.json .relay/patches/registry.json
+                jq --arg id "$FEATURE_ID" --arg url "$ISSUE_URL" \
+                  '(.features[] | select(.id==$id)).upstreamIssue = $url' \
+                  .relay/registry.json > .relay/registry.tmp.json
+                mv .relay/registry.tmp.json .relay/registry.json
               fi
             else
-              echo "Patch $PATCH_ID tracked in upstream issue: $UPSTREAM_ISSUE"
-              # Check if the upstream issue is still open
+              echo "Feature $FEATURE tracked in upstream issue: $UPSTREAM_ISSUE"
               STATE=$(gh issue view "$UPSTREAM_ISSUE" --repo "$UPSTREAM" --json state -q '.state' 2>/dev/null || echo "unknown")
               if [ "$STATE" = "CLOSED" ]; then
                 echo "Upstream issue $UPSTREAM_ISSUE is closed. Consider removing patch."
@@ -238,8 +238,8 @@ jobs:
       - name: Commit registry updates
         if: needs.read-config.outputs.manage-issues == 'true'
         run: |
-          git add .relay/patches/registry.json
-          git diff --cached --quiet || git commit -m "chore: update patch registry with upstream issue refs [skip ci]"
+          git add .relay/registry.json
+          git diff --cached --quiet || git commit -m "chore: update feature registry with upstream issue refs [skip ci]"
           git push
 
   trigger-patches:
@@ -252,4 +252,4 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Triggering Relay Patch workflow to re-apply patches after sync..."
-          gh workflow run relay-patch.yml --field patch-name=all || echo "Could not trigger patch workflow (may need to wait for sync PR merge)"
+          gh workflow run relay-patch.yml --field feature=all || echo "Could not trigger patch workflow (may need to wait for sync PR merge)"

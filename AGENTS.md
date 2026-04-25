@@ -28,18 +28,25 @@ src/
 
 ## Relay Spec, QA & Patch System
 
-This project uses a structured documentation system in `.relay/`:
+This project uses a feature-based documentation system in `.relay/`:
 
-- **`.relay/specs/`** — Feature specifications. Every feature must have a spec.
-- **`.relay/qa/`** — QA test plans. Every spec must have a corresponding QA doc.
-- **`.relay/patches/`** — Fork customizations with intent (for forked repos).
-- **`.relay/upstream.json`** — Fork sync configuration.
+```
+.relay/
+├── registry.json          # Master registry of all features
+├── upstream.json          # Fork sync configuration (if this is a fork)
+└── features/
+    └── <NNN>-<slug>/
+        ├── spec.md        # Feature specification
+        ├── qa.md          # QA test plan (always paired with spec)
+        └── patch.md       # Fork patch with intent (only if forked)
+```
 
 **Rules for AI agents:**
-1. Before implementing a feature, check if a spec exists. If not, create one using `.relay/specs/_template.md`.
-2. After implementing, update the spec status and create/update the QA doc.
-3. When working on a fork, use `.relay/patches/` to record customizations.
-4. See `.relay/README.md` for full details.
+1. Before implementing a feature, check if a folder exists in `.relay/features/`. If not, create one with `spec.md`.
+2. After implementing, update the spec status and create/update `qa.md` in the same folder.
+3. When working on a fork, add `patch.md` to the feature folder to record customizations with intent.
+4. Every feature folder with a `spec.md` must also have a `qa.md`.
+5. See `.relay/README.md` for full details.
 
 ## Development Commands
 
@@ -57,4 +64,4 @@ bun src/run.ts       # Run CLI locally
 | `src/providers/` | Provider definitions |
 | `src/config/accounts-config.ts` | Account management |
 | `src/commands/` | CLI commands |
-| `.relay/` | Spec/QA/Patch documentation |
+| `.relay/` | Feature documentation (spec, QA, patches) |
