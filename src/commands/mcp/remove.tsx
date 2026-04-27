@@ -22,13 +22,13 @@ export default class McpRemove extends BaseCommand<typeof McpRemove> {
       await this.renderApp(
         <Box>
           <Success>MCP server "{name}" removed.</Success>
-        </Box>
+        </Box>,
       );
     } else {
       await this.renderApp(
         <Box>
           <ErrorBadge>MCP server "{name}" not found.</ErrorBadge>
-        </Box>
+        </Box>,
       );
     }
   }

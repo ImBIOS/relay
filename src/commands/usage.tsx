@@ -54,24 +54,22 @@ export default class Usage extends BaseCommand<typeof Usage> {
             groupId: account.groupId,
           });
           return { account, provider: provider.displayName, usage };
-        })
+        }),
       );
 
       // JSON output
       if (flags.json) {
         console.log(
           JSON.stringify(
-            accountsWithUsage.map(
-              ({ account, provider: prov, usage: usg }) => ({
-                id: account.id,
-                name: account.name,
-                provider: prov,
-                ...usg,
-              })
-            ),
+            accountsWithUsage.map(({ account, provider: prov, usage: usg }) => ({
+              id: account.id,
+              name: account.name,
+              provider: prov,
+              ...usg,
+            })),
             null,
-            2
-          )
+            2,
+          ),
         );
         return;
       }
@@ -88,11 +86,11 @@ export default class Usage extends BaseCommand<typeof Usage> {
                     provider={prov}
                     usage={usg}
                   />
-                )
+                ),
             )}
           </Section>
         </Box>,
-        { autoExit: true }
+        { autoExit: true },
       );
       return;
     }
@@ -106,10 +104,8 @@ export default class Usage extends BaseCommand<typeof Usage> {
         return;
       }
       await this.renderApp(
-        <Warning>
-          No active account configured. Run "relay config" first.
-        </Warning>,
-        { autoExit: true }
+        <Warning>No active account configured. Run "relay config" first.</Warning>,
+        { autoExit: true },
       );
       return;
     }
@@ -133,8 +129,8 @@ export default class Usage extends BaseCommand<typeof Usage> {
             ...usage,
           },
           null,
-          2
-        )
+          2,
+        ),
       );
       return;
     }
@@ -142,12 +138,8 @@ export default class Usage extends BaseCommand<typeof Usage> {
     const verbose = flags.verbose;
 
     await this.renderApp(
-      <UsageUI
-        provider={provider.displayName}
-        usage={usage}
-        verbose={verbose}
-      />,
-      { autoExit: true }
+      <UsageUI provider={provider.displayName} usage={usage} verbose={verbose} />,
+      { autoExit: true },
     );
   }
 }
@@ -158,11 +150,7 @@ interface UsageUIProps {
   verbose: boolean;
 }
 
-function UsageUI({
-  provider,
-  usage,
-  verbose,
-}: UsageUIProps): React.ReactElement {
+function UsageUI({ provider, usage, verbose }: UsageUIProps): React.ReactElement {
   // Format number with K/M/B suffixes, no units
   const formatNumber = (num: number): string => {
     if (num === 0) return "0";
@@ -226,9 +214,7 @@ function UsageUI({
       <Table data={data} />
       <Box marginTop={1}>
         <Info>
-          {usage.percentUsed > 80
-            ? "Warning: Usage is above 80%"
-            : "Usage is within safe limits"}
+          {usage.percentUsed > 80 ? "Warning: Usage is above 80%" : "Usage is within safe limits"}
         </Info>
       </Box>
     </Section>
@@ -285,16 +271,15 @@ function AccountUsageItem({
       </Box>
       <Box>
         <Info>
-          {formatNumber(usage.used)} / {formatNumber(usage.limit)} (
-          {usage.percentUsed.toFixed(1)}%)
+          {formatNumber(usage.used)} / {formatNumber(usage.limit)} ({usage.percentUsed.toFixed(1)}%)
         </Info>
         <Info> · Resets: {formatResetsAt(usage.resetsAt)}</Info>
       </Box>
       {usage.weeklyUsage && (
         <Box>
           <Info>
-            Weekly: {formatNumber(usage.weeklyUsage.used)} / {formatNumber(usage.weeklyUsage.limit)} (
-            {usage.weeklyUsage.percentUsed.toFixed(1)}%)
+            Weekly: {formatNumber(usage.weeklyUsage.used)} / {formatNumber(usage.weeklyUsage.limit)}{" "}
+            ({usage.weeklyUsage.percentUsed.toFixed(1)}%)
           </Info>
           <Info> · Resets: {formatResetsAt(usage.weeklyUsage.resetsAt)}</Info>
         </Box>

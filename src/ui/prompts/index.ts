@@ -10,9 +10,7 @@ export async function providerSelection(): Promise<"zai" | "minimax"> {
   return select("Select API provider:", ["zai", "minimax"] as const, 0);
 }
 
-export async function modelSelection(
-  models: readonly string[]
-): Promise<string> {
+export async function modelSelection(models: readonly string[]): Promise<string> {
   const { select } = await import("./select.js");
   return select("Select model:", models, 0);
 }

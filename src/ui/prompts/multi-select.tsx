@@ -77,9 +77,7 @@ export function CustomMultiSelect({
         );
       })}
       <Box marginTop={1}>
-        <Text color="gray">
-          [↑/↓] Navigate &nbsp; [Space] Toggle &nbsp; [Enter] Confirm
-        </Text>
+        <Text color="gray">[↑/↓] Navigate &nbsp; [Space] Toggle &nbsp; [Enter] Confirm</Text>
       </Box>
     </Box>
   );
@@ -131,11 +129,7 @@ function MultiSelectPrompt<T extends string>({
         <Text>{message}</Text>
       </Box>
       <Box paddingLeft={2}>
-        <CustomMultiSelect
-          defaultValue={defaultValues}
-          onSubmit={handleSubmit}
-          options={options}
-        />
+        <CustomMultiSelect defaultValue={defaultValues} onSubmit={handleSubmit} options={options} />
       </Box>
     </Box>
   );
@@ -148,7 +142,7 @@ function MultiSelectPrompt<T extends string>({
 export async function checkbox<T extends string>(
   message: string,
   choices: readonly T[],
-  defaultValues: T[] = []
+  defaultValues: T[] = [],
 ): Promise<T[]> {
   return new Promise((resolve) => {
     const { waitUntilExit } = render(
@@ -157,7 +151,7 @@ export async function checkbox<T extends string>(
         defaultValues={defaultValues}
         message={message}
         onSubmit={resolve}
-      />
+      />,
     );
     waitUntilExit();
   });

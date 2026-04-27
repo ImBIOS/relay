@@ -6,10 +6,7 @@ import { Error as ErrorBadge, Success } from "../../ui/index";
 
 export default class AutoRotate extends BaseCommand<typeof AutoRotate> {
   static description = "Manually trigger rotation";
-  static examples = [
-    "<%= config.bin %> auto rotate",
-    "<%= config.bin %> auto rotate --silent",
-  ];
+  static examples = ["<%= config.bin %> auto rotate", "<%= config.bin %> auto rotate --silent"];
 
   static flags = {
     silent: Flags.boolean({
@@ -38,12 +35,10 @@ export default class AutoRotate extends BaseCommand<typeof AutoRotate> {
               apiKey: newAccount.apiKey,
               baseUrl: newAccount.baseUrl,
             },
-          })
+          }),
         );
       } else {
-        console.log(
-          JSON.stringify({ success: false, error: "No accounts available" })
-        );
+        console.log(JSON.stringify({ success: false, error: "No accounts available" }));
       }
       return;
     }
@@ -56,16 +51,15 @@ export default class AutoRotate extends BaseCommand<typeof AutoRotate> {
       await this.renderApp(
         <Box>
           <Success>
-            {rotated ? "Rotated to" : "Using"}: {newAccount.name} (
-            {newAccount.provider})
+            {rotated ? "Rotated to" : "Using"}: {newAccount.name} ({newAccount.provider})
           </Success>
-        </Box>
+        </Box>,
       );
     } else {
       await this.renderApp(
         <Box>
           <ErrorBadge>No accounts available for rotation.</ErrorBadge>
-        </Box>
+        </Box>,
       );
     }
   }

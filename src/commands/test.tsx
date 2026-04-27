@@ -28,14 +28,12 @@ export default class Test extends BaseCommand<typeof Test> {
           <ErrorBadge>
             {provider.displayName} is not configured. Run "relay config" first.
           </ErrorBadge>
-        </Section>
+        </Section>,
       );
       return;
     }
 
-    await this.renderApp(
-      <TestUI provider={provider} providerName={provider.displayName} />
-    );
+    await this.renderApp(<TestUI provider={provider} providerName={provider.displayName} />);
   }
 }
 
@@ -70,9 +68,7 @@ function TestUI({ provider, providerName }: TestUIProps): React.ReactElement {
         ) : success ? (
           <Success>Connection successful!</Success>
         ) : (
-          <ErrorBadge>
-            Connection failed. Please check your API key and base URL.
-          </ErrorBadge>
+          <ErrorBadge>Connection failed. Please check your API key and base URL.</ErrorBadge>
         )}
       </Box>
     </Section>

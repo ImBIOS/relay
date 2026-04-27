@@ -16,9 +16,7 @@ async function main(): Promise<void> {
 
   trace("Loading provider configs from process.env");
   const zaiConfig = zaiProvider.getConfig();
-  debug(
-    `ZAI baseUrl=${zaiConfig.baseUrl}, apiKey set=${Boolean(zaiConfig.apiKey)}`
-  );
+  debug(`ZAI baseUrl=${zaiConfig.baseUrl}, apiKey set=${Boolean(zaiConfig.apiKey)}`);
 
   if (zaiConfig.apiKey) {
     try {
@@ -37,9 +35,7 @@ async function main(): Promise<void> {
   }
 
   const minimaxConfig = minimaxProvider.getConfig();
-  debug(
-    `MiniMax baseUrl=${minimaxConfig.baseUrl}, apiKey set=${Boolean(minimaxConfig.apiKey)}`
-  );
+  debug(`MiniMax baseUrl=${minimaxConfig.baseUrl}, apiKey set=${Boolean(minimaxConfig.apiKey)}`);
 
   if (minimaxConfig.apiKey) {
     try {

@@ -22,15 +22,13 @@ export default class ProfileDelete extends BaseCommand<typeof ProfileDelete> {
       await this.renderApp(
         <Box>
           <Success>Profile "{name}" deleted.</Success>
-        </Box>
+        </Box>,
       );
     } else {
       await this.renderApp(
         <Box>
-          <ErrorBadge>
-            Failed to delete profile "{name}". It may be active or not exist.
-          </ErrorBadge>
-        </Box>
+          <ErrorBadge>Failed to delete profile "{name}". It may be active or not exist.</ErrorBadge>
+        </Box>,
       );
     }
   }

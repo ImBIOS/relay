@@ -12,7 +12,7 @@ function runCli(
   args: string[],
   stdin?: string,
   cwd?: string,
-  envOverrides?: Record<string, string>
+  envOverrides?: Record<string, string>,
 ) {
   return spawnSync("bun", [RELAY_BIN, ...args], {
     input: stdin,
@@ -68,20 +68,10 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
 
     test("should handle --all flag", () => {
       // Create multiple test files
-      fs.writeFileSync(
-        path.join(TEST_DIR, "file1.ts"),
-        "const    x    =    1;"
-      );
-      fs.writeFileSync(
-        path.join(TEST_DIR, "file2.js"),
-        "const    y    =    2;"
-      );
+      fs.writeFileSync(path.join(TEST_DIR, "file1.ts"), "const    x    =    1;");
+      fs.writeFileSync(path.join(TEST_DIR, "file2.js"), "const    y    =    2;");
 
-      const result = runCli(
-        ["hooks", "post-tool", "--all"],
-        undefined,
-        TEST_DIR
-      );
+      const result = runCli(["hooks", "post-tool", "--all"], undefined, TEST_DIR);
       expect([0, null]).toContain(result.status);
     });
 
@@ -122,16 +112,13 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
   describe("relay hooks stop - Stop Hook", () => {
     test("should read transcript_path from stdin", () => {
       const transcriptPath = path.join(TEST_DIR, "stop-transcript.jsonl");
-      const transcriptContent = [
-        JSON.stringify({ role: "user", content: "Complete task" }),
-      ].join("\n");
+      const transcriptContent = [JSON.stringify({ role: "user", content: "Complete task" })].join(
+        "\n",
+      );
       fs.writeFileSync(transcriptPath, transcriptContent);
 
       const stdin = JSON.stringify({ transcript_path: transcriptPath });
-      const result = runCli(
-        ["hooks", "stop", "--silent", "--no-commit"],
-        stdin
-      );
+      const result = runCli(["hooks", "stop", "--silent", "--no-commit"], stdin);
       expect([0, null]).toContain(result.status);
     });
 
@@ -145,10 +132,7 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
       fs.writeFileSync(transcriptPath, transcriptContent);
 
       const stdin = JSON.stringify({ transcript_path: transcriptPath });
-      const result = runCli(
-        ["hooks", "stop", "--silent", "--no-commit"],
-        stdin
-      );
+      const result = runCli(["hooks", "stop", "--silent", "--no-commit"], stdin);
       expect([0, null]).toContain(result.status);
     });
 
@@ -156,10 +140,7 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
       const stdin = JSON.stringify({
         transcript_path: "/nonexistent/stop-transcript.jsonl",
       });
-      const result = runCli(
-        ["hooks", "stop", "--silent", "--no-commit"],
-        stdin
-      );
+      const result = runCli(["hooks", "stop", "--silent", "--no-commit"], stdin);
       expect([0, null]).toContain(result.status);
     });
 
@@ -168,18 +149,12 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
       fs.writeFileSync(transcriptPath, "");
 
       const stdin = JSON.stringify({ transcript_path: transcriptPath });
-      const result = runCli(
-        ["hooks", "stop", "--silent", "--no-commit"],
-        stdin
-      );
+      const result = runCli(["hooks", "stop", "--silent", "--no-commit"], stdin);
       expect([0, null]).toContain(result.status);
     });
 
     test("should handle invalid JSON stdin gracefully", () => {
-      const result = runCli(
-        ["hooks", "stop", "--silent", "--no-commit"],
-        "not valid json"
-      );
+      const result = runCli(["hooks", "stop", "--silent", "--no-commit"], "not valid json");
       expect([0, null]).toContain(result.status);
     });
 
@@ -203,11 +178,7 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
       fs.writeFileSync(transcriptPath, "");
 
       const stdin = JSON.stringify({ transcript_path: transcriptPath });
-      const result = runCli(
-        ["hooks", "stop", "--silent", "--no-commit"],
-        stdin,
-        gitDir
-      );
+      const result = runCli(["hooks", "stop", "--silent", "--no-commit"], stdin, gitDir);
       expect([0, null]).toContain(result.status);
     });
 
@@ -227,11 +198,7 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
       fs.writeFileSync(transcriptPath, "");
 
       const stdin = JSON.stringify({ transcript_path: transcriptPath });
-      const result = runCli(
-        ["hooks", "stop", "--silent", "--no-commit"],
-        stdin,
-        gitDir
-      );
+      const result = runCli(["hooks", "stop", "--silent", "--no-commit"], stdin, gitDir);
       expect([0, null]).toContain(result.status);
     });
 
@@ -242,24 +209,15 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
       const stdin = JSON.stringify({ transcript_path: transcriptPath });
 
       // Test mode=none with --no-commit (no actual commit attempted)
-      let result = runCli(
-        ["hooks", "stop", "--silent", "--no-commit", "--mode", "none"],
-        stdin
-      );
+      let result = runCli(["hooks", "stop", "--silent", "--no-commit", "--mode", "none"], stdin);
       expect([0, null]).toContain(result.status);
 
       // Test mode=normal with --no-commit
-      result = runCli(
-        ["hooks", "stop", "--silent", "--no-commit", "--mode", "normal"],
-        stdin
-      );
+      result = runCli(["hooks", "stop", "--silent", "--no-commit", "--mode", "normal"], stdin);
       expect([0, null]).toContain(result.status);
 
       // Test mode=critical with --no-commit
-      result = runCli(
-        ["hooks", "stop", "--silent", "--no-commit", "--mode", "critical"],
-        stdin
-      );
+      result = runCli(["hooks", "stop", "--silent", "--no-commit", "--mode", "critical"], stdin);
       expect([0, null]).toContain(result.status);
     });
 
@@ -310,12 +268,7 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
       const settingsPath = path.join(configDir, "settings.json");
       fs.writeFileSync(settingsPath, JSON.stringify({ hooks: {} }, null, 2));
 
-      const result = runCli(
-        ["auto", "hook", "--silent"],
-        undefined,
-        TEST_DIR,
-        { HOME: TEST_DIR }
-      );
+      const result = runCli(["auto", "hook", "--silent"], undefined, TEST_DIR, { HOME: TEST_DIR });
       expect([0, null]).toContain(result.status);
     });
 
@@ -323,12 +276,7 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
       const fakeHome = path.join(TEST_DIR, "nonexistent-home");
       fs.mkdirSync(fakeHome, { recursive: true });
 
-      const result = runCli(
-        ["auto", "hook", "--silent"],
-        undefined,
-        fakeHome,
-        { HOME: fakeHome }
-      );
+      const result = runCli(["auto", "hook", "--silent"], undefined, fakeHome, { HOME: fakeHome });
       expect(result.status).toBeDefined();
     });
   });
@@ -354,18 +302,12 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
         tool_use_id: "toolu_123456",
       };
 
-      const result = runCli(
-        ["hooks", "post-tool", "--silent"],
-        JSON.stringify(claudeCodeInput)
-      );
+      const result = runCli(["hooks", "post-tool", "--silent"], JSON.stringify(claudeCodeInput));
       expect([0, null]).toContain(result.status);
     });
 
     test("Stop hook with Claude Code input format", () => {
-      const transcriptPath = path.join(
-        TEST_DIR,
-        "integration-transcript.jsonl"
-      );
+      const transcriptPath = path.join(TEST_DIR, "integration-transcript.jsonl");
       const transcriptContent = [
         JSON.stringify({
           message: { role: "user", content: "Implement feature" },
@@ -388,7 +330,7 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
 
       const result = runCli(
         ["hooks", "stop", "--silent", "--no-commit"],
-        JSON.stringify(claudeCodeInput)
+        JSON.stringify(claudeCodeInput),
       );
       expect([0, null]).toContain(result.status);
     });

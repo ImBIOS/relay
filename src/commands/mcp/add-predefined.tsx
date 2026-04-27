@@ -4,9 +4,7 @@ import * as mcp from "../../config/mcp";
 import { BaseCommand } from "../../oclif/base";
 import { Error as ErrorBadge, Info, Success } from "../../ui/index";
 
-export default class McpAddPredefined extends BaseCommand<
-  typeof McpAddPredefined
-> {
+export default class McpAddPredefined extends BaseCommand<typeof McpAddPredefined> {
   static description = "Add predefined MCP servers for a provider";
   static examples = [
     "<%= config.bin %> mcp add-predefined zai",
@@ -27,18 +25,15 @@ export default class McpAddPredefined extends BaseCommand<
     if (!["zai", "minimax"].includes(provider)) {
       await this.renderApp(
         <Box>
-          <ErrorBadge>
-            Usage: relay mcp add-predefined &lt;zai|minimax&gt;
-          </ErrorBadge>
-        </Box>
+          <ErrorBadge>Usage: relay mcp add-predefined &lt;zai|minimax&gt;</ErrorBadge>
+        </Box>,
       );
       return;
     }
 
     mcp.addPredefinedServers(provider);
 
-    const predefined =
-      provider === "zai" ? mcp.ZAI_MCP_SERVERS : mcp.MINIMAX_MCP_SERVERS;
+    const predefined = provider === "zai" ? mcp.ZAI_MCP_SERVERS : mcp.MINIMAX_MCP_SERVERS;
     const serverCount = Object.keys(predefined).length;
 
     await this.renderApp(
@@ -47,10 +42,9 @@ export default class McpAddPredefined extends BaseCommand<
           Added {serverCount} predefined {provider.toUpperCase()} MCP servers.
         </Success>
         <Info>
-          Use 'relay mcp list' to see them, then 'relay mcp enable &lt;name&gt;'
-          to enable.
+          Use 'relay mcp list' to see them, then 'relay mcp enable &lt;name&gt;' to enable.
         </Info>
-      </Box>
+      </Box>,
     );
   }
 }

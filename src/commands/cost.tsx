@@ -49,7 +49,7 @@ export default class Cost extends BaseCommand<typeof Cost> {
         <Box flexDirection="column">
           <Warning>Unknown model: {selectedModel}</Warning>
           <Info>Available models: {MODELS.join(", ")}</Info>
-        </Box>
+        </Box>,
       );
       return;
     }

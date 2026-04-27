@@ -13,7 +13,7 @@ interface ResolutionResult {
 }
 
 function pickSingleMatch(matches: AccountConfig[]): AccountConfig | null {
-  return matches.length === 1 ? matches[0] ?? null : null;
+  return matches.length === 1 ? (matches[0] ?? null) : null;
 }
 
 function resolveAccountReference(reference: string): ResolutionResult {
@@ -26,7 +26,7 @@ function resolveAccountReference(reference: string): ResolutionResult {
   }
 
   const nameMatches = accounts.filter(
-    (account) => account.name.trim().toLowerCase() === normalizedReference
+    (account) => account.name.trim().toLowerCase() === normalizedReference,
   );
   const matchedByName = pickSingleMatch(nameMatches);
   if (matchedByName) {
@@ -37,9 +37,7 @@ function resolveAccountReference(reference: string): ResolutionResult {
   }
 
   if (isRelayProvider(normalizedReference)) {
-    const providerMatches = accounts.filter(
-      (account) => account.provider === normalizedReference
-    );
+    const providerMatches = accounts.filter((account) => account.provider === normalizedReference);
     const matchedByProvider = pickSingleMatch(providerMatches);
     if (matchedByProvider) {
       return { account: matchedByProvider, matches: providerMatches };
@@ -76,7 +74,7 @@ export default class AccountSwitch extends BaseCommand<typeof AccountSwitch> {
       settings.setProviderConfig(
         resolution.account.provider,
         resolution.account.apiKey,
-        resolution.account.baseUrl
+        resolution.account.baseUrl,
       );
 
       await this.renderApp(
@@ -85,7 +83,7 @@ export default class AccountSwitch extends BaseCommand<typeof AccountSwitch> {
             Switched to account {resolution.account.name} ({resolution.account.provider})
           </Success>
           <Info>Account ID: {resolution.account.id}</Info>
-        </Box>
+        </Box>,
       );
       return;
     }
@@ -101,7 +99,7 @@ export default class AccountSwitch extends BaseCommand<typeof AccountSwitch> {
               • {account.name} ({account.provider}) — {account.id}
             </Text>
           ))}
-        </Box>
+        </Box>,
       );
       return;
     }
@@ -109,7 +107,7 @@ export default class AccountSwitch extends BaseCommand<typeof AccountSwitch> {
     await this.renderApp(
       <Box>
         <ErrorBadge>Account "{reference}" not found.</ErrorBadge>
-      </Box>
+      </Box>,
     );
   }
 }

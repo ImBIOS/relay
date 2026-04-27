@@ -22,13 +22,13 @@ export default class ProfileSwitch extends BaseCommand<typeof ProfileSwitch> {
       await this.renderApp(
         <Box>
           <Success>Switched to profile "{name}"</Success>
-        </Box>
+        </Box>,
       );
     } else {
       await this.renderApp(
         <Box>
           <ErrorBadge>Profile "{name}" not found.</ErrorBadge>
-        </Box>
+        </Box>,
       );
     }
   }

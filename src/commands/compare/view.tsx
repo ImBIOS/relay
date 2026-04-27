@@ -25,7 +25,7 @@ export default class CompareView extends BaseCommand<typeof CompareView> {
         <Box flexDirection="column">
           <ErrorBadge>Session not found: {sessionId}</ErrorBadge>
           <Info>Use 'relay compare history' to list sessions.</Info>
-        </Box>
+        </Box>,
       );
       return;
     }
@@ -39,7 +39,7 @@ export default class CompareView extends BaseCommand<typeof CompareView> {
           ...session,
           timestamp: new Date(session.timestamp).toLocaleString(),
         }}
-      />
+      />,
     );
 
     await waitUntilExit();

@@ -61,10 +61,7 @@ function ProjectInitUI(): React.ReactElement {
   >([]);
   const [projectPath, setProjectPath] = useState<string>(process.cwd());
 
-  const addMessage = (
-    type: "info" | "success" | "warning" | "error",
-    text: string
-  ) => {
+  const addMessage = (type: "info" | "success" | "warning" | "error", text: string) => {
     setMessages((prev) => [...prev, { type, text }]);
   };
 
@@ -91,20 +88,13 @@ function ProjectInitUI(): React.ReactElement {
           <Box flexDirection="column" marginTop={1}>
             <Text>Welcome to relay Project Init!</Text>
             <Box marginTop={1}>
-              <Text color="gray">
-                This will help you create a CLAUDE.md file for your project.
-              </Text>
+              <Text color="gray">This will help you create a CLAUDE.md file for your project.</Text>
             </Box>
             <Box marginTop={1}>
-              <Text>
-                CLAUDE.md provides project-specific guidelines to Claude Code,
-              </Text>
+              <Text>CLAUDE.md provides project-specific guidelines to Claude Code,</Text>
             </Box>
             <Box marginLeft={2}>
-              <Text>
-                helping AI understand your project&apos;s conventions and best
-                practices.
-              </Text>
+              <Text>helping AI understand your project&apos;s conventions and best practices.</Text>
             </Box>
             <Box marginTop={1}>
               <Text>Continue? </Text>
@@ -131,16 +121,10 @@ function ProjectInitUI(): React.ReactElement {
                   setProjectPath(targetPath);
 
                   if (checkClaideMd(targetPath)) {
-                    addMessage(
-                      "warning",
-                      "CLAUDE.md already exists in this directory."
-                    );
+                    addMessage("warning", "CLAUDE.md already exists in this directory.");
                     setStep("existing-claude-md");
                   } else {
-                    addMessage(
-                      "info",
-                      "No CLAUDE.md found. Will create from template."
-                    );
+                    addMessage("info", "No CLAUDE.md found. Will create from template.");
                     setStep("configure-project");
                   }
                 }}
@@ -153,9 +137,7 @@ function ProjectInitUI(): React.ReactElement {
         {/* Existing CLAUDE.md found */}
         {step === "existing-claude-md" && (
           <Box flexDirection="column" marginTop={1}>
-            <Warning>
-              A CLAUDE.md file already exists in this directory.
-            </Warning>
+            <Warning>A CLAUDE.md file already exists in this directory.</Warning>
             <Box marginTop={1}>
               <Text>What would you like to do?</Text>
             </Box>
@@ -267,10 +249,7 @@ function ProjectInitUI(): React.ReactElement {
               <Box flexDirection="column">
                 <Text>Project: {config.name}</Text>
                 <Text>Description: {config.description}</Text>
-                <Text>
-                  Technologies:{" "}
-                  {config.technology?.join(", ") || "None selected"}
-                </Text>
+                <Text>Technologies: {config.technology?.join(", ") || "None selected"}</Text>
               </Box>
             </Box>
             <Box marginTop={1}>
@@ -283,13 +262,7 @@ function ProjectInitUI(): React.ReactElement {
                 }}
                 onConfirm={() => {
                   setStep("creating");
-                  createClaideMd(
-                    config,
-                    projectPath,
-                    addMessage,
-                    exit,
-                    setStep
-                  );
+                  createClaideMd(config, projectPath, addMessage, exit, setStep);
                 }}
               />
             </Box>
@@ -309,8 +282,8 @@ function ProjectInitUI(): React.ReactElement {
             <Success>Done!</Success>
             <Box marginTop={1}>
               <Text>
-                Your project is now ready for Claude Code. Run{" "}
-                <Text color="cyan">claude</Text> to start coding.
+                Your project is now ready for Claude Code. Run <Text color="cyan">claude</Text> to
+                start coding.
               </Text>
             </Box>
           </Box>
@@ -323,12 +296,9 @@ function ProjectInitUI(): React.ReactElement {
 async function createClaideMd(
   config: Partial<ProjectConfig>,
   projectPath: string,
-  addMessage: (
-    type: "info" | "success" | "warning" | "error",
-    text: string
-  ) => void,
+  addMessage: (type: "info" | "success" | "warning" | "error", text: string) => void,
   exit: () => void,
-  setStep: (step: string) => void
+  setStep: (step: string) => void,
 ) {
   try {
     // Read template
@@ -339,10 +309,7 @@ async function createClaideMd(
 
     // Replace project name
     const projectName = config.name || path.basename(projectPath);
-    claudeMdContent = claudeMdContent.replace(
-      /# `projectName`'/s,
-      `# \`${projectName}\`'`
-    );
+    claudeMdContent = claudeMdContent.replace(/# `projectName`'/s, `# \`${projectName}\`'`);
 
     // Update project overview
     const overview =
@@ -350,7 +317,7 @@ async function createClaideMd(
       `A ${config.technology?.[0] || "project"} built with modern best practices.`;
     claudeMdContent = claudeMdContent.replace(
       /This is a React TypeScript application for project management with a Bun backend\./s,
-      overview
+      overview,
     );
 
     // Update technology stack
@@ -368,26 +335,24 @@ async function createClaideMd(
     }
 
     // Find database in tech stack
-    const dbTech = techStack.find((t) =>
-      ["PostgreSQL", "MongoDB", "Redis", "SQLite"].includes(t)
-    );
+    const dbTech = techStack.find((t) => ["PostgreSQL", "MongoDB", "Redis", "SQLite"].includes(t));
     if (dbTech) {
       database = dbTech;
     }
 
     claudeMdContent = claudeMdContent.replace(
       /- Frontend: React 19, TypeScript 5\.9, Vite, TailwindCSS 4/s,
-      `- Frontend: ${frontend}`
+      `- Frontend: ${frontend}`,
     );
 
     claudeMdContent = claudeMdContent.replace(
       /- Backend: Bun, Elysia, TypeScript, oRPC, Drizzle ORM/s,
-      `- Backend: ${backend}`
+      `- Backend: ${backend}`,
     );
 
     claudeMdContent = claudeMdContent.replace(
       /- Database: PostgreSQL 18/s,
-      `- Database: ${database}`
+      `- Database: ${database}`,
     );
 
     // Update testing tools based on selections
@@ -399,7 +364,7 @@ async function createClaideMd(
 
     claudeMdContent = claudeMdContent.replace(
       /- Testing: Bun, happy-dom,React Testing Library, Playwright, Maestro/s,
-      `- Testing: ${testingTools}`
+      `- Testing: ${testingTools}`,
     );
 
     // Write CLAUDE.md

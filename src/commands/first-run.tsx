@@ -24,13 +24,7 @@ import {
 } from "../config/provider-metadata";
 import * as settings from "../config/settings";
 import { BaseCommand } from "../oclif/base";
-import {
-  CustomMultiSelect,
-  Info,
-  Section,
-  Success,
-  Warning,
-} from "../ui/index";
+import { CustomMultiSelect, Info, Section, Success, Warning } from "../ui/index";
 import { getContainerEnvVars } from "../utils/container";
 
 const PROVIDERS = listRelayProviders().map((provider) => ({
@@ -57,9 +51,7 @@ interface NonInteractiveFirstRunFlags {
 
 function isRawModeSupported(): boolean {
   const stdin = process.stdin as { isRawModeSupported?: boolean };
-  return (
-    typeof stdin.isRawModeSupported === "boolean" && stdin.isRawModeSupported
-  );
+  return typeof stdin.isRawModeSupported === "boolean" && stdin.isRawModeSupported;
 }
 
 function getConfiguredProviders(): RelayProvider[] {
@@ -68,7 +60,7 @@ function getConfiguredProviders(): RelayProvider[] {
     ...new Set(
       Object.values(config.accounts)
         .map((account) => account.provider)
-        .filter(isRelayProvider)
+        .filter(isRelayProvider),
     ),
   ];
 }
@@ -88,7 +80,7 @@ function isProviderConfigured(provider: RelayProvider): boolean {
 
 function upsertProviderAccount(
   setup: ProviderSetup,
-  activate: boolean
+  activate: boolean,
 ): { account: AccountConfig; action: "created" | "updated" } {
   const existingAccount = findProviderAccount(setup.provider);
 
@@ -118,7 +110,7 @@ function upsertProviderAccount(
     setup.provider,
     setup.apiKey,
     setup.baseUrl,
-    setup.groupId
+    setup.groupId,
   );
 
   settings.setProviderConfig(setup.provider, created.apiKey, created.baseUrl);
@@ -166,10 +158,10 @@ function installClaudeHooks(): { installed: boolean; message: string } {
           (hook: any) =>
             hook?.type === "command" &&
             typeof hook?.command === "string" &&
-          (hook.command === hookCommand ||
-            hook.command.includes("hooks session-start") ||
-            hook.command.includes("auto hook"))
-        )
+            (hook.command === hookCommand ||
+              hook.command.includes("hooks session-start") ||
+              hook.command.includes("auto hook")),
+        ),
     );
 
     if (!sessionStartExists) {
@@ -190,8 +182,8 @@ function installClaudeHooks(): { installed: boolean; message: string } {
           (hook: any) =>
             hook?.type === "command" &&
             typeof hook?.command === "string" &&
-            (hook.command === stopCommand || hook.command.includes("hooks stop"))
-        )
+            (hook.command === stopCommand || hook.command.includes("hooks stop")),
+        ),
     );
 
     if (!stopExists) {
@@ -249,7 +241,7 @@ function collectProviders(flags: NonInteractiveFirstRunFlags): RelayProvider[] {
       }
       if (!isRelayProvider(rawProvider)) {
         throw new Error(
-          `Unsupported provider \"${rawProvider}\". Use one of: ${listRelayProviders().join(", ")}.`
+          `Unsupported provider \"${rawProvider}\". Use one of: ${listRelayProviders().join(", ")}.`,
         );
       }
       providers.add(rawProvider);
@@ -269,24 +261,20 @@ function collectProviders(flags: NonInteractiveFirstRunFlags): RelayProvider[] {
 function hasNonInteractiveInput(flags: NonInteractiveFirstRunFlags): boolean {
   return Boolean(
     flags.providers ||
-      flags.zaiApiKey ||
-      flags.zaiBaseUrl ||
-      flags.minimaxApiKey ||
-      flags.minimaxBaseUrl ||
-      flags.minimaxGroupId ||
-      flags.installHooks
+    flags.zaiApiKey ||
+    flags.zaiBaseUrl ||
+    flags.minimaxApiKey ||
+    flags.minimaxBaseUrl ||
+    flags.minimaxGroupId ||
+    flags.installHooks,
   );
 }
 
-async function runNonInteractiveFirstRun(
-  flags: NonInteractiveFirstRunFlags
-): Promise<void> {
+async function runNonInteractiveFirstRun(flags: NonInteractiveFirstRunFlags): Promise<void> {
   const providers = collectProviders(flags);
 
   if (providers.length === 0) {
-    throw new Error(
-      "Non-interactive onboarding requires --providers or provider-specific flags."
-    );
+    throw new Error("Non-interactive onboarding requires --providers or provider-specific flags.");
   }
 
   const summary: string[] = [];
@@ -298,18 +286,14 @@ async function runNonInteractiveFirstRun(
     const baseUrl =
       provider === "zai"
         ? flags.zaiBaseUrl || existingAccount?.baseUrl || getDefaultBaseUrl("zai")
-        : flags.minimaxBaseUrl ||
-          existingAccount?.baseUrl ||
-          getDefaultBaseUrl("minimax");
+        : flags.minimaxBaseUrl || existingAccount?.baseUrl || getDefaultBaseUrl("minimax");
     const groupId =
-      provider === "minimax"
-        ? flags.minimaxGroupId || existingAccount?.groupId
-        : undefined;
+      provider === "minimax" ? flags.minimaxGroupId || existingAccount?.groupId : undefined;
 
     if (!apiKey) {
       if (!existingAccount) {
         throw new Error(
-          `Missing API key for ${provider}. Provide ${provider === "zai" ? "--zai-api-key" : "--minimax-api-key"}.`
+          `Missing API key for ${provider}. Provide ${provider === "zai" ? "--zai-api-key" : "--minimax-api-key"}.`,
         );
       }
 
@@ -320,7 +304,7 @@ async function runNonInteractiveFirstRun(
         activated = true;
       }
       summary.push(
-        `Reused existing ${getProviderDisplayName(provider)} account ${existingAccount.name} (${existingAccount.id}).`
+        `Reused existing ${getProviderDisplayName(provider)} account ${existingAccount.name} (${existingAccount.id}).`,
       );
       continue;
     }
@@ -332,7 +316,7 @@ async function runNonInteractiveFirstRun(
         baseUrl,
         groupId,
       },
-      !activated
+      !activated,
     );
 
     if (!activated) {
@@ -340,7 +324,7 @@ async function runNonInteractiveFirstRun(
     }
 
     summary.push(
-      `${action === "created" ? "Added" : "Updated"} ${getProviderDisplayName(provider)} account ${account.name} (${account.id}).`
+      `${action === "created" ? "Added" : "Updated"} ${getProviderDisplayName(provider)} account ${account.name} (${account.id}).`,
     );
   }
 
@@ -361,7 +345,7 @@ async function runNonInteractiveFirstRun(
   console.log("Next steps:");
   console.log("- relay status");
   if (flags.installHooks) {
-    console.log("- claude -p \"Reply with exactly RELAY_OK\"");
+    console.log('- claude -p "Reply with exactly RELAY_OK"');
   } else {
     console.log("- relay proxy start");
   }
@@ -378,8 +362,7 @@ export default class FirstRun extends BaseCommand<typeof FirstRun> {
 
   static flags = {
     providers: Flags.string({
-      description:
-        "Comma-separated providers to configure non-interactively (zai,minimax)",
+      description: "Comma-separated providers to configure non-interactively (zai,minimax)",
     }),
     "zai-api-key": Flags.string({ description: "Z.AI API key" }),
     "zai-base-url": Flags.string({ description: "Override Z.AI base URL" }),
@@ -415,17 +398,14 @@ export default class FirstRun extends BaseCommand<typeof FirstRun> {
       await this.renderApp(
         <Section title="relay First-Run Setup">
           <Box flexDirection="column">
-            <Warning>
-              Interactive onboarding requires a TTY-enabled terminal.
-            </Warning>
+            <Warning>Interactive onboarding requires a TTY-enabled terminal.</Warning>
+            <Info>Use non-interactive onboarding in containers and CI, for example:</Info>
             <Info>
-              Use non-interactive onboarding in containers and CI, for example:
-            </Info>
-            <Info>
-              relay init --providers zai,minimax --zai-api-key sk-xxx --minimax-api-key mmkey-xxx --install-hooks
+              relay init --providers zai,minimax --zai-api-key sk-xxx --minimax-api-key mmkey-xxx
+              --install-hooks
             </Info>
           </Box>
-        </Section>
+        </Section>,
       );
       return;
     }
@@ -447,14 +427,11 @@ function FirstRunUI(): React.ReactElement {
   const { exit } = useApp();
   const configuredProviders = getConfiguredProviders();
   const [step, setStep] = useState<Step>("welcome");
-  const [selectedProviders, setSelectedProviders] = useState<RelayProvider[]>(
-    configuredProviders
-  );
+  const [selectedProviders, setSelectedProviders] = useState<RelayProvider[]>(configuredProviders);
   const [currentProviderIndex, setCurrentProviderIndex] = useState(0);
   const [currentSetup, setCurrentSetup] = useState<Partial<ProviderSetup>>({});
-  const [completedProviders, setCompletedProviders] = useState<RelayProvider[]>(
-    configuredProviders
-  );
+  const [completedProviders, setCompletedProviders] =
+    useState<RelayProvider[]>(configuredProviders);
   const [hooksInstalled, setHooksInstalled] = useState(false);
   const [messages, setMessages] = useState<
     Array<{ type: "info" | "success" | "warning"; text: string }>
@@ -495,9 +472,7 @@ function FirstRunUI(): React.ReactElement {
     setCurrentProviderIndex(0);
     setCurrentSetup({});
 
-    const allConfigured = validProviders.every((provider) =>
-      isProviderConfigured(provider)
-    );
+    const allConfigured = validProviders.every((provider) => isProviderConfigured(provider));
 
     if (allConfigured) {
       addMessage("info", "All selected providers already configured.");
@@ -535,10 +510,7 @@ function FirstRunUI(): React.ReactElement {
     }
 
     if (!apiKey) {
-      addMessage(
-        "warning",
-        `Skipping ${currentProvider.toUpperCase()} - no API key provided.`
-      );
+      addMessage("warning", `Skipping ${currentProvider.toUpperCase()} - no API key provided.`);
       moveToNextProvider();
       return;
     }
@@ -566,15 +538,15 @@ function FirstRunUI(): React.ReactElement {
         baseUrl: baseUrl || getDefaultBaseUrl(currentProvider),
         groupId: currentSetup.groupId,
       },
-      shouldActivate
+      shouldActivate,
     );
 
     addMessage(
       "success",
-      `${currentProvider.toUpperCase()} ${result.action === "created" ? "configured" : "updated"} successfully!`
+      `${currentProvider.toUpperCase()} ${result.action === "created" ? "configured" : "updated"} successfully!`,
     );
     setCompletedProviders((prev) =>
-      prev.includes(currentProvider) ? prev : [...prev, currentProvider]
+      prev.includes(currentProvider) ? prev : [...prev, currentProvider],
     );
     moveToNextProvider();
   };
@@ -676,15 +648,12 @@ function FirstRunUI(): React.ReactElement {
         {step === "enter-api-key" && currentProvider && (
           <Box flexDirection="column" marginTop={1}>
             <Text>Enter API Key for {currentProvider}: </Text>
-            <PasswordInput
-              onSubmit={handleApiKeySubmit}
-              placeholder="Enter API key..."
-            />
+            <PasswordInput onSubmit={handleApiKeySubmit} placeholder="Enter API key..." />
             {currentProvider === "minimax" && (
               <Box marginTop={1}>
                 <Text color="gray">
-                  MiniMax GroupId is optional here. Add it later with "relay account edit"
-                  if you want detailed usage tracking.
+                  MiniMax GroupId is optional here. Add it later with "relay account edit" if you
+                  want detailed usage tracking.
                 </Text>
               </Box>
             )}
@@ -699,9 +668,7 @@ function FirstRunUI(): React.ReactElement {
               onSubmit={handleBaseUrlSubmit}
             />
             <Box marginTop={1}>
-              <Text color="gray">
-                Press Enter to keep the recommended default.
-              </Text>
+              <Text color="gray">Press Enter to keep the recommended default.</Text>
             </Box>
           </Box>
         )}
@@ -747,8 +714,7 @@ function FirstRunUI(): React.ReactElement {
             <Box marginLeft={2}>
               <Text>
                 • Providers:{" "}
-                {completedProviders.map((provider) => provider.toUpperCase()).join(", ") ||
-                  "None"}
+                {completedProviders.map((provider) => provider.toUpperCase()).join(", ") || "None"}
               </Text>
             </Box>
             <Box marginLeft={2}>
@@ -772,9 +738,7 @@ function FirstRunUI(): React.ReactElement {
                       <Text>• Run "relay proxy start" to launch the local proxy</Text>
                     </Box>
                     <Box marginLeft={2}>
-                      <Text>
-                        • Point Claude Code at http://127.0.0.1:8787/api/anthropic
-                      </Text>
+                      <Text>• Point Claude Code at http://127.0.0.1:8787/api/anthropic</Text>
                     </Box>
                   </>
                 )}

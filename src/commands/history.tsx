@@ -20,9 +20,7 @@ export default class History extends BaseCommand<typeof History> {
     const activeProvider = settings.getActiveProvider();
     const history = settings.getUsageHistory(activeProvider);
 
-    await this.renderApp(
-      <HistoryUI history={history} provider={activeProvider} />
-    );
+    await this.renderApp(<HistoryUI history={history} provider={activeProvider} />);
   }
 }
 
@@ -54,8 +52,7 @@ function HistoryUI({ provider, history }: HistoryUIProps): React.ReactElement {
         </Text>
         <Box marginTop={1} />
         {history.map((record) => {
-          const percent =
-            record.limit > 0 ? (record.used / record.limit) * 100 : 0;
+          const percent = record.limit > 0 ? (record.used / record.limit) * 100 : 0;
           const filledBars = Math.ceil(percent / 5);
           const emptyBars = 20 - filledBars;
           const bar = "█".repeat(filledBars) + "░".repeat(emptyBars);

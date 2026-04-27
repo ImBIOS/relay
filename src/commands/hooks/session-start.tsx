@@ -88,10 +88,7 @@ async function isProxyHealthy(port: number): Promise<boolean> {
   }
 }
 
-async function ensureRelayProxyRunning(
-  port: number,
-  silent: boolean,
-): Promise<void> {
+async function ensureRelayProxyRunning(port: number, silent: boolean): Promise<void> {
   if (await isProxyHealthy(port)) {
     return;
   }
@@ -109,9 +106,7 @@ async function ensureRelayProxyRunning(
         }
 
         if (!silent) {
-          console.error(
-            `Relay proxy process ${pid} is running but not healthy on port ${port}.`,
-          );
+          console.error(`Relay proxy process ${pid} is running but not healthy on port ${port}.`);
         }
         return;
       }
@@ -171,9 +166,7 @@ async function ensureRelayProxyRunning(
  *
  * Usage: relay hooks session-start [--silent]
  */
-export default class HooksSessionStart extends BaseCommand<
-  typeof HooksSessionStart
-> {
+export default class HooksSessionStart extends BaseCommand<typeof HooksSessionStart> {
   static description =
     "SessionStart hook - rotate provider, ensure proxy, and apply Claude settings";
   static examples = [
@@ -256,9 +249,7 @@ export default class HooksSessionStart extends BaseCommand<
       ANTHROPIC_AUTH_TOKEN: DEFAULT_PROXY_TOKEN,
       ANTHROPIC_BASE_URL: getProxyBaseUrl(proxyPort),
       API_TIMEOUT_MS:
-        typeof restEnv.API_TIMEOUT_MS === "string"
-          ? restEnv.API_TIMEOUT_MS
-          : "3000000",
+        typeof restEnv.API_TIMEOUT_MS === "string" ? restEnv.API_TIMEOUT_MS : "3000000",
       CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC:
         restEnv.CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC ?? 1,
       ANTHROPIC_DEFAULT_OPUS_MODEL:
@@ -320,10 +311,7 @@ export default class HooksSessionStart extends BaseCommand<
 
     if (existsSync(cacheMarker)) {
       try {
-        const markerTime = Number.parseInt(
-          readFileSync(cacheMarker, "utf-8").trim(),
-          10,
-        );
+        const markerTime = Number.parseInt(readFileSync(cacheMarker, "utf-8").trim(), 10);
         if (Date.now() - markerTime < PLUGIN_CACHE_TTL_MS) {
           return; // Plugins were installed recently, skip
         }
@@ -390,13 +378,10 @@ export default class HooksSessionStart extends BaseCommand<
             if (!silent) {
               console.log(`Installing Z.AI plugin: ${pluginName}`);
             }
-            execSync(
-              `claude plugin marketplace install zai-org/zai-coding-plugins ${pluginName}`,
-              {
-                stdio: silent ? "pipe" : "inherit",
-                timeout: PLUGIN_COMMAND_TIMEOUT_MS,
-              },
-            );
+            execSync(`claude plugin marketplace install zai-org/zai-coding-plugins ${pluginName}`, {
+              stdio: silent ? "pipe" : "inherit",
+              timeout: PLUGIN_COMMAND_TIMEOUT_MS,
+            });
           }
         }
       }

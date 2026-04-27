@@ -11,11 +11,9 @@ export interface IsolatedSession {
 
 export function createIsolatedSession(
   provider: "zai" | "minimax",
-  sessionId?: string
+  sessionId?: string,
 ): IsolatedSession {
-  const id =
-    sessionId ||
-    `compare_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const id = sessionId || `compare_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const basePath = `/tmp/imbios-compare/${id}`;
   const providerPath = path.join(basePath, provider);
   const claudeDir = path.join(providerPath, ".claude");
@@ -32,10 +30,7 @@ export function createIsolatedSession(
   };
 }
 
-export function generateClaudeMd(
-  provider: "zai" | "minimax",
-  customInstructions?: string
-): string {
+export function generateClaudeMd(provider: "zai" | "minimax", customInstructions?: string): string {
   const providerInstructions = {
     zai: `# Z.AI Provider Instructions
 
@@ -95,14 +90,11 @@ export function setupSessionFiles(
   session: IsolatedSession,
   apiKey: string,
   baseUrl: string,
-  customInstructions?: string
+  customInstructions?: string,
 ): void {
   // Write CLAUDE.md
   const claudeMdPath = path.join(session.claudeDir, "CLAUDE.md");
-  fs.writeFileSync(
-    claudeMdPath,
-    generateClaudeMd(session.provider, customInstructions)
-  );
+  fs.writeFileSync(claudeMdPath, generateClaudeMd(session.provider, customInstructions));
 
   // Write .env file
   const envPath = path.join(session.claudeDir, ".env");
@@ -120,15 +112,12 @@ export function setupSessionFiles(
         mcpServers: {},
       },
       null,
-      2
-    )
+      2,
+    ),
   );
 }
 
-export function symlinkProjectFiles(
-  projectPath: string,
-  sessionPath: string
-): void {
+export function symlinkProjectFiles(projectPath: string, sessionPath: string): void {
   if (!fs.existsSync(projectPath)) {
     return;
   }
@@ -231,9 +220,7 @@ export function loadCompareHistory(): CompareSessionRecord[] {
   return [];
 }
 
-export function getCompareSession(
-  id: string
-): CompareSessionRecord | undefined {
+export function getCompareSession(id: string): CompareSessionRecord | undefined {
   const history = loadCompareHistory();
   return history.find((s) => s.id === id);
 }

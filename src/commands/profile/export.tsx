@@ -25,7 +25,7 @@ export default class ProfileExport extends BaseCommand<typeof ProfileExport> {
       await this.renderApp(
         <Box>
           <ErrorBadge>No active profile. Specify a profile name.</ErrorBadge>
-        </Box>
+        </Box>,
       );
       return;
     }
@@ -38,13 +38,13 @@ export default class ProfileExport extends BaseCommand<typeof ProfileExport> {
       await this.renderApp(
         <Box>
           <Info>Run 'eval "$(relay profile export {name})"' to apply.</Info>
-        </Box>
+        </Box>,
       );
     } else {
       await this.renderApp(
         <Box>
           <ErrorBadge>Profile "{name}" not found.</ErrorBadge>
-        </Box>
+        </Box>,
       );
     }
   }

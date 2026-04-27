@@ -58,17 +58,10 @@ function ConfirmPrompt({
  * Show a confirm prompt and return the user's choice.
  * Replaces inquirer's confirm() function.
  */
-export async function confirm(
-  message: string,
-  defaultValue = true
-): Promise<boolean> {
+export async function confirm(message: string, defaultValue = true): Promise<boolean> {
   return new Promise((resolve) => {
     const { waitUntilExit } = render(
-      <ConfirmPrompt
-        defaultValue={defaultValue}
-        message={message}
-        onSubmit={resolve}
-      />
+      <ConfirmPrompt defaultValue={defaultValue} message={message} onSubmit={resolve} />,
     );
     waitUntilExit();
   });

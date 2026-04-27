@@ -30,19 +30,9 @@ export interface NotificationConfig {
   enabled: boolean;
 }
 
-export type RotationStrategy =
-  | "round-robin"
-  | "least-used"
-  | "priority"
-  | "random";
+export type RotationStrategy = "round-robin" | "least-used" | "priority" | "random";
 
-export type SoundFlavor =
-  | "default"
-  | "warcraft"
-  | "retro"
-  | "classic-doom"
-  | "pokemon"
-  | "zelda";
+export type SoundFlavor = "default" | "warcraft" | "retro" | "classic-doom" | "pokemon" | "zelda";
 
 export interface SoundConfig {
   flavor: SoundFlavor;
@@ -110,7 +100,7 @@ export const DEFAULT_CONFIG: RELAYConfig = {
 };
 
 export function getConfigPath(): string {
-  return `${process.env.HOME || process.env.USERPROFILE}/.claude/relay.json`;
+  return `${process.env.HOME || process.env.USERPROFILE}/.config/relay/settings.json`;
 }
 
 export function loadConfig(): RELAYConfig {
@@ -152,7 +142,7 @@ export function addAccount(
   provider: "zai" | "minimax",
   apiKey: string,
   baseUrl: string,
-  groupId?: string
+  groupId?: string,
 ): AccountConfig {
   const id = generateAccountId();
   const now = new Date().toISOString();
@@ -180,10 +170,7 @@ export function addAccount(
   return account;
 }
 
-export function updateAccount(
-  id: string,
-  updates: Partial<AccountConfig>
-): AccountConfig | null {
+export function updateAccount(id: string, updates: Partial<AccountConfig>): AccountConfig | null {
   const config = loadConfig();
   const account = config.accounts[id];
 
@@ -272,9 +259,7 @@ export function setActiveMcpProvider(id: string): boolean {
   return true;
 }
 
-export function rotateApiKey(
-  provider: "zai" | "minimax"
-): AccountConfig | null {
+export function rotateApiKey(provider: "zai" | "minimax"): AccountConfig | null {
   const config = loadConfig();
   const providerAccounts = Object.values(config.accounts)
     .filter((a) => a.provider === provider && a.isActive)
@@ -289,9 +274,7 @@ export function rotateApiKey(
     return null;
   }
 
-  const currentIndex = providerAccounts.findIndex(
-    (a) => a.id === config.activeAccountId
-  );
+  const currentIndex = providerAccounts.findIndex((a) => a.id === config.activeAccountId);
   const nextIndex = (currentIndex + 1) % providerAccounts.length;
   const nextAccount = providerAccounts[nextIndex];
 
@@ -328,10 +311,7 @@ export function checkAlerts(usage: {
   return triggered;
 }
 
-export function updateAlert(
-  id: string,
-  updates: Partial<AlertConfig>
-): AlertConfig | null {
+export function updateAlert(id: string, updates: Partial<AlertConfig>): AlertConfig | null {
   const config = loadConfig();
   const alertIndex = config.alerts.findIndex((a) => a.id === id);
 
@@ -344,11 +324,7 @@ export function updateAlert(
   return config.alerts[alertIndex];
 }
 
-export function toggleDashboard(
-  enabled: boolean,
-  port?: number,
-  host?: string
-): void {
+export function toggleDashboard(enabled: boolean, port?: number, host?: string): void {
   const config = loadConfig();
   config.dashboard.enabled = enabled;
   if (port) {
@@ -358,9 +334,7 @@ export function toggleDashboard(
     config.dashboard.host = host;
   }
   if (enabled && !config.dashboard.authToken) {
-    config.dashboard.authToken = `relay_${Math.random()
-      .toString(36)
-      .slice(2, 16)}`;
+    config.dashboard.authToken = `relay_${Math.random().toString(36).slice(2, 16)}`;
   }
   saveConfig(config);
 }
@@ -380,7 +354,7 @@ export function updateSoundConfig(updates: Partial<SoundConfig>): SoundConfig {
 export function configureRotation(
   enabled: boolean,
   strategy?: RotationStrategy,
-  crossProvider?: boolean
+  crossProvider?: boolean,
 ): void {
   const config = loadConfig();
   config.rotation.enabled = enabled;
@@ -486,8 +460,7 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
       if (otherAccounts.length === 0) {
         nextAccount = allAccounts[0];
       } else {
-        nextAccount =
-          otherAccounts[Math.floor(Math.random() * otherAccounts.length)];
+        nextAccount = otherAccounts[Math.floor(Math.random() * otherAccounts.length)];
       }
       break;
     }
@@ -506,7 +479,7 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
         allAccounts.map(async (acc) => ({
           account: acc,
           usage: await fetchAndUpdateUsage(acc),
-        }))
+        })),
       );
 
       // Sort by actual usage (lowest first)

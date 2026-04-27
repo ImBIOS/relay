@@ -30,15 +30,10 @@ export default class Plugin extends BaseCommand<typeof Plugin> {
         await this.renderApp(
           <Section title="Claude Code Plugin">
             <Box flexDirection="column">
-              <Info>
-                Plugin manifest installed at:
-                ~/.claude/.claude-plugin/manifest.json
-              </Info>
-              <Success>
-                Plugin installed! Restart Claude Code to see new commands.
-              </Success>
+              <Info>Plugin manifest installed at: ~/.claude/.claude-plugin/manifest.json</Info>
+              <Success>Plugin installed! Restart Claude Code to see new commands.</Success>
             </Box>
-          </Section>
+          </Section>,
         );
         break;
 
@@ -49,7 +44,7 @@ export default class Plugin extends BaseCommand<typeof Plugin> {
               <Info>Remove the plugin manifest manually to uninstall.</Info>
               <Info>Path: {pluginManifestPath}</Info>
             </Box>
-          </Section>
+          </Section>,
         );
         break;
 
@@ -57,7 +52,7 @@ export default class Plugin extends BaseCommand<typeof Plugin> {
         await this.renderApp(
           <Section title="Claude Code Plugin">
             <Success>Plugin updated to latest version.</Success>
-          </Section>
+          </Section>,
         );
         break;
 

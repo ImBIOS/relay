@@ -73,18 +73,18 @@ If you prefer to wire it manually, add the relay proxy environment to `~/.claude
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `relay proxy start` | Start proxy on port 8787 manually |
-| `relay proxy stop` | Stop the proxy |
-| `relay proxy status` | Show status + recent request log |
-| `relay account list` | List all configured accounts |
-| `relay account switch <reference>` | Switch by account id, name, or provider |
-| `relay account add` | Add a new account interactively |
-| `relay account add --name ... --provider ... --key ...` | Add a new account non-interactively |
-| `relay init` | Interactive first-run onboarding |
-| `relay init --providers ...` | Non-interactive onboarding for Docker/CI |
-| `relay dashboard` | Open the web dashboard |
+| Command                                                 | Description                              |
+| ------------------------------------------------------- | ---------------------------------------- |
+| `relay proxy start`                                     | Start proxy on port 8787 manually        |
+| `relay proxy stop`                                      | Stop the proxy                           |
+| `relay proxy status`                                    | Show status + recent request log         |
+| `relay account list`                                    | List all configured accounts             |
+| `relay account switch <reference>`                      | Switch by account id, name, or provider  |
+| `relay account add`                                     | Add a new account interactively          |
+| `relay account add --name ... --provider ... --key ...` | Add a new account non-interactively      |
+| `relay init`                                            | Interactive first-run onboarding         |
+| `relay init --providers ...`                            | Non-interactive onboarding for Docker/CI |
+| `relay dashboard`                                       | Open the web dashboard                   |
 
 ## How the proxy works
 

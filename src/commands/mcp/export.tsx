@@ -29,24 +29,20 @@ export default class McpExport extends BaseCommand<typeof McpExport> {
       await this.renderApp(
         <Box>
           <Info>Run 'eval "$(relay mcp export env)"' to apply.</Info>
-        </Box>
+        </Box>,
       );
     } else if (format === "claude") {
       console.log(mcp.generateClaudeDesktopConfig());
       await this.renderApp(
         <Box>
-          <Info>
-            Save this to ~/.config/claude/mcp.json for Claude Desktop.
-          </Info>
-        </Box>
+          <Info>Save this to ~/.config/claude/mcp.json for Claude Desktop.</Info>
+        </Box>,
       );
     } else {
       await this.renderApp(
         <Box>
-          <ErrorBadge>
-            Unknown format: {format}. Use 'env' or 'claude'.
-          </ErrorBadge>
-        </Box>
+          <ErrorBadge>Unknown format: {format}. Use 'env' or 'claude'.</ErrorBadge>
+        </Box>,
       );
     }
   }

@@ -9,8 +9,7 @@ const PLUGIN_DESCRIPTIONS: Record<string, string> = {
   "relay-commit":
     "AI-powered auto stage, commit, and push with parallel security + performance analysis",
   "relay-format": "Format files after Write/Edit tool calls",
-  "relay-security-analysis":
-    "Analyze staged changes for security vulnerabilities before commit",
+  "relay-security-analysis": "Analyze staged changes for security vulnerabilities before commit",
   "relay-performance-analysis":
     "Analyze staged changes for performance anti-patterns before commit",
 };
@@ -30,7 +29,10 @@ export default class PluginsInstall extends BaseCommand<typeof PluginsInstall> {
         fs.mkdirSync(GLOBAL_PLUGIN_DIR, { recursive: true });
       }
 
-      const pluginSrcDir = path.join(this.config.root, "node_modules/@alsafa/relay-opencode-plugins/dist");
+      const pluginSrcDir = path.join(
+        this.config.root,
+        "node_modules/@alsafa/relay-opencode-plugins/dist",
+      );
       const pluginFiles = [
         "relay-commit.js",
         "relay-format.js",

@@ -104,9 +104,7 @@ describe("relay hook - Disaster Prevention Tests", () => {
 
       // Untracked file should still exist
       expect(fs.existsSync(untrackedFile)).toBe(true);
-      expect(fs.readFileSync(untrackedFile, "utf-8")).toBe(
-        "Important uncommitted work"
-      );
+      expect(fs.readFileSync(untrackedFile, "utf-8")).toBe("Important uncommitted work");
     });
 
     test("should handle missing settings.json gracefully", () => {
@@ -177,9 +175,7 @@ describe("relay hook - Disaster Prevention Tests", () => {
       });
 
       // Read config to see if rotation happened
-      const configAfterFirst = JSON.parse(
-        fs.readFileSync(CONFIG_PATH, "utf-8")
-      );
+      const configAfterFirst = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
       // With round-robin, starting at acc_test_1 should rotate to acc_test_2
       const firstAccountId = configAfterFirst.activeAccountId;
 
@@ -194,9 +190,7 @@ describe("relay hook - Disaster Prevention Tests", () => {
 
       Bun.sleep(100);
 
-      const configAfterSecond = JSON.parse(
-        fs.readFileSync(CONFIG_PATH, "utf-8")
-      );
+      const configAfterSecond = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
       const secondAccountId = configAfterSecond.activeAccountId;
 
       // Should have rotated (in round-robin, it goes to next account)
@@ -323,16 +317,10 @@ describe("Git Reset Disaster - Prevention & Recovery", () => {
       // In normal git operation, reset --hard doesn't delete untracked files
       // The actual disaster scenario involved merge conflicts + stashes
       if (fileExists) {
-        console.log(
-          "\n✓ GOOD: git reset --hard preserved untracked files (expected behavior)"
-        );
+        console.log("\n✓ GOOD: git reset --hard preserved untracked files (expected behavior)");
       } else {
-        console.warn(
-          "\n⚠️  DISASTER #1 CONFIRMED: git reset --hard deleted untracked files!"
-        );
-        console.warn(
-          "This is the bug that caused the data loss incident on 2026-02-05"
-        );
+        console.warn("\n⚠️  DISASTER #1 CONFIRMED: git reset --hard deleted untracked files!");
+        console.warn("This is the bug that caused the data loss incident on 2026-02-05");
       }
     });
 
@@ -421,9 +409,7 @@ describe("Git Reset Disaster - Prevention & Recovery", () => {
 
       expect(result.status).toBe(0);
       expect(fs.existsSync(untrackedFile)).toBe(true);
-      expect(fs.readFileSync(untrackedFile, "utf-8")).toBe(
-        "this should be preserved"
-      );
+      expect(fs.readFileSync(untrackedFile, "utf-8")).toBe("this should be preserved");
     });
 
     test("git stash -k preserves untracked files in stash", () => {
@@ -444,13 +430,9 @@ describe("Git Reset Disaster - Prevention & Recovery", () => {
       spawnSync("git", ["add", "tracked-change.txt"], { cwd: GIT_TEST_DIR });
 
       // Stash with --keep-index (stashes the tracked file modification but keeps it staged)
-      const stashResult = spawnSync(
-        "git",
-        ["stash", "push", "--keep-index", "-m", "test-stash"],
-        {
-          cwd: GIT_TEST_DIR,
-        }
-      );
+      const stashResult = spawnSync("git", ["stash", "push", "--keep-index", "-m", "test-stash"], {
+        cwd: GIT_TEST_DIR,
+      });
 
       // Verify stash was created (exit code 0 means success, but 1 can mean nothing to stash which is ok)
       // Accept both 0 (success) and 1 (nothing to stash) as valid

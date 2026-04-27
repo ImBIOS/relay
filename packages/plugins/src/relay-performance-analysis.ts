@@ -110,26 +110,18 @@ export async function analyzePerformance(
     result?.data?.info?.structured;
 
   if (!structured?.issues || !structured?.summary) {
-    throw new Error(
-      "Invalid response from performance analysis: missing issues or summary",
-    );
+    throw new Error("Invalid response from performance analysis: missing issues or summary");
   }
 
   const issues: PerformanceIssue[] = structured.issues;
   return {
     issues,
-    hasCritical: issues.some(
-      (i) => i.severity === "critical" || i.severity === "high",
-    ),
+    hasCritical: issues.some((i) => i.severity === "critical" || i.severity === "high"),
     summary: structured.summary as string,
   };
 }
 
-export const RelayPerformanceAnalysis: Plugin = async ({
-  $,
-  directory,
-  client,
-}) => {
+export const RelayPerformanceAnalysis: Plugin = async ({ $, directory, client }) => {
   const log = (
     level: "debug" | "info" | "warn" | "error",
     message: string,
@@ -150,9 +142,7 @@ export const RelayPerformanceAnalysis: Plugin = async ({
         const script = `display notification ${JSON.stringify(message)} with title ${JSON.stringify(title)}`;
         await $`osascript -e ${script}`.catch(() => {});
       } else if (process.platform === "linux") {
-        await $`notify-send ${title} ${message} -i dialog-information`.catch(
-          () => {},
-        );
+        await $`notify-send ${title} ${message} -i dialog-information`.catch(() => {});
       }
     } catch {}
   }
@@ -168,12 +158,7 @@ export const RelayPerformanceAnalysis: Plugin = async ({
 
         await log("info", "Running performance analysis");
         const result = await withOpencode((c) =>
-          analyzePerformance(
-            c,
-            diffInfo.diff,
-            diffInfo.stat,
-            diffInfo.truncated,
-          ),
+          analyzePerformance(c, diffInfo.diff, diffInfo.stat, diffInfo.truncated),
         );
 
         if (result.issues.length > 0) {

@@ -1,11 +1,11 @@
 #!/usr/bin/env bun
 //===============================================================================
-// Session End Hook - Notifications + Commit Prompt
-// Sends desktop notifications and prompts to commit uncommitted changes
+// ForgeCode Session End Hook - Auto-commit
+// Commits uncommitted changes after a ForgeCode session ends.
+// Designed to be called from a shell wrapper function after `forge` exits.
 //===============================================================================
 
 import { spawn } from "node:child_process";
-import * as fs from "node:fs";
 import { existsSync } from "node:fs";
 import * as path from "node:path";
 import { Flags } from "@oclif/core";
@@ -15,85 +15,11 @@ import { Info, Section, Warning } from "../../ui/index";
 
 type CommitMode = "critical" | "normal" | "none";
 
-interface StopOptions {
+interface ForgeStopOptions {
   silent: boolean;
   verbose: boolean;
   noCommit: boolean;
   commitMode: CommitMode;
-}
-
-interface TranscriptEntry {
-  role?: string;
-  content?: string | Array<{ type?: string; text?: string }>;
-  message?: {
-    role?: string;
-    content?: string | Array<{ type?: string; text?: string }>;
-  };
-}
-
-function extractMessageFromTranscript(transcriptPath: string, maxLength = 100): string {
-  if (!existsSync(transcriptPath)) {
-    return "Task completed";
-  }
-
-  try {
-    const content = fs.readFileSync(transcriptPath, "utf-8");
-    const lines = content.trim().split("\n");
-
-    for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i].trim();
-      if (!line) continue;
-
-      try {
-        const entry: TranscriptEntry = JSON.parse(line);
-
-        // Handle different transcript formats
-        let role = "";
-        let content: unknown = null;
-
-        // Try new format (entry.message)
-        if (entry.message && typeof entry.message === "object") {
-          role = entry.message.role || "";
-          content = entry.message.content;
-        }
-        // Try old format (entry.role)
-        else if (entry.role) {
-          role = entry.role;
-          content = entry.content;
-        }
-
-        if (role === "user" && content !== null) {
-          let message = "";
-
-          if (Array.isArray(content)) {
-            const textParts: string[] = [];
-            for (const block of content) {
-              if (block && typeof block === "object") {
-                const text = block.text || "";
-                if (text) textParts.push(text);
-              } else if (typeof block === "string") {
-                textParts.push(block);
-              }
-            }
-            message = textParts.join(" ");
-          } else if (typeof content === "string") {
-            message = content;
-          } else if (content !== null) {
-            message = String(content);
-          }
-
-          if (message.length > maxLength) {
-            message = message.slice(0, maxLength - 3) + "...";
-          }
-          return message;
-        }
-      } catch {}
-    }
-  } catch {
-    // Ignore errors reading transcript
-  }
-
-  return "Task completed";
 }
 
 function sendNotification(title: string, message: string): void {
@@ -114,8 +40,6 @@ function sendNotification(title: string, message: string): void {
     });
     return;
   }
-
-  // TODO: Fallback, write to console only in verbose mode
 }
 
 async function hasUncommittedChanges(): Promise<{
@@ -129,7 +53,6 @@ async function hasUncommittedChanges(): Promise<{
   }
 
   try {
-    // Check for staged changes
     const statusResult = spawn("git", ["status", "--porcelain"], {
       stdio: ["ignore", "pipe", "ignore"],
     });
@@ -185,7 +108,7 @@ function runGitCommand(args: string[]): Promise<{ success: boolean; output: stri
   });
 }
 
-async function generateConventionalCommit(message: string): Promise<string | null> {
+async function generateConventionalCommit(): Promise<string | null> {
   // Get diff stat to help generate a good commit message
   const diffResult = await runGitCommand(["diff", "--cached", "--stat"]);
   const stagedFiles = diffResult.success ? diffResult.output : "";
@@ -194,10 +117,22 @@ async function generateConventionalCommit(message: string): Promise<string | nul
   const shortDiff = await runGitCommand(["diff", "--cached", "--no-color", "-U1"]);
   const diffContent = shortDiff.success ? shortDiff.output.slice(0, 4000) : "";
 
-  return new Promise((resolve) => {
-    const prompt = `Generate a conventional commit message for this change.
+  // Try forge first, then fall back to claude
+  const editors = ["forge", "claude"];
 
-Message from user: ${message}
+  for (const editor of editors) {
+    try {
+      // Check if the editor CLI is available
+      const whichResult = await new Promise<boolean>((resolve) => {
+        spawn("which", [editor], { stdio: "ignore" }).on("close", (code) => {
+          resolve(code === 0);
+        });
+      });
+
+      if (!whichResult) continue;
+
+      const commitMessage = await new Promise<string | null>((resolve) => {
+        const prompt = `Generate a conventional commit message for this change.
 
 Staged files:
 ${stagedFiles || "No staged files"}
@@ -209,41 +144,51 @@ Follow conventional commits format (feat/fix/docs/style/refactor/perf/test/build
 Include a short description (under 72 characters). Be specific about what changed.
 Return ONLY the commit message, no explanation or formatting.`;
 
-    const proc = spawn("claude", ["-p", "--output-format", "text"], {
-      stdio: ["pipe", "pipe", "pipe"],
-      env: {
-        ...process.env,
-        // Prevent recursive hook invocations: child claude -p inherits this,
-        // and the Stop hook exits early when it sees it.
-        RELAY_IN_HOOK: "1",
-      },
-    });
+        const proc = spawn(editor, ["-p", "--output-format", "text"], {
+          stdio: ["pipe", "pipe", "pipe"],
+          env: {
+            ...process.env,
+            // Prevent recursive hook invocations
+            RELAY_IN_HOOK: "1",
+          },
+        });
 
-    let output = "";
-    proc.stdout.on("data", (data) => (output += data.toString()));
-    proc.stderr.on("data", (data) => (output += data.toString()));
+        let output = "";
+        proc.stdout.on("data", (data) => (output += data.toString()));
+        proc.stderr.on("data", (data) => (output += data.toString()));
 
-    proc.on("close", (code) => {
-      if (code === 0 && output.trim()) {
-        // Extract first line of commit message
-        const commitMsg = output.trim().split("\n")[0];
-        resolve(commitMsg);
-      } else {
-        resolve(null);
-      }
-    });
+        proc.on("close", (code) => {
+          if (code === 0 && output.trim()) {
+            const commitMsg = output.trim().split("\n")[0];
+            resolve(commitMsg ?? null);
+          } else {
+            resolve(null);
+          }
+        });
 
-    proc.on("error", () => resolve(null));
+        proc.on("error", () => resolve(null));
 
-    proc.stdin?.write(prompt);
-    proc.stdin?.end();
-  });
+        proc.stdin?.write(prompt);
+        proc.stdin?.end();
+      });
+
+      if (commitMessage) return commitMessage;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }
 
-export default class HooksStop extends BaseCommand<typeof HooksStop> {
-  static description = "Session end hook - notifications and auto-commit";
+export default class HooksForgeStop extends BaseCommand<typeof HooksForgeStop> {
+  static description = "ForgeCode session end hook - auto-commit after forge exits";
 
-  static examples = ["<%= config.bin %> hooks stop", "relay hooks stop --silent"];
+  static examples = [
+    "<%= config.bin %> hooks forge-stop",
+    "relay hooks forge-stop --silent",
+    "relay hooks forge-stop --mode critical",
+  ];
 
   static flags = {
     silent: Flags.boolean({
@@ -265,32 +210,17 @@ export default class HooksStop extends BaseCommand<typeof HooksStop> {
 
   async run(): Promise<void> {
     // Guard against recursive hook invocations.
-    // When this hook spawns `claude -p` for commit message generation,
-    // the child process inherits RELAY_IN_HOOK=1 — so its Stop hook exits immediately.
     if (process.env.RELAY_IN_HOOK === "1") {
       return;
     }
 
-    const { flags } = await this.parse(HooksStop);
-    const options: StopOptions = {
+    const { flags } = await this.parse(HooksForgeStop);
+    const options: ForgeStopOptions = {
       silent: flags.silent ?? false,
       verbose: flags.verbose ?? false,
       noCommit: flags["no-commit"] ?? false,
       commitMode: (flags.mode ?? "none") as CommitMode,
     };
-
-    // Get transcript path from stdin
-    let transcriptPath = "";
-    try {
-      const stdin = fs.readFileSync("/dev/stdin", "utf-8");
-      const input = JSON.parse(stdin);
-      transcriptPath = input.transcript_path || "";
-    } catch {
-      // Not JSON or no stdin
-    }
-
-    // Extract message from transcript
-    const message = extractMessageFromTranscript(transcriptPath, 100);
 
     // Check for uncommitted changes
     const changes = await hasUncommittedChanges();
@@ -299,42 +229,34 @@ export default class HooksStop extends BaseCommand<typeof HooksStop> {
     // Auto-commit if there are changes (unless --no-commit flag)
     if (hasChanges && !options.noCommit) {
       if (options.verbose) {
-        console.log("\n📝 Auto-committing changes...");
+        console.log("\n[relay] ForgeCode auto-commit: checking for changes...");
       }
 
-      // Stage all changes (tracked + untracked, but NOT deleted files)
-      await runGitCommand(["add", "-u"]);
+      // Stage all changes
+      await runGitCommand(["add", "-A"]);
 
-      // Add untracked files explicitly
-      if (changes.untracked) {
-        await runGitCommand(["add", "."]);
-      }
-
-      // Generate conventional commit message using Claude Code CLI
+      // Generate conventional commit message
       if (options.verbose) {
-        console.log("\n🤖 Generating conventional commit message...");
+        console.log("\n[relay] Generating conventional commit message...");
       }
 
-      let commitMessage = await generateConventionalCommit(message);
+      let commitMessage = await generateConventionalCommit();
 
-      // Fallback to WIP if Claude fails to generate a message
+      // Fallback to WIP if generation fails
       if (!commitMessage) {
-        commitMessage = `WIP: ${message}`;
+        commitMessage = "WIP: forge session changes";
         if (options.verbose) {
-          console.log("⚠️  Claude failed to generate commit message, using WIP fallback");
+          console.log("[relay] AI commit message generation failed, using WIP fallback");
         }
       } else if (options.verbose) {
-        console.log(`📝 Commit message: ${commitMessage}`);
+        console.log(`[relay] Commit message: ${commitMessage}`);
       }
 
-      // Try to commit with pre-commit checks
+      // Try to commit
       let commitSuccess = false;
       let attempts = 0;
       const maxNormalAttempts = 3;
 
-      // none: single attempt with --no-verify (skip pre-commit entirely)
-      // normal: up to 3 attempts, last one uses --no-verify
-      // critical: infinite retry with formatter until success
       while (!commitSuccess) {
         attempts++;
 
@@ -345,7 +267,9 @@ export default class HooksStop extends BaseCommand<typeof HooksStop> {
         const commitArgs = ["commit", "-m", commitMessage, ...(useNoVerify ? ["--no-verify"] : [])];
 
         if (options.verbose) {
-          console.log(`🔧 Commit attempt ${attempts}${useNoVerify ? " (--no-verify)" : ""}...`);
+          console.log(
+            `[relay] Commit attempt ${attempts}${useNoVerify ? " (--no-verify)" : ""}...`,
+          );
         }
 
         const commitResult = await runGitCommand(commitArgs);
@@ -353,22 +277,21 @@ export default class HooksStop extends BaseCommand<typeof HooksStop> {
         if (commitResult.success) {
           commitSuccess = true;
           if (!options.silent) {
-            console.log(`✅ Changes committed${useNoVerify ? " (with --no-verify)" : ""}`);
+            console.log(
+              `[relay] Changes committed${useNoVerify ? " (with --no-verify)" : ""}: ${commitMessage}`,
+            );
           }
 
           // Auto-push after commit
           const pushResult = await runGitCommand(["push"]);
           if (pushResult.success) {
             if (!options.silent) {
-              console.log("✅ Pushed to remote");
+              console.log("[relay] Pushed to remote");
             }
           } else if (options.verbose) {
-            console.log(`⚠️  Push failed: ${pushResult.output.split("\n")[0]}`);
+            console.log(`[relay] Push failed: ${pushResult.output.split("\n")[0]}`);
           }
         } else {
-          // none mode: single attempt, already used --no-verify, give up
-          // normal mode: retry up to maxNormalAttempts
-          // critical mode: always retry
           const shouldRetry =
             options.commitMode === "critical" ||
             (options.commitMode === "normal" && attempts < maxNormalAttempts);
@@ -378,7 +301,7 @@ export default class HooksStop extends BaseCommand<typeof HooksStop> {
           }
 
           if (options.verbose) {
-            console.log("⚠️  Commit failed, running formatter and retrying...");
+            console.log("[relay] Commit failed, running formatter and retrying...");
             console.log(`   Error: ${commitResult.output.split("\n")[0]}`);
           }
 
@@ -391,33 +314,32 @@ export default class HooksStop extends BaseCommand<typeof HooksStop> {
           });
 
           // Re-stage files after formatting
-          await runGitCommand(["add", "-u", "."]);
+          await runGitCommand(["add", "-A"]);
         }
       }
 
       if (!commitSuccess) {
-        console.error("❌ Failed to commit after multiple attempts");
-        console.error("Please commit manually with: git add -u && git commit");
+        console.error("[relay] Failed to commit after multiple attempts");
+        console.error("Please commit manually: git add -A && git commit");
       }
     }
 
-    // Send notification after commit and push
+    // Send notification
     if (!options.silent || options.verbose) {
-      sendNotification("Claude Code", message);
+      sendNotification(
+        "ForgeCode",
+        hasChanges && !options.noCommit ? "Session ended with auto-commit" : "Session ended",
+      );
     }
 
     if (options.silent) {
       return;
     }
 
-    // In non-silent mode, show summary
+    // Show summary in non-silent mode
     await this.renderApp(
-      <Section title="Session Complete">
+      <Section title="ForgeCode Session End">
         <Box flexDirection="column">
-          <Box marginBottom={1}>
-            <Text>{message}</Text>
-          </Box>
-
           {hasChanges && options.noCommit && (
             <Box marginTop={1}>
               <Warning>You have uncommitted changes. Use --no-commit to skip auto-commit.</Warning>

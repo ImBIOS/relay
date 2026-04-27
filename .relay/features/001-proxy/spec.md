@@ -31,12 +31,12 @@ Claude Code → localhost:8787 → Relay Proxy → Provider API → Response
 
 ### Key Components
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| Proxy Server | `src/proxy/server.ts` | HTTP server that accepts connections |
-| Router | `src/proxy/router.ts` | Routes requests to providers based on model |
-| Provider Adapters | `src/providers/` | Provider-specific API implementations |
-| Usage Tracker | `src/commands/usage.ts` | Tracks token usage per provider |
+| Component         | File                    | Purpose                                     |
+| ----------------- | ----------------------- | ------------------------------------------- |
+| Proxy Server      | `src/proxy/server.ts`   | HTTP server that accepts connections        |
+| Router            | `src/proxy/router.ts`   | Routes requests to providers based on model |
+| Provider Adapters | `src/providers/`        | Provider-specific API implementations       |
+| Usage Tracker     | `src/commands/usage.ts` | Tracks token usage per provider             |
 
 ### Configuration
 

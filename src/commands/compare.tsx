@@ -30,9 +30,7 @@ interface CompareArgs {
 async function readInteractiveInput(): Promise<string> {
   return new Promise((resolve) => {
     console.log("");
-    console.log(
-      "Enter your prompt (Ctrl+D or Ctrl+Z to submit, Ctrl+C to cancel):"
-    );
+    console.log("Enter your prompt (Ctrl+D or Ctrl+Z to submit, Ctrl+C to cancel):");
     console.log("".padEnd(60, "─"));
 
     const lines: string[] = [];
@@ -207,13 +205,7 @@ async function runComparison(options: {
   save?: boolean;
   strategy?: "simultaneous" | "sequential";
 }): Promise<void> {
-  const {
-    prompt,
-    timeout = 120,
-    iterations = 1,
-    save = true,
-    strategy,
-  } = options;
+  const { prompt, timeout = 120, iterations = 1, save = true, strategy } = options;
 
   // Get provider configs
   const zaiConfig = zaiProvider.getConfig();
@@ -233,11 +225,7 @@ async function runComparison(options: {
     setupSessionFiles(zaiSession, zaiConfig.apiKey, zaiConfig.baseUrl);
   }
   if (minimaxConfig.apiKey) {
-    setupSessionFiles(
-      minimaxSession,
-      minimaxConfig.apiKey,
-      minimaxConfig.baseUrl
-    );
+    setupSessionFiles(minimaxSession, minimaxConfig.apiKey, minimaxConfig.baseUrl);
   }
 
   // Symlink project files
@@ -288,7 +276,7 @@ async function runComparison(options: {
             timeoutMs: timeout * 1000,
           }).then((result) => {
             setZaiResult(result);
-          })
+          }),
         );
       }
 
@@ -300,7 +288,7 @@ async function runComparison(options: {
             timeoutMs: timeout * 1000,
           }).then((result) => {
             setMiniMaxResult(result);
-          })
+          }),
         );
       }
 
@@ -348,7 +336,7 @@ async function runComparison(options: {
         prompt={prompt}
         winner={winner ?? null}
         zaiResult={zaiResult}
-      />
+      />,
     );
 
     await waitUntilExit();
@@ -386,7 +374,7 @@ async function showHistoryList(): Promise<void> {
             ...session,
             timestamp: new Date(session.timestamp).toLocaleString(),
           }}
-        />
+        />,
       );
       await waitUntilExit();
       setViewSessionId(null);
@@ -398,7 +386,7 @@ async function showHistoryList(): Promise<void> {
         onView={setViewSessionId}
         selectedIndex={selectedIndex}
         sessions={sessions}
-      />
+      />,
     );
     await waitUntilExit();
   }
@@ -427,16 +415,13 @@ async function viewSession(sessionId: string | undefined): Promise<void> {
         ...session,
         timestamp: new Date(session.timestamp).toLocaleString(),
       }}
-    />
+    />,
   );
 
   await waitUntilExit();
 }
 
-async function diffSessions(
-  id1: string | undefined,
-  id2: string | undefined
-): Promise<void> {
+async function diffSessions(id1: string | undefined, id2: string | undefined): Promise<void> {
   if (!(id1 && id2)) {
     error("Usage: relay compare diff <session-id-1> <session-id-2>");
     return;
@@ -458,16 +443,12 @@ async function diffSessions(
   // Compare timing
   if (session1.zaiResult && session2.zaiResult) {
     const diff = session1.zaiResult.timeMs - session2.zaiResult.timeMs;
-    console.log(
-      `Z.AI Time Diff: ${diff > 0 ? "+" : ""}${(diff / 1000).toFixed(2)}s`
-    );
+    console.log(`Z.AI Time Diff: ${diff > 0 ? "+" : ""}${(diff / 1000).toFixed(2)}s`);
   }
 
   if (session1.minimaxResult && session2.minimaxResult) {
     const diff = session1.minimaxResult.timeMs - session2.minimaxResult.timeMs;
-    console.log(
-      `MiniMax Time Diff: ${diff > 0 ? "+" : ""}${(diff / 1000).toFixed(2)}s`
-    );
+    console.log(`MiniMax Time Diff: ${diff > 0 ? "+" : ""}${(diff / 1000).toFixed(2)}s`);
   }
 
   // Compare winners

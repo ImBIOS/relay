@@ -42,6 +42,7 @@ This project uses a feature-based documentation system in `.relay/`:
 ```
 
 **Rules for AI agents:**
+
 1. Before implementing a feature, check if a folder exists in `.relay/features/`. If not, create one with `spec.md`.
 2. After implementing, update the spec status and create/update `qa.md` in the same folder.
 3. When working on a fork, add `patch.md` to the feature folder to record customizations with intent.
@@ -49,6 +50,7 @@ This project uses a feature-based documentation system in `.relay/`:
 5. See `.relay/README.md` for full details.
 
 **Mandatory workflow for AI agents:**
+
 - **Always check `.relay/features/` for existing specs before implementing anything.** If a spec already exists for the work, read it first and follow its guidance.
 - **Always run QA after implementing a feature.** Every spec MUST have a corresponding `qa.md` — if one does not exist, create it from the template.
 - **If no spec exists for the work, create one first** using the template in `.relay/README.md` before writing any code.
@@ -63,10 +65,10 @@ bun src/run.ts       # Run CLI locally
 
 ## Key Files
 
-| File | Purpose |
-|------|---------|
-| `src/proxy/server.ts` | HTTP proxy implementation |
-| `src/providers/` | Provider definitions |
-| `src/config/accounts-config.ts` | Account management |
-| `src/commands/` | CLI commands |
-| `.relay/` | Feature documentation (spec, QA, patches) |
+| File                            | Purpose                                   |
+| ------------------------------- | ----------------------------------------- |
+| `src/proxy/server.ts`           | HTTP proxy implementation                 |
+| `src/providers/`                | Provider definitions                      |
+| `src/config/accounts-config.ts` | Account management                        |
+| `src/commands/`                 | CLI commands                              |
+| `.relay/`                       | Feature documentation (spec, QA, patches) |

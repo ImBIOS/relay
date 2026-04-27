@@ -1,9 +1,5 @@
 import * as http from "node:http";
-import {
-  getActiveAccount,
-  listAccounts,
-  loadConfig,
-} from "../config/accounts-config";
+import { getActiveAccount, listAccounts, loadConfig } from "../config/accounts-config";
 
 const DASHBOARD_HTML = `<!DOCTYPE html>
 <html lang="en">
@@ -177,7 +173,7 @@ export function startDashboard(): void {
               provider: a.provider,
             })),
             alerts: [],
-          })
+          }),
         );
         return;
       }

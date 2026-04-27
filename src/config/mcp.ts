@@ -65,7 +65,7 @@ export function addMcpServer(
     env?: Record<string, string>;
     description?: string;
     provider?: "zai" | "minimax" | "all";
-  }
+  },
 ): McpServerConfig {
   const config = loadMcpConfig();
 
@@ -87,7 +87,7 @@ export function addMcpServer(
 
 export function updateMcpServer(
   name: string,
-  updates: Partial<McpServerConfig>
+  updates: Partial<McpServerConfig>,
 ): McpServerConfig | null {
   const config = loadMcpConfig();
   const server = config.servers[name];
@@ -211,7 +211,7 @@ export function generateClaudeDesktopConfig(): string {
       mcpServers,
     },
     null,
-    2
+    2,
   );
 }
 
@@ -257,8 +257,7 @@ export const MINIMAX_MCP_SERVERS = {
     name: "minimax-coding",
     command: "npx",
     args: ["-y", "minimax-coding-plan-mcp"],
-    description:
-      "MiniMax coding plan MCP - web_search and understand_image tools",
+    description: "MiniMax coding plan MCP - web_search and understand_image tools",
     provider: "minimax" as const,
   },
 };

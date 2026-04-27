@@ -16,7 +16,7 @@ export interface AnthropicConnectionConfig {
  */
 export async function testAnthropicConnection(
   config: AnthropicConnectionConfig,
-  providerName: string
+  providerName: string,
 ): Promise<boolean> {
   if (!config.apiKey) {
     return false;
@@ -30,22 +30,16 @@ export async function testAnthropicConnection(
       maxRetries: 0,
     });
 
-    trace(
-      `${providerName}: messages.create model=${config.model} max_tokens=${TEST_MAX_TOKENS}`
-    );
+    trace(`${providerName}: messages.create model=${config.model} max_tokens=${TEST_MAX_TOKENS}`);
     const message = await client.messages.create({
       model: config.model,
       max_tokens: TEST_MAX_TOKENS,
       messages: [{ role: "user", content: TEST_MESSAGE }],
     });
-    trace(
-      `${providerName}: response id=${message.id} stop_reason=${message.stop_reason}`
-    );
+    trace(`${providerName}: response id=${message.id} stop_reason=${message.stop_reason}`);
     return Boolean(message.id);
   } catch (e) {
-    trace(
-      `${providerName}: request failed ${e instanceof Error ? e.message : String(e)}`
-    );
+    trace(`${providerName}: request failed ${e instanceof Error ? e.message : String(e)}`);
     return false;
   }
 }

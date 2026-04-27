@@ -49,8 +49,7 @@ export function isContainerEnvironment(): boolean {
   ];
   if (
     containerEnvVars.some(
-      (envVar) =>
-        process.env[envVar] !== undefined && process.env[envVar] !== ""
+      (envVar) => process.env[envVar] !== undefined && process.env[envVar] !== "",
     )
   ) {
     return true;

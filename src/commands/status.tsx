@@ -71,18 +71,14 @@ export default class Status extends BaseCommand<typeof Status> {
             ? `${getProviderDisplayName(activeAccount.provider)} via ${activeAccount.name}`
             : provider.displayName
         }
-        apiKey={
-          hasApiKey
-            ? `••••••••${providerConfig.apiKey.slice(-4)}`
-            : "Not configured"
-        }
+        apiKey={hasApiKey ? `••••••••${providerConfig.apiKey.slice(-4)}` : "Not configured"}
         baseUrl={providerConfig.baseUrl}
         connection={hasApiKey ? "Ready" : "Not configured"}
         otherConfigured={otherHasKey}
         otherProvider={otherProvider.displayName}
         rotationEnabled={v2Config.rotation.enabled}
         rotationStrategy={v2Config.rotation.strategy}
-      />
+      />,
     );
   }
 }
@@ -140,9 +136,7 @@ function StatusUI({
               <Info>
                 Active Account: {activeAccount.name} ({activeAccount.provider})
               </Info>
-              <Info>
-                Rotation: {rotationEnabled ? rotationStrategy : "disabled"}
-              </Info>
+              <Info>Rotation: {rotationEnabled ? rotationStrategy : "disabled"}</Info>
             </Box>
           )}
         </Box>

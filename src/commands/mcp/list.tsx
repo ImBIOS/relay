@@ -51,9 +51,7 @@ function McpListUI({ servers }: McpListUIProps): React.ReactElement {
         {servers.map((server) => (
           <Box flexDirection="column" key={server.name} marginBottom={1}>
             <Box>
-              <Text color={server.enabled ? "green" : "gray"}>
-                {server.enabled ? "●" : "○"}{" "}
-              </Text>
+              <Text color={server.enabled ? "green" : "gray"}>{server.enabled ? "●" : "○"} </Text>
               <Text bold>{server.name}</Text>
               <Text color="cyan"> [{server.provider || "all"}]</Text>
               {!server.enabled && <Text color="gray"> (disabled)</Text>}

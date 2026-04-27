@@ -1,12 +1,6 @@
 import { getDefaultBaseUrl } from "../config/provider-metadata";
 import { testAnthropicConnection } from "../utils/anthropic-connection-test";
-import type {
-  Provider,
-  ProviderConfig,
-  UsageOptions,
-  UsageStats,
-  WeeklyUsageStats,
-} from "./base";
+import type { Provider, ProviderConfig, UsageOptions, UsageStats, WeeklyUsageStats } from "./base";
 
 export class MiniMaxProvider implements Provider {
   name = "minimax";
@@ -27,29 +21,33 @@ export class MiniMaxProvider implements Provider {
         baseUrl: config.baseUrl,
         model: "",
       },
-      "MiniMax"
+      "MiniMax",
     );
   }
 
   async getUsage(options?: UsageOptions): Promise<UsageStats> {
     const config = this.getConfig();
-    const apiKey = options?.apiKey || config.apiKey;
+    const apiKey = options?.apiKey ?? config.apiKey;
 
     if (!apiKey) {
       return { used: 0, limit: 0, remaining: 0, percentUsed: 0 };
     }
 
     // Get groupId from options, account config, or environment variable
-    const groupId = options?.groupId || process.env.MINIMAX_GROUP_ID || "";
+    const groupId = options?.groupId ?? process.env.MINIMAX_GROUP_ID;
+
+    if (!groupId) {
+      // If groupId is not provided, throw error
+      throw new Error(
+        "MiniMax usage tracking requires a Group ID. Please provide it via options or set the MINIMAX_GROUP_ID environment variable.",
+      );
+    }
 
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
-      // TODO: `groupId` is mandatory, it should not optional, it should throw error or something
-      const url = groupId
-        ? `https://platform.minimax.io/v1/api/openplatform/coding_plan/remains?GroupId=${groupId}`
-        : "https://platform.minimax.io/v1/api/openplatform/coding_plan/remains";
+      const url = `https://platform.minimax.io/v1/api/openplatform/coding_plan/remains?GroupId=${groupId}`;
 
       const response = await fetch(url, {
         method: "GET",
@@ -104,18 +102,14 @@ export class MiniMaxProvider implements Provider {
 
       // Extract weekly limits if available
       let weeklyUsage: WeeklyUsageStats | undefined;
-      if (
-        modelRemains.current_weekly_total_count &&
-        modelRemains.current_weekly_total_count > 0
-      ) {
+      if (modelRemains.current_weekly_total_count && modelRemains.current_weekly_total_count > 0) {
         const weeklyLimit = modelRemains.current_weekly_total_count;
         const weeklyUsed = modelRemains.current_weekly_usage_count ?? 0;
         weeklyUsage = {
           used: weeklyUsed,
           limit: weeklyLimit,
           remaining: Math.max(0, weeklyLimit - weeklyUsed),
-          percentUsed:
-            weeklyLimit > 0 ? (weeklyUsed / weeklyLimit) * 100 : 0,
+          percentUsed: weeklyLimit > 0 ? (weeklyUsed / weeklyLimit) * 100 : 0,
           resetsAt: modelRemains.weekly_end_time
             ? new Date(modelRemains.weekly_end_time).toISOString()
             : undefined,

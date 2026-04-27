@@ -29,11 +29,7 @@
  * ```
  */
 
-import {
-  type Options,
-  query as originalQuery,
-  type Query,
-} from "@anthropic-ai/claude-agent-sdk";
+import { type Options, query as originalQuery, type Query } from "@anthropic-ai/claude-agent-sdk";
 import * as accountsConfig from "../config/accounts-config";
 import * as settings from "../config/settings";
 import type { Provider } from "../providers/base";
@@ -106,8 +102,7 @@ export async function performAutoRotation(): Promise<RotationResult> {
 
     // Only rotate if both providers are configured
     if (zaiConfig.apiKey && minimaxConfig.apiKey) {
-      const newProvider: "zai" | "minimax" =
-        currentProvider === "zai" ? "minimax" : "zai";
+      const newProvider: "zai" | "minimax" = currentProvider === "zai" ? "minimax" : "zai";
       settings.setActiveProvider(newProvider);
 
       return {
@@ -137,7 +132,7 @@ export async function performAutoRotation(): Promise<RotationResult> {
  * @returns Environment variables with ANTHROPIC_* credentials set
  */
 export async function getAutoRotatedEnv(
-  autoRotate = true
+  autoRotate = true,
 ): Promise<Record<string, string | undefined>> {
   if (autoRotate) {
     await performAutoRotation();

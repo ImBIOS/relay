@@ -22,7 +22,7 @@ export default class AlertDisable extends BaseCommand<typeof AlertDisable> {
     await this.renderApp(
       <Box>
         <Success>Alert {id} disabled</Success>
-      </Box>
+      </Box>,
     );
   }
 }

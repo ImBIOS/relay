@@ -1,11 +1,17 @@
 export interface ShellPromise {
   cwd(cwd: string): ShellPromise;
   then<TResult1 = { exitCode: number; stdout: string; stderr: string }, TResult2 = never>(
-    onfulfilled?: ((value: { exitCode: number; stdout: string; stderr: string }) => TResult1 | PromiseLike<TResult1>) | null,
-    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    onfulfilled?:
+      | ((value: {
+          exitCode: number;
+          stdout: string;
+          stderr: string;
+        }) => TResult1 | PromiseLike<TResult1>)
+      | null,
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ): Promise<TResult1 | TResult2>;
   catch<TResult2 = never>(
-    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null
+    onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ): Promise<{ exitCode: number; stdout: string; stderr: string } | TResult2>;
   exitCode: number;
   stdout: string;

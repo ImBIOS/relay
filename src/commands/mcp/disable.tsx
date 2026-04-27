@@ -22,13 +22,13 @@ export default class McpDisable extends BaseCommand<typeof McpDisable> {
       await this.renderApp(
         <Box>
           <Success>MCP server "{name}" disabled.</Success>
-        </Box>
+        </Box>,
       );
     } else {
       await this.renderApp(
         <Box>
           <ErrorBadge>MCP server "{name}" not found.</ErrorBadge>
-        </Box>
+        </Box>,
       );
     }
   }

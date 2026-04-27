@@ -30,7 +30,7 @@ export default class AutoStatus extends BaseCommand<typeof AutoStatus> {
             </Box>
           )}
         </Box>
-      </Section>
+      </Section>,
     );
   }
 }

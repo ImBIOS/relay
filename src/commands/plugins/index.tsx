@@ -31,16 +31,19 @@ export default class PluginsIndex extends BaseCommand<typeof PluginsIndex> {
           <Text bold>Available Plugins:</Text>
           <Box marginLeft={2} flexDirection="column">
             <Text>
-              • <Text bold>relay-commit</Text> - AI-powered auto stage, commit, and push with parallel security + performance analysis
+              • <Text bold>relay-commit</Text> - AI-powered auto stage, commit, and push with
+              parallel security + performance analysis
             </Text>
             <Text>
               • <Text bold>relay-format</Text> - Format files after Write/Edit tool calls
             </Text>
             <Text>
-              • <Text bold>relay-security-analysis</Text> - Analyze staged changes for security vulnerabilities before commit
+              • <Text bold>relay-security-analysis</Text> - Analyze staged changes for security
+              vulnerabilities before commit
             </Text>
             <Text>
-              • <Text bold>relay-performance-analysis</Text> - Analyze staged changes for performance anti-patterns before commit
+              • <Text bold>relay-performance-analysis</Text> - Analyze staged changes for
+              performance anti-patterns before commit
             </Text>
           </Box>
         </Box>

@@ -8,10 +8,7 @@ import { Error as ErrorBadge, Info, Section, Success } from "../ui/index";
 
 export default class Rotate extends BaseCommand<typeof Rotate> {
   static description = "Rotate to next API key for a provider";
-  static examples = [
-    "<%= config.bin %> rotate zai",
-    "<%= config.bin %> rotate minimax",
-  ];
+  static examples = ["<%= config.bin %> rotate zai", "<%= config.bin %> rotate minimax"];
 
   static args = {
     provider: Args.string({
@@ -28,7 +25,7 @@ export default class Rotate extends BaseCommand<typeof Rotate> {
       await this.renderApp(
         <Box>
           <ErrorBadge>Usage: relay rotate &lt;zai|minimax&gt;</ErrorBadge>
-        </Box>
+        </Box>,
       );
       return;
     }
@@ -40,10 +37,7 @@ export default class Rotate extends BaseCommand<typeof Rotate> {
       const settingsPath = path.join(os.homedir(), ".claude", "settings.json");
       if (require("node:fs").existsSync(settingsPath)) {
         try {
-          const settingsContent = require("node:fs").readFileSync(
-            settingsPath,
-            "utf-8"
-          );
+          const settingsContent = require("node:fs").readFileSync(settingsPath, "utf-8");
           const settings = JSON.parse(settingsContent);
 
           // Build environment - only disable non-essential traffic for MiniMax
@@ -55,10 +49,7 @@ export default class Rotate extends BaseCommand<typeof Rotate> {
           };
 
           settings.env = env;
-          require("node:fs").writeFileSync(
-            settingsPath,
-            JSON.stringify(settings, null, 2)
-          );
+          require("node:fs").writeFileSync(settingsPath, JSON.stringify(settings, null, 2));
         } catch {
           // Silently fail if settings update fails
         }
@@ -72,7 +63,7 @@ export default class Rotate extends BaseCommand<typeof Rotate> {
               New active account: {newAccount.name} ({newAccount.provider})
             </Info>
           </Box>
-        </Section>
+        </Section>,
       );
     } else {
       await this.renderApp(
@@ -81,7 +72,7 @@ export default class Rotate extends BaseCommand<typeof Rotate> {
             <ErrorBadge>No other accounts available for {provider}.</ErrorBadge>
             <Info>Add more accounts with: relay account add</Info>
           </Box>
-        </Section>
+        </Section>,
       );
     }
   }

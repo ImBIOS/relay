@@ -22,13 +22,13 @@ export default class AccountRemove extends BaseCommand<typeof AccountRemove> {
       await this.renderApp(
         <Box>
           <Success>Account {id} removed.</Success>
-        </Box>
+        </Box>,
       );
     } else {
       await this.renderApp(
         <Box>
           <ErrorBadge>Failed to remove account "{id}".</ErrorBadge>
-        </Box>
+        </Box>,
       );
     }
   }

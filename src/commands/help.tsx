@@ -40,10 +40,7 @@ function HelpUI({ version }: { version: string }): React.ReactElement {
       <Text> init First-time setup wizard</Text>
       <Text> env export Export environment variables</Text>
       <Text> models [provider] List available models</Text>
-      <Text>
-        {" "}
-        completion &lt;shell&gt; Generate shell completion (bash/zsh/fish)
-      </Text>
+      <Text> completion &lt;shell&gt; Generate shell completion (bash/zsh/fish)</Text>
       <Text> profile &lt;cmd&gt; Manage configuration profiles</Text>
       <Text> account &lt;cmd&gt; Multi-account management</Text>
       <Text> rotate &lt;provider&gt; Rotate to next API key</Text>
@@ -57,14 +54,12 @@ function HelpUI({ version }: { version: string }): React.ReactElement {
       <Text />
       <Text bold>Examples:</Text>
       <Text> relay claude # Run claude with auto-switch</Text>
-      <Text>
-        {" "}
-        relay claude --continue # Run claude --continue with auto-switch
-      </Text>
+      <Text> relay claude --continue # Run claude --continue with auto-switch</Text>
       <Text> relay config # Configure providers</Text>
       <Text> relay init # First-time setup wizard</Text>
       <Text>
-        relay init --providers zai,minimax --zai-api-key sk-xxx --minimax-api-key mmkey-xxx --install-hooks
+        relay init --providers zai,minimax --zai-api-key sk-xxx --minimax-api-key mmkey-xxx
+        --install-hooks
       </Text>
       <Text> relay switch minimax # Switch the legacy active provider</Text>
       <Text> relay account switch minimax # Switch account by provider/name/id</Text>

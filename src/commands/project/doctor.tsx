@@ -45,12 +45,8 @@ function ProjectDoctorUI(): React.ReactElement {
     checks.push({
       name: "CLAUDE.md exists",
       status: hasClaideMd ? "pass" : "fail",
-      message: hasClaideMd
-        ? "CLAUDE.md found in project root"
-        : "No CLAUDE.md file found",
-      fix: hasClaideMd
-        ? undefined
-        : "Run 'relay project init' to create CLAUDE.md from template",
+      message: hasClaideMd ? "CLAUDE.md found in project root" : "No CLAUDE.md file found",
+      fix: hasClaideMd ? undefined : "Run 'relay project init' to create CLAUDE.md from template",
     });
 
     // Check 2: CLAUDE.md is readable and valid
@@ -61,12 +57,8 @@ function ProjectDoctorUI(): React.ReactElement {
         checks.push({
           name: "CLAUDE.md is valid",
           status: isValid ? "pass" : "warn",
-          message: isValid
-            ? "CLAUDE.md has valid content"
-            : "CLAUDE.md may be empty or malformed",
-          fix: isValid
-            ? undefined
-            : "Consider regenerating with 'relay project init'",
+          message: isValid ? "CLAUDE.md has valid content" : "CLAUDE.md may be empty or malformed",
+          fix: isValid ? undefined : "Consider regenerating with 'relay project init'",
         });
       } catch {
         checks.push({
@@ -127,9 +119,7 @@ function ProjectDoctorUI(): React.ReactElement {
     checks.push({
       name: "Git repository",
       status: hasGit ? "pass" : "warn",
-      message: hasGit
-        ? "Git repository initialized"
-        : "No .git directory found",
+      message: hasGit ? "Git repository initialized" : "No .git directory found",
       fix: hasGit ? undefined : "Run 'git init'",
     });
 
@@ -139,9 +129,7 @@ function ProjectDoctorUI(): React.ReactElement {
     checks.push({
       name: ".gitignore exists",
       status: hasGitignore ? "pass" : "warn",
-      message: hasGitignore
-        ? ".gitignore found"
-        : "No .gitignore found - consider creating one",
+      message: hasGitignore ? ".gitignore found" : "No .gitignore found - consider creating one",
     });
 
     // Check 9: README.md
@@ -150,27 +138,21 @@ function ProjectDoctorUI(): React.ReactElement {
     checks.push({
       name: "README.md exists",
       status: hasReadme ? "pass" : "warn",
-      message: hasReadme
-        ? "README.md found"
-        : "No README.md found - consider adding documentation",
+      message: hasReadme ? "README.md found" : "No README.md found - consider adding documentation",
     });
 
     // Check 10: Check if in a Bun project
     const bunlockPath = path.join(projectPath, "bun.lockb");
     const packageLockPath = path.join(projectPath, "package-lock.json");
     const yarnLockPath = path.join(projectPath, "yarn.lock");
-    const hasLockFile =
-      hasPackageJson && (bunlockPath || packageLockPath || yarnLockPath);
+    const hasLockFile = hasPackageJson && (bunlockPath || packageLockPath || yarnLockPath);
     checks.push({
       name: "Lock file exists",
       status: hasLockFile ? "pass" : "warn",
       message: hasLockFile
         ? "Lock file found"
         : "No lock file found - consider adding one for reproducibility",
-      fix:
-        !hasLockFile && hasPackageJson
-          ? "Run 'bun install' or 'npm install'"
-          : undefined,
+      fix: !hasLockFile && hasPackageJson ? "Run 'bun install' or 'npm install'" : undefined,
     });
 
     setHealthChecks(checks);
@@ -185,10 +167,7 @@ function ProjectDoctorUI(): React.ReactElement {
 
       // Customize template with project name
       const projectName = path.basename(projectPath);
-      const claudeMdContent = templateContent.replace(
-        /# `projectName`'/s,
-        `# \`${projectName}\`'`
-      );
+      const claudeMdContent = templateContent.replace(/# `projectName`'/s, `# \`${projectName}\`'`);
 
       // Write CLAUDE.md
       const claudeMdPath = path.join(projectPath, "CLAUDE.md");
@@ -288,14 +267,10 @@ function ProjectDoctorUI(): React.ReactElement {
               {healthChecks.map((check, index) => (
                 <Box flexDirection="column" key={index} marginBottom={1}>
                   <Box flexDirection="row" gap={1}>
-                    <Text color={getStatusColor(check.status)}>
-                      {getStatusIcon(check.status)}
-                    </Text>
+                    <Text color={getStatusColor(check.status)}>{getStatusIcon(check.status)}</Text>
                     <Text bold>{check.name}</Text>
                     <Text color="gray">[</Text>
-                    <Text color={getStatusColor(check.status)}>
-                      {getStatusLabel(check.status)}
-                    </Text>
+                    <Text color={getStatusColor(check.status)}>{getStatusLabel(check.status)}</Text>
                     <Text color="gray">]</Text>
                   </Box>
                   <Box marginLeft={3}>
@@ -313,12 +288,8 @@ function ProjectDoctorUI(): React.ReactElement {
             {/* Auto-fix for missing CLAUDE.md */}
             {failedCount > 0 && (
               <Box marginTop={1}>
-                <Text>
-                  {failedCount > 0 ? `Found ${failedCount} issue(s). ` : ""}
-                </Text>
-                {healthChecks.find(
-                  (c) => c.name === "CLAUDE.md exists" && c.status === "fail"
-                ) && (
+                <Text>{failedCount > 0 ? `Found ${failedCount} issue(s). ` : ""}</Text>
+                {healthChecks.find((c) => c.name === "CLAUDE.md exists" && c.status === "fail") && (
                   <ConfirmInput
                     onCancel={() => {
                       process.exit(0);

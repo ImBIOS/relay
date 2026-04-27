@@ -2,13 +2,12 @@ import { Command, type Interfaces } from "@oclif/core";
 import { type Instance, type RenderOptions, render } from "ink";
 import type React from "react";
 import { loadConfig } from "../config/accounts-config";
+import { createStartEntry, writeCompletionEntry, type TelemetryEntry } from "../utils/telemetry";
 
 export type InferredFlags<T extends typeof Command> = Interfaces.InferredFlags<
   (typeof BaseCommand)["baseFlags"] & T["flags"]
 >;
-export type InferredArgs<T extends typeof Command> = Interfaces.InferredArgs<
-  T["args"]
->;
+export type InferredArgs<T extends typeof Command> = Interfaces.InferredArgs<T["args"]>;
 
 /**
  * Check for MiniMax accounts without groupId and show warning (non-blocking).
@@ -18,7 +17,7 @@ function checkMiniMaxGroupId(): void {
   try {
     const config = loadConfig();
     const minimaxAccounts = Object.values(config.accounts).filter(
-      (a) => a.provider === "minimax" && a.isActive && !a.groupId
+      (a) => a.provider === "minimax" && a.isActive && !a.groupId,
     );
 
     if (minimaxAccounts.length > 0) {
@@ -26,7 +25,7 @@ function checkMiniMaxGroupId(): void {
       console.warn("\n⚠️  Warning:");
       for (const account of minimaxAccounts) {
         console.warn(
-          `  MiniMax account "${account.name}" is missing groupId. Run \`relay account edit ${account.id}\` to set it.`
+          `  MiniMax account "${account.name}" is missing groupId. Run \`relay account edit ${account.id}\` to set it.`,
         );
         console.warn("  Usage data may be incomplete.");
       }
@@ -47,6 +46,8 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
   protected flags!: InferredFlags<T>;
   protected args!: InferredArgs<T>;
   private inkInstance: Instance | null = null;
+  private telemetryEntry: TelemetryEntry | null = null;
+  private telemetryStartMs: number = 0;
 
   public async init(): Promise<void> {
     // Parse arguments using oclif's parser
@@ -79,6 +80,15 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     if (!isSilent) {
       checkMiniMaxGroupId();
     }
+
+    // Start telemetry recording
+    const commandId = this.id ?? "unknown";
+    this.telemetryStartMs = Date.now();
+    this.telemetryEntry = createStartEntry(
+      commandId,
+      this.flags as Record<string, unknown>,
+      this.argv.filter((a) => !a.startsWith("--")),
+    );
   }
 
   /**
@@ -88,7 +98,7 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
    */
   protected async renderApp(
     element: React.ReactElement,
-    options?: RenderOptions & { autoExit?: boolean }
+    options?: RenderOptions & { autoExit?: boolean },
   ): Promise<void> {
     const { autoExit, ...renderOptions } = options || {};
     this.inkInstance = render(element, renderOptions);
@@ -111,10 +121,7 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
    * Render an ink React component without waiting for exit.
    * Use this for static output that doesn't need user interaction.
    */
-  protected renderStatic(
-    element: React.ReactElement,
-    options?: RenderOptions
-  ): Instance {
+  protected renderStatic(element: React.ReactElement, options?: RenderOptions): Instance {
     this.inkInstance = render(element, options);
     return this.inkInstance;
   }
@@ -139,11 +146,25 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
   }
 
   protected async catch(err: Error & { exitCode?: number }): Promise<void> {
+    this.recordTelemetry(err.exitCode ?? 1, err.message);
     this.unmount();
     throw err;
   }
 
   protected async finally(_: Error | undefined): Promise<void> {
-    // Cleanup is handled by ink's unmount
+    // Record successful completion (only if catch didn't already record)
+    if (this.telemetryEntry && this.telemetryEntry.exit_code === null) {
+      this.recordTelemetry(0);
+    }
+  }
+
+  /**
+   * Write telemetry entry with completion data.
+   * Called from catch (on error) or finally (on success).
+   */
+  private recordTelemetry(exitCode: number, errorMessage?: string): void {
+    if (!this.telemetryEntry) return;
+    const durationMs = Date.now() - this.telemetryStartMs;
+    writeCompletionEntry(this.telemetryEntry, durationMs, exitCode, errorMessage);
   }
 }

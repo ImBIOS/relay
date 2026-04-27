@@ -102,9 +102,8 @@ export default class HooksInstall extends BaseCommand<typeof HooksInstall> {
             (hookConfig) =>
               hookConfig.type === "command" &&
               hookConfig.command &&
-              (hookConfig.command === command ||
-                detectRegex.test(hookConfig.command))
-          )
+              (hookConfig.command === command || detectRegex.test(hookConfig.command)),
+          ),
         );
 
         if (exists) {
@@ -126,8 +125,7 @@ export default class HooksInstall extends BaseCommand<typeof HooksInstall> {
         <Section title="Hooks Setup">
           <Box flexDirection="column">
             <Success>
-              Installed {hooksInstalled} hook(s), {hooksSkipped} already
-              present.
+              Installed {hooksInstalled} hook(s), {hooksSkipped} already present.
             </Success>
             <Box marginTop={1}>
               <Text dimColor>Settings location: {settingsFilePath}</Text>
@@ -143,19 +141,15 @@ export default class HooksInstall extends BaseCommand<typeof HooksInstall> {
               ))}
               <Box marginTop={1}>
                 <Text dimColor>
-                  For notifications, we recommend <Text bold>peon-ping</Text>{" "}
-                  instead.
+                  For notifications, we recommend <Text bold>peon-ping</Text> instead.
                 </Text>
               </Box>
             </Box>
             <Box marginTop={1}>
-              <Info>
-                Uses the relay CLI directly, so all hooks auto-update with the
-                package.
-              </Info>
+              <Info>Uses the relay CLI directly, so all hooks auto-update with the package.</Info>
             </Box>
           </Box>
-        </Section>
+        </Section>,
       );
     } catch (error: unknown) {
       const err = error as Error;
@@ -167,7 +161,7 @@ export default class HooksInstall extends BaseCommand<typeof HooksInstall> {
               <Text color="red">{err.message}</Text>
             </Box>
           </Box>
-        </Section>
+        </Section>,
       );
     }
   }

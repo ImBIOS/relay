@@ -9,9 +9,7 @@ export interface SpawnOptions {
   onOutput?: (chunk: string) => void;
 }
 
-export async function spawnClaudeInstance(
-  options: SpawnOptions
-): Promise<ClaudeResult> {
+export async function spawnClaudeInstance(options: SpawnOptions): Promise<ClaudeResult> {
   const { session, prompt, timeoutMs = 120_000, onOutput } = options;
 
   const startTime = Date.now();
@@ -54,7 +52,7 @@ export async function spawnClaudeInstance(
           ANTHROPIC_MODEL: undefined,
         },
         stdio: ["pipe", "pipe", "pipe"],
-      }
+      },
     );
 
     let stdout = "";
@@ -169,7 +167,7 @@ async function isExecutable(filePath: string): Promise<boolean> {
 
 export async function runClaudeInteractive(
   session: IsolatedSession,
-  prompt: string
+  prompt: string,
 ): Promise<string> {
   const result = await spawnClaudeInstance({
     session,

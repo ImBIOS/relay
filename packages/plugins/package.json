@@ -1,21 +1,21 @@
 {
   "name": "@alsafa/relay-opencode-plugins",
-  "description": "OpenCode plugins for relay - auto-format, AI commit, and more",
   "version": "0.0.1",
+  "private": true,
+  "description": "OpenCode plugins for relay - auto-format, AI commit, and more",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --outDir ./dist --declaration",
+    "typecheck": "tsc --noEmit"
+  },
   "dependencies": {
     "@opencode-ai/sdk": "^1.3.13"
   },
   "devDependencies": {
     "@types/bun": "^1.3.8",
     "@types/node": "^24.0.0"
-  },
-  "exports": {
-    ".": "./src/index.ts"
-  },
-  "private": true,
-  "scripts": {
-    "build": "tsc --outDir ./dist --declaration",
-    "typecheck": "tsc --noEmit"
-  },
-  "type": "module"
+  }
 }

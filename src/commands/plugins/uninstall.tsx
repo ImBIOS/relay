@@ -28,7 +28,9 @@ export default class PluginsUninstall extends BaseCommand<typeof PluginsUninstal
       }
 
       if (fs.existsSync(GLOBAL_PLUGIN_DIR)) {
-        const stale = fs.readdirSync(GLOBAL_PLUGIN_DIR).filter((f) => f.startsWith("relay-") && f.endsWith(".js") && !PLUGIN_FILES.includes(f));
+        const stale = fs
+          .readdirSync(GLOBAL_PLUGIN_DIR)
+          .filter((f) => f.startsWith("relay-") && f.endsWith(".js") && !PLUGIN_FILES.includes(f));
         for (const f of stale) {
           fs.unlinkSync(path.join(GLOBAL_PLUGIN_DIR, f));
           removed++;

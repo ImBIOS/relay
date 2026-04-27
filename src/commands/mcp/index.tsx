@@ -27,10 +27,7 @@ function McpHelp(): React.ReactElement {
       <Text> remove &lt;name&gt; Remove an MCP server</Text>
       <Text> enable &lt;name&gt; Enable an MCP server</Text>
       <Text> disable &lt;name&gt; Disable an MCP server</Text>
-      <Text>
-        {" "}
-        add-predefined &lt;p&gt; Add predefined servers (zai|minimax)
-      </Text>
+      <Text> add-predefined &lt;p&gt; Add predefined servers (zai|minimax)</Text>
       <Text> export [env|claude] Export configuration</Text>
       <Text> test &lt;name&gt; Test an MCP server connection</Text>
       <Text />

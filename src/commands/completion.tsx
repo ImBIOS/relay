@@ -35,10 +35,9 @@ export default class Completion extends BaseCommand<typeof Completion> {
       await this.renderApp(
         <Box>
           <ErrorBadge>
-            Unsupported shell: {selectedShell}. Supported shells:{" "}
-            {SHELLS.join(", ")}
+            Unsupported shell: {selectedShell}. Supported shells: {SHELLS.join(", ")}
           </ErrorBadge>
-        </Box>
+        </Box>,
       );
       return;
     }
@@ -51,10 +50,8 @@ export default class Completion extends BaseCommand<typeof Completion> {
     } catch (err) {
       await this.renderApp(
         <Box>
-          <ErrorBadge>
-            Failed to generate completion: {(err as Error).message}
-          </ErrorBadge>
-        </Box>
+          <ErrorBadge>Failed to generate completion: {(err as Error).message}</ErrorBadge>
+        </Box>,
       );
     }
   }
@@ -64,10 +61,7 @@ function CompletionInfo({ shell }: { shell: Shell }): React.ReactElement {
   return (
     <Section title="Shell Completion">
       <Box flexDirection="column">
-        <Info>
-          To enable {shell} completion, add the above to your shell
-          configuration.
-        </Info>
+        <Info>To enable {shell} completion, add the above to your shell configuration.</Info>
         <Info>For bash: Add to ~/.bashrc or ~/.bash_completion</Info>
         <Info>For zsh: Add to ~/.zshrc</Info>
         <Info>For fish: Add to ~/.config/fish/completions/relay.fish</Info>

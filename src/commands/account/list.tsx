@@ -12,9 +12,7 @@ export default class AccountList extends BaseCommand<typeof AccountList> {
     const accounts = listAccounts();
     const activeAccount = getActiveAccount();
 
-    await this.renderApp(
-      <AccountListUI accounts={accounts} activeAccount={activeAccount} />
-    );
+    await this.renderApp(<AccountListUI accounts={accounts} activeAccount={activeAccount} />);
   }
 }
 
@@ -30,10 +28,7 @@ interface AccountListUIProps {
   activeAccount: AccountData | null;
 }
 
-function AccountListUI({
-  accounts,
-  activeAccount,
-}: AccountListUIProps): React.ReactElement {
+function AccountListUI({ accounts, activeAccount }: AccountListUIProps): React.ReactElement {
   if (accounts.length === 0) {
     return (
       <Section title="Multi-Account Management">

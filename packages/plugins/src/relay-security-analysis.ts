@@ -101,26 +101,18 @@ export async function analyzeSecurity(
     result?.data?.info?.structured;
 
   if (!structured?.issues || !structured?.summary) {
-    throw new Error(
-      "Invalid response from security analysis: missing issues or summary",
-    );
+    throw new Error("Invalid response from security analysis: missing issues or summary");
   }
 
   const issues: SecurityIssue[] = structured.issues;
   return {
     issues,
-    hasCritical: issues.some(
-      (i) => i.severity === "critical" || i.severity === "high",
-    ),
+    hasCritical: issues.some((i) => i.severity === "critical" || i.severity === "high"),
     summary: structured.summary as string,
   };
 }
 
-export const RelaySecurityAnalysis: Plugin = async ({
-  $,
-  directory,
-  client,
-}) => {
+export const RelaySecurityAnalysis: Plugin = async ({ $, directory, client }) => {
   const log = (
     level: "debug" | "info" | "warn" | "error",
     message: string,
@@ -136,9 +128,7 @@ export const RelaySecurityAnalysis: Plugin = async ({
         const script = `display notification ${JSON.stringify(message)} with title ${JSON.stringify(title)}`;
         await $`osascript -e ${script}`.catch(() => {});
       } else if (process.platform === "linux") {
-        await $`notify-send ${title} ${message} -i dialog-information`.catch(
-          () => {},
-        );
+        await $`notify-send ${title} ${message} -i dialog-information`.catch(() => {});
       }
     } catch {}
   }

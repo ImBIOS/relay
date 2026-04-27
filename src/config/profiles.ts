@@ -63,7 +63,7 @@ export function createProfile(
   name: string,
   provider: "zai" | "minimax",
   apiKey: string,
-  baseUrl: string
+  baseUrl: string,
 ): ProfileConfig {
   const now = new Date().toISOString();
 
@@ -125,9 +125,7 @@ export function listProfiles(): ProfileConfig[] {
   return Object.values(config.profiles);
 }
 
-export function updateProfileSettings(
-  settings: Partial<ImBIOSConfig["settings"]>
-): void {
+export function updateProfileSettings(settings: Partial<ImBIOSConfig["settings"]>): void {
   const config = loadProfiles();
   config.settings = { ...config.settings, ...settings };
   saveProfiles(config);

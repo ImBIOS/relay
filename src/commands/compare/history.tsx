@@ -16,7 +16,7 @@ export default class CompareHistory extends BaseCommand<typeof CompareHistory> {
       await this.renderApp(
         <Section title="Comparison History">
           <Info>No comparison sessions found.</Info>
-        </Section>
+        </Section>,
       );
       return;
     }
@@ -29,9 +29,7 @@ export default class CompareHistory extends BaseCommand<typeof CompareHistory> {
     }));
 
     // For now, render a simple history list
-    const { waitUntilExit } = render(
-      <HistoryListWrapper sessions={sessions} />
-    );
+    const { waitUntilExit } = render(<HistoryListWrapper sessions={sessions} />);
     await waitUntilExit();
   }
 }
@@ -43,11 +41,7 @@ interface SessionData {
   winner?: string;
 }
 
-function HistoryListWrapper({
-  sessions,
-}: {
-  sessions: SessionData[];
-}): React.ReactElement {
+function HistoryListWrapper({ sessions }: { sessions: SessionData[] }): React.ReactElement {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [viewSessionId, setViewSessionId] = useState<string | null>(null);
 

@@ -12,11 +12,7 @@ describe("env", () => {
 
   describe("exportEnvVars", () => {
     it("should generate env var exports with quotes", () => {
-      const output = exportEnvVars(
-        "test-api-key",
-        "https://api.test.com",
-        "test-model"
-      );
+      const output = exportEnvVars("test-api-key", "https://api.test.com", "test-model");
       expect(output).toContain('ANTHROPIC_AUTH_TOKEN="test-api-key"');
       expect(output).toContain('ANTHROPIC_BASE_URL="https://api.test.com"');
       expect(output).toContain('ANTHROPIC_MODEL="test-model"');
@@ -40,8 +36,7 @@ describe("env", () => {
 
   describe("loadEnvVars", () => {
     it("should parse quoted values correctly", () => {
-      const input =
-        'ANTHROPIC_AUTH_TOKEN="test-key"\nANTHROPIC_MODEL="model-name"';
+      const input = 'ANTHROPIC_AUTH_TOKEN="test-key"\nANTHROPIC_MODEL="model-name"';
       const lines = input.split("\n");
       const vars: Record<string, string> = {};
 

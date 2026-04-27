@@ -26,10 +26,10 @@ export interface UsageRecord {
   limit: number;
 }
 
-const CONFIG_PATH = path.join(os.homedir(), ".claude", "relay.json");
+const CONFIG_PATH = path.join(os.homedir(), ".config", "relay", "settings.json");
 
 export function getConfigDir(): string {
-  return path.join(os.homedir(), ".claude");
+  return path.join(os.homedir(), ".config", "relay");
 }
 
 export function getConfigPath(): string {
@@ -56,9 +56,7 @@ export function saveConfig(config: RELAYConfig): void {
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
 }
 
-export function getProviderConfig(
-  provider: "zai" | "minimax"
-): Record<string, string> {
+export function getProviderConfig(provider: "zai" | "minimax"): Record<string, string> {
   const config = loadConfig();
   const providerConfig = config[provider];
 
@@ -68,15 +66,14 @@ export function getProviderConfig(
 
   return {
     apiKey: "apiKey" in providerConfig ? (providerConfig.apiKey as string) : "",
-    baseUrl:
-      "baseUrl" in providerConfig ? (providerConfig.baseUrl as string) : "",
+    baseUrl: "baseUrl" in providerConfig ? (providerConfig.baseUrl as string) : "",
   };
 }
 
 export function setProviderConfig(
   provider: "zai" | "minimax",
   apiKey: string,
-  baseUrl: string
+  baseUrl: string,
 ): void {
   const config = loadConfig();
   config[provider] = { apiKey, baseUrl, models: [] };
@@ -94,11 +91,7 @@ export function setActiveProvider(provider: "zai" | "minimax"): void {
   saveConfig(config);
 }
 
-export function recordUsage(
-  provider: "zai" | "minimax",
-  used: number,
-  limit: number
-): void {
+export function recordUsage(provider: "zai" | "minimax", used: number, limit: number): void {
   const config = loadConfig();
   const today = new Date().toISOString().split("T")[0];
 

@@ -38,9 +38,7 @@ export default class Proxy extends BaseCommand<typeof Proxy> {
     await this.renderApp(
       <Box flexDirection="column" gap={1}>
         <Text bold>relay proxy</Text>
-        <Text>
-          Routes Claude Code API calls through a local proxy to Z.AI/MiniMax.
-        </Text>
+        <Text>Routes Claude Code API calls through a local proxy to Z.AI/MiniMax.</Text>
         <Text>
           Status:{" "}
           <Text color={running ? "green" : "yellow"}>
@@ -49,13 +47,13 @@ export default class Proxy extends BaseCommand<typeof Proxy> {
         </Text>
         <Text> </Text>
         <Text bold>Commands:</Text>
-        <Text>  relay proxy start   Start the proxy server (port 8787)</Text>
-        <Text>  relay proxy stop    Stop the proxy server</Text>
-        <Text>  relay proxy status  Show proxy status and recent logs</Text>
+        <Text> relay proxy start Start the proxy server (port 8787)</Text>
+        <Text> relay proxy stop Stop the proxy server</Text>
+        <Text> relay proxy status Show proxy status and recent logs</Text>
         <Text> </Text>
         <Text bold>Claude Code settings:</Text>
-        <Text>  ANTHROPIC_BASE_URL=http://127.0.0.1:8787/api/anthropic</Text>
-        <Text>  ANTHROPIC_AUTH_TOKEN={"<any non-empty string>"}</Text>
+        <Text> ANTHROPIC_BASE_URL=http://127.0.0.1:8787/api/anthropic</Text>
+        <Text> ANTHROPIC_AUTH_TOKEN={"<any non-empty string>"}</Text>
       </Box>,
     );
   }

@@ -13,10 +13,7 @@ const PROVIDERS: Record<string, () => Provider> = {
 
 export default class Claude extends BaseCommand<typeof Claude> {
   static description = "Spawn Claude with auto-switch";
-  static examples = [
-    "<%= config.bin %> claude",
-    "<%= config.bin %> claude --continue",
-  ];
+  static examples = ["<%= config.bin %> claude", "<%= config.bin %> claude --continue"];
 
   static strict = false; // Allow any arguments to pass through
 
@@ -52,7 +49,7 @@ export default class Claude extends BaseCommand<typeof Claude> {
         const newAccount = rotationResult.account;
         if (rotationResult.rotated && newAccount) {
           this.log(
-            `[auto-switch] ${previousAccount?.name || "none"} → ${newAccount.name} (${newAccount.provider})`
+            `[auto-switch] ${previousAccount?.name || "none"} → ${newAccount.name} (${newAccount.provider})`,
           );
         }
       }
@@ -64,8 +61,7 @@ export default class Claude extends BaseCommand<typeof Claude> {
 
         // Only rotate if both providers are configured
         if (zaiConfig.apiKey && minimaxConfig.apiKey) {
-          const newProvider: "zai" | "minimax" =
-            currentProvider === "zai" ? "minimax" : "zai";
+          const newProvider: "zai" | "minimax" = currentProvider === "zai" ? "minimax" : "zai";
           settings.setActiveProvider(newProvider);
           this.log(`[auto-switch] ${currentProvider} → ${newProvider}`);
         }
@@ -81,9 +77,7 @@ export default class Claude extends BaseCommand<typeof Claude> {
       const legacyConfig = settings.getProviderConfig(legacyProvider);
 
       if (!legacyConfig.apiKey) {
-        this.error(
-          "No accounts configured. Run 'relay config' or 'relay account add' first."
-        );
+        this.error("No accounts configured. Run 'relay config' or 'relay account add' first.");
       }
 
       // Use legacy config

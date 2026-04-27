@@ -22,13 +22,13 @@ export default class McpEnable extends BaseCommand<typeof McpEnable> {
       await this.renderApp(
         <Box>
           <Success>MCP server "{name}" enabled.</Success>
-        </Box>
+        </Box>,
       );
     } else {
       await this.renderApp(
         <Box>
           <ErrorBadge>MCP server "{name}" not found.</ErrorBadge>
-        </Box>
+        </Box>,
       );
     }
   }

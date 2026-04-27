@@ -71,9 +71,7 @@ complete -c relay -a 'version' -d 'Show version'`,
 export function getShellCompletion(shell: string): string {
   const shellConfig = SHELLS.find((s) => s.name === shell);
   if (!shellConfig) {
-    throw new Error(
-      `Unsupported shell: ${shell}. Supported shells: bash, zsh, fish`
-    );
+    throw new Error(`Unsupported shell: ${shell}. Supported shells: bash, zsh, fish`);
   }
   return shellConfig.completions;
 }
@@ -84,13 +82,13 @@ export function getAllCompletions(): Record<string, string> {
       acc[shell.name] = shell.completions;
       return acc;
     },
-    {} as Record<string, string>
+    {} as Record<string, string>,
   );
 }
 
 export function installCompletion(
   shell: string,
-  dryRun = false
+  dryRun = false,
 ): { success: boolean; message: string } {
   const _completion = getShellCompletion(shell);
   const paths: Record<string, string> = {

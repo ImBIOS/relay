@@ -18,13 +18,7 @@ function ComparePanel({
   isComplete,
 }: ComparePanelProps): React.ReactElement {
   return (
-    <Box
-      borderColor={color}
-      borderStyle="round"
-      flexDirection="column"
-      paddingX={1}
-      width="50%"
-    >
+    <Box borderColor={color} borderStyle="round" flexDirection="column" paddingX={1} width="50%">
       <Box marginBottom={1}>
         <Text bold color={color}>
           {title}
@@ -55,23 +49,15 @@ function ComparePanel({
       {result && !result.error && (
         <Box flexDirection="column">
           <Box marginBottom={1}>
-            <Text color={isComplete ? "green" : "yellow"}>
-              {isComplete ? "●" : "○"}
-            </Text>
+            <Text color={isComplete ? "green" : "yellow"}>{isComplete ? "●" : "○"}</Text>
             <Text> {isComplete ? "Complete" : "Running..."}</Text>
           </Box>
 
-          {result.timeMs > 0 && (
-            <Text>Time: {(result.timeMs / 1000).toFixed(2)}s</Text>
-          )}
+          {result.timeMs > 0 && <Text>Time: {(result.timeMs / 1000).toFixed(2)}s</Text>}
 
-          {result.tokens !== undefined && (
-            <Text>Tokens: {result.tokens.toLocaleString()}</Text>
-          )}
+          {result.tokens !== undefined && <Text>Tokens: {result.tokens.toLocaleString()}</Text>}
 
-          {result.cost !== undefined && (
-            <Text>Cost: ${result.cost.toFixed(6)}</Text>
-          )}
+          {result.cost !== undefined && <Text>Cost: ${result.cost.toFixed(6)}</Text>}
 
           <Box marginTop={1}>
             <Text>Output preview:</Text>
@@ -201,9 +187,7 @@ export function HistoryItem({
   return (
     <Box flexDirection="column" paddingX={2} paddingY={1}>
       <Box>
-        <Text color={isSelected ? "green" : undefined}>
-          {isSelected ? ">" : " "}
-        </Text>
+        <Text color={isSelected ? "green" : undefined}>{isSelected ? ">" : " "}</Text>
         <Text bold>{id.slice(0, 12)}</Text>
         <Text color="gray"> {timestamp}</Text>
       </Box>
@@ -273,9 +257,7 @@ export function HistoryList({
         ))
       )}
       <Box padding={1}>
-        <Text color="gray">
-          Use arrow keys to navigate, Enter to view details
-        </Text>
+        <Text color="gray">Use arrow keys to navigate, Enter to view details</Text>
       </Box>
     </Box>
   );
@@ -293,10 +275,7 @@ interface SessionDetailProps {
   onBack: () => void;
 }
 
-export function SessionDetail({
-  session,
-  onBack,
-}: SessionDetailProps): React.ReactElement {
+export function SessionDetail({ session, onBack }: SessionDetailProps): React.ReactElement {
   useInput((input) => {
     if (input === "q" || input === "\x1b") {
       onBack();
@@ -360,9 +339,7 @@ export function SessionDetail({
         </Box>
         {session.minimaxResult ? (
           <Box flexDirection="column" paddingX={1}>
-            <Text>
-              Time: {(session.minimaxResult.timeMs / 1000).toFixed(2)}s
-            </Text>
+            <Text>Time: {(session.minimaxResult.timeMs / 1000).toFixed(2)}s</Text>
             {session.minimaxResult.error ? (
               <Text color="red">Error: {session.minimaxResult.error}</Text>
             ) : (

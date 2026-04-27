@@ -47,7 +47,9 @@ export default class ProxyStop extends BaseCommand<typeof ProxyStop> {
       );
     } catch (err) {
       // Process already dead
-      try { unlinkSync(PID_FILE); } catch {}
+      try {
+        unlinkSync(PID_FILE);
+      } catch {}
       await this.renderApp(
         <Box>
           <Text color="yellow">Proxy was not running (pid {pid} not found). Cleaned up.</Text>

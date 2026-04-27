@@ -27,13 +27,7 @@ export default class ProfileCreate extends BaseCommand<typeof ProfileCreate> {
   }
 }
 
-type CreateStep =
-  | "name"
-  | "provider"
-  | "api-key"
-  | "base-url"
-  | "done"
-  | "error";
+type CreateStep = "name" | "provider" | "api-key" | "base-url" | "done" | "error";
 
 function ProfileCreateUI(): React.ReactElement {
   const { exit } = useApp();
@@ -85,10 +79,7 @@ function ProfileCreateUI(): React.ReactElement {
         {step === "name" && (
           <Box>
             <Text>Profile name: </Text>
-            <TextInput
-              onSubmit={handleNameSubmit}
-              placeholder="Enter profile name..."
-            />
+            <TextInput onSubmit={handleNameSubmit} placeholder="Enter profile name..." />
           </Box>
         )}
 
@@ -96,10 +87,7 @@ function ProfileCreateUI(): React.ReactElement {
           <Box flexDirection="column">
             <Text>Select provider:</Text>
             <Box paddingLeft={2}>
-              <Select
-                onChange={handleProviderChange}
-                options={PROVIDER_OPTIONS}
-              />
+              <Select onChange={handleProviderChange} options={PROVIDER_OPTIONS} />
             </Box>
           </Box>
         )}
@@ -107,10 +95,7 @@ function ProfileCreateUI(): React.ReactElement {
         {step === "api-key" && (
           <Box>
             <Text>API Key for {provider}: </Text>
-            <PasswordInput
-              onSubmit={handleApiKeySubmit}
-              placeholder="Enter API key..."
-            />
+            <PasswordInput onSubmit={handleApiKeySubmit} placeholder="Enter API key..." />
           </Box>
         )}
 
@@ -124,9 +109,7 @@ function ProfileCreateUI(): React.ReactElement {
           </Box>
         )}
 
-        {step === "done" && (
-          <Success>Profile "{name}" created successfully!</Success>
-        )}
+        {step === "done" && <Success>Profile "{name}" created successfully!</Success>}
 
         {step === "error" && <ErrorBadge>{error}</ErrorBadge>}
       </Box>

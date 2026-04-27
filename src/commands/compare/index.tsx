@@ -106,9 +106,7 @@ export default class Compare extends BaseCommand<typeof Compare> {
   private async readInteractiveInput(): Promise<string> {
     return new Promise((resolve) => {
       console.log("");
-      console.log(
-        "Enter your prompt (Ctrl+D or Ctrl+Z to submit, Ctrl+C to cancel):"
-      );
+      console.log("Enter your prompt (Ctrl+D or Ctrl+Z to submit, Ctrl+C to cancel):");
       console.log("".padEnd(60, "─"));
 
       const lines: string[] = [];
@@ -147,10 +145,8 @@ export default class Compare extends BaseCommand<typeof Compare> {
     if (!(zaiConfig.apiKey || minimaxConfig.apiKey)) {
       await this.renderApp(
         <Box>
-          <ErrorBadge>
-            No providers configured. Run 'relay config' first.
-          </ErrorBadge>
-        </Box>
+          <ErrorBadge>No providers configured. Run 'relay config' first.</ErrorBadge>
+        </Box>,
       );
       return;
     }
@@ -164,11 +160,7 @@ export default class Compare extends BaseCommand<typeof Compare> {
       setupSessionFiles(zaiSession, zaiConfig.apiKey, zaiConfig.baseUrl);
     }
     if (minimaxConfig.apiKey) {
-      setupSessionFiles(
-        minimaxSession,
-        minimaxConfig.apiKey,
-        minimaxConfig.baseUrl
-      );
+      setupSessionFiles(minimaxSession, minimaxConfig.apiKey, minimaxConfig.baseUrl);
     }
 
     // Symlink project files
@@ -211,7 +203,7 @@ export default class Compare extends BaseCommand<typeof Compare> {
               timeoutMs: timeout * 1000,
             }).then((result) => {
               zaiResult = result;
-            })
+            }),
           );
         }
 
@@ -223,7 +215,7 @@ export default class Compare extends BaseCommand<typeof Compare> {
               timeoutMs: timeout * 1000,
             }).then((result) => {
               minimaxResult = result;
-            })
+            }),
           );
         }
 
@@ -269,7 +261,7 @@ export default class Compare extends BaseCommand<typeof Compare> {
           prompt={prompt}
           winner={winner ?? null}
           zaiResult={zaiResult}
-        />
+        />,
       );
 
       await waitUntilExit();

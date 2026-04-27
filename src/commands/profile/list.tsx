@@ -12,9 +12,7 @@ export default class ProfileList extends BaseCommand<typeof ProfileList> {
     const profileList = profiles.listProfiles();
     const activeProfile = profiles.getActiveProfile();
 
-    await this.renderApp(
-      <ProfileListUI activeProfile={activeProfile} profiles={profileList} />
-    );
+    await this.renderApp(<ProfileListUI activeProfile={activeProfile} profiles={profileList} />);
   }
 }
 
@@ -35,9 +33,7 @@ function ProfileListUI({
   if (profileList.length === 0) {
     return (
       <Section title="Configuration Profiles">
-        <Info>
-          No profiles configured. Use 'relay profile create' to create one.
-        </Info>
+        <Info>No profiles configured. Use 'relay profile create' to create one.</Info>
       </Section>
     );
   }

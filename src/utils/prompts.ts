@@ -1,9 +1,6 @@
 import inquirer from "inquirer";
 
-export async function confirm(
-  message: string,
-  defaultValue = true
-): Promise<boolean> {
+export async function confirm(message: string, defaultValue = true): Promise<boolean> {
   const { result } = await inquirer.prompt([
     {
       type: "confirm",
@@ -15,10 +12,7 @@ export async function confirm(
   return result;
 }
 
-export async function input(
-  message: string,
-  defaultValue = ""
-): Promise<string> {
+export async function input(message: string, defaultValue = ""): Promise<string> {
   const { result } = await inquirer.prompt([
     {
       type: "input",
@@ -44,7 +38,7 @@ export async function password(message: string): Promise<string> {
 export async function select<T extends string>(
   message: string,
   choices: readonly T[],
-  defaultIndex = 0
+  defaultIndex = 0,
 ): Promise<T> {
   const { result } = await inquirer.prompt([
     {
@@ -60,7 +54,7 @@ export async function select<T extends string>(
 
 export async function checkbox<T extends string>(
   message: string,
-  choices: readonly T[]
+  choices: readonly T[],
 ): Promise<T[]> {
   const { result } = await inquirer.prompt([
     {

@@ -10,13 +10,7 @@ import { BaseCommand } from "../oclif/base";
 import type { Provider } from "../providers/base";
 import { minimaxProvider } from "../providers/minimax";
 import { zaiProvider } from "../providers/zai";
-import {
-  Error as ErrorBadge,
-  Info,
-  Section,
-  Success,
-  Warning,
-} from "../ui/index";
+import { Error as ErrorBadge, Info, Section, Success, Warning } from "../ui/index";
 
 const PROVIDERS: Record<string, () => Provider> = {
   zai: () => zaiProvider,
@@ -63,10 +57,7 @@ function checkHooksInstalled(): HookCheckResult[] {
         result.installed = hooks.some((hookGroup: any) => {
           if (hookGroup.hooks && Array.isArray(hookGroup.hooks)) {
             return hookGroup.hooks.some((hookConfig: any) => {
-              return (
-                hookConfig.type === "command" &&
-                hookConfig.command?.includes("relay")
-              );
+              return hookConfig.type === "command" && hookConfig.command?.includes("relay");
             });
           }
           return false;
@@ -91,7 +82,7 @@ export default class Doctor extends BaseCommand<typeof Doctor> {
     const configPath = settings.getConfigPath();
     const hooksStatus = checkHooksInstalled();
     const peonInstalled = existsSync(
-      path.join(os.homedir(), ".claude", "hooks", "peon-ping", "peon.sh")
+      path.join(os.homedir(), ".claude", "hooks", "peon-ping", "peon.sh"),
     );
 
     await this.renderApp(
@@ -101,7 +92,7 @@ export default class Doctor extends BaseCommand<typeof Doctor> {
         hooksStatus={hooksStatus}
         peonInstalled={peonInstalled}
         provider={provider}
-      />
+      />,
     );
   }
 }
@@ -212,8 +203,7 @@ function DoctorUI({
                   <Text>peon-ping is installed</Text>
                 ) : (
                   <Text>
-                    We recommend <Text bold>peon-ping</Text> for desktop
-                    notifications.
+                    We recommend <Text bold>peon-ping</Text> for desktop notifications.
                   </Text>
                 )}
               </Text>

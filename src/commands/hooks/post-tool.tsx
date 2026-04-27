@@ -41,7 +41,7 @@ function hasCommand(cmd: string): boolean {
 
 async function runCommand(
   cmd: string,
-  args: string[]
+  args: string[],
 ): Promise<{ success: boolean; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     const proc = spawn(cmd, args, { stdio: ["ignore", "pipe", "pipe"] });
@@ -263,9 +263,7 @@ function extractFilePathFromInput(input: string): string | null {
     if (data.target) return data.target;
     if (data.tool_input) {
       const toolInput =
-        typeof data.tool_input === "string"
-          ? JSON.parse(data.tool_input)
-          : data.tool_input;
+        typeof data.tool_input === "string" ? JSON.parse(data.tool_input) : data.tool_input;
       if (toolInput.file_path) return toolInput.file_path;
       if (toolInput.path) return toolInput.path;
       if (toolInput.file) return toolInput.file;
@@ -279,8 +277,7 @@ function extractFilePathFromInput(input: string): string | null {
 }
 
 export default class PostTool extends BaseCommand<typeof PostTool> {
-  static description =
-    "Format files after Write|Edit operations (PostToolUse hook)";
+  static description = "Format files after Write|Edit operations (PostToolUse hook)";
 
   static examples = [
     "<%= config.bin %> hooks post-tool --verbose src/file.ts",
@@ -349,11 +346,9 @@ export default class PostTool extends BaseCommand<typeof PostTool> {
           <Section title="Post-Tool Format">
             <Info>No files to format.</Info>
             <Box marginTop={1}>
-              <Text dimColor>
-                Usage: relay hooks post-tool [--verbose] [--all] [files...]
-              </Text>
+              <Text dimColor>Usage: relay hooks post-tool [--verbose] [--all] [files...]</Text>
             </Box>
-          </Section>
+          </Section>,
         );
       }
       return;
@@ -400,13 +395,11 @@ export default class PostTool extends BaseCommand<typeof PostTool> {
             </Box>
             {errorCount > 0 && (
               <Box marginTop={1}>
-                <Text color="yellow">
-                  {errorCount} file(s) could not be formatted
-                </Text>
+                <Text color="yellow">{errorCount} file(s) could not be formatted</Text>
               </Box>
             )}
           </Box>
-        </Section>
+        </Section>,
       );
     }
   }

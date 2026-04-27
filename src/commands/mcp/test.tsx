@@ -5,13 +5,7 @@ import { Box, Text, useApp } from "ink";
 import { useEffect, useState } from "react";
 import * as mcp from "../../config/mcp";
 import { BaseCommand } from "../../oclif/base";
-import {
-  Error as ErrorBadge,
-  Info,
-  Section,
-  Success,
-  Warning,
-} from "../../ui/index";
+import { Error as ErrorBadge, Info, Section, Success, Warning } from "../../ui/index";
 
 export default class McpTest extends BaseCommand<typeof McpTest> {
   static description = "Test an MCP server connection";
@@ -32,7 +26,7 @@ export default class McpTest extends BaseCommand<typeof McpTest> {
       await this.renderApp(
         <Box>
           <ErrorBadge>MCP server "{name}" not found.</ErrorBadge>
-        </Box>
+        </Box>,
       );
       return;
     }

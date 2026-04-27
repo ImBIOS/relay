@@ -5,20 +5,12 @@ import { useState } from "react";
 import type { AccountConfig } from "../../config/accounts-config";
 import { loadConfig, updateAccount } from "../../config/accounts-config";
 import { BaseCommand } from "../../oclif/base";
-import {
-  Error as ErrorBadge,
-  Info,
-  Section,
-  Success,
-  Warning,
-} from "../../ui/index";
+import { Error as ErrorBadge, Info, Section, Success, Warning } from "../../ui/index";
 
 function isRawModeSupported(): boolean {
   // Node.js ReadStream has isRawModeSupported property
   const stdin = process.stdin as { isRawModeSupported?: boolean };
-  return (
-    typeof stdin.isRawModeSupported === "boolean" && stdin.isRawModeSupported
-  );
+  return typeof stdin.isRawModeSupported === "boolean" && stdin.isRawModeSupported;
 }
 
 /**
@@ -89,14 +81,13 @@ export default class AccountEdit extends BaseCommand<typeof AccountEdit> {
       await this.renderApp(
         <Section title="Edit Account">
           <ErrorBadge>Account not found: {this.args.id as string}</ErrorBadge>
-        </Section>
+        </Section>,
       );
       return;
     }
 
     // Check if any flags were provided for non-interactive update
-    const hasFlags =
-      flags.name || flags["api-key"] || flags.groupId || flags["base-url"];
+    const hasFlags = flags.name || flags["api-key"] || flags.groupId || flags["base-url"];
 
     if (hasFlags) {
       // Non-interactive mode: update with provided flags
@@ -134,30 +125,18 @@ export default class AccountEdit extends BaseCommand<typeof AccountEdit> {
     // Check raw mode support before rendering interactive UI
     const rawModeAvailable = isRawModeSupported();
 
-    await this.renderApp(
-      <AccountEditUI account={account} rawModeAvailable={rawModeAvailable} />
-    );
+    await this.renderApp(<AccountEditUI account={account} rawModeAvailable={rawModeAvailable} />);
   }
 }
 
-type EditStep =
-  | "menu"
-  | "name"
-  | "api-key"
-  | "group-id"
-  | "base-url"
-  | "done"
-  | "error";
+type EditStep = "menu" | "name" | "api-key" | "group-id" | "base-url" | "done" | "error";
 
 interface AccountEditUIProps {
   account: AccountConfig;
   rawModeAvailable: boolean;
 }
 
-function AccountEditUI({
-  account,
-  rawModeAvailable,
-}: AccountEditUIProps): React.ReactElement {
+function AccountEditUI({ account, rawModeAvailable }: AccountEditUIProps): React.ReactElement {
   const { exit } = useApp();
   const [step, setStep] = useState<EditStep>("menu");
   const [accountState, setAccountState] = useState(account);
@@ -248,26 +227,23 @@ function AccountEditUI({
           </Info>
           <Box marginTop={1}>
             <Warning>
-              Interactive mode requires a terminal that supports raw keyboard
-              input.
+              Interactive mode requires a terminal that supports raw keyboard input.
             </Warning>
           </Box>
           <Box marginTop={1}>
             <Text>
-              Please run this command in a supported terminal, or use flags to
-              edit values directly:
+              Please run this command in a supported terminal, or use flags to edit values directly:
             </Text>
           </Box>
           <Box marginTop={1} paddingLeft={2}>
             <Text dimColor>
-              relay account edit &lt;account-id&gt; --name &lt;value&gt;
-              --api-key &lt;value&gt;
+              relay account edit &lt;account-id&gt; --name &lt;value&gt; --api-key &lt;value&gt;
             </Text>
           </Box>
           <Box marginTop={1} paddingLeft={2}>
             <Text dimColor>
-              relay account edit &lt;account-id&gt; --group-id &lt;value&gt;
-              --base-url &lt;value&gt;
+              relay account edit &lt;account-id&gt; --group-id &lt;value&gt; --base-url
+              &lt;value&gt;
             </Text>
           </Box>
         </Box>
@@ -362,10 +338,7 @@ function AccountEditUI({
             </Box>
             <Box>
               <Text>New name: </Text>
-              <TextInput
-                onSubmit={handleNameSubmit}
-                placeholder="Enter new name..."
-              />
+              <TextInput onSubmit={handleNameSubmit} placeholder="Enter new name..." />
             </Box>
           </Box>
         )}
@@ -378,10 +351,7 @@ function AccountEditUI({
             </Box>
             <Box>
               <Text>New API key: </Text>
-              <PasswordInput
-                onSubmit={handleApiKeySubmit}
-                placeholder="Enter new API key..."
-              />
+              <PasswordInput onSubmit={handleApiKeySubmit} placeholder="Enter new API key..." />
             </Box>
           </Box>
         )}
@@ -403,10 +373,7 @@ function AccountEditUI({
             </Box>
             <Box>
               <Text>New GroupId: </Text>
-              <TextInput
-                onSubmit={handleGroupIdSubmit}
-                placeholder="Enter GroupId..."
-              />
+              <TextInput onSubmit={handleGroupIdSubmit} placeholder="Enter GroupId..." />
             </Box>
             <Box>
               <Text dimColor>
@@ -425,10 +392,7 @@ function AccountEditUI({
             </Box>
             <Box>
               <Text>New base URL: </Text>
-              <TextInput
-                defaultValue={accountState.baseUrl}
-                onSubmit={handleBaseUrlSubmit}
-              />
+              <TextInput defaultValue={accountState.baseUrl} onSubmit={handleBaseUrlSubmit} />
             </Box>
           </Box>
         )}
@@ -438,9 +402,7 @@ function AccountEditUI({
             <Success>Account updated successfully!</Success>
             <Info>Name: {accountState.name}</Info>
             <Info>Provider: {accountState.provider}</Info>
-            {accountState.groupId && (
-              <Info>GroupId: {accountState.groupId}</Info>
-            )}
+            {accountState.groupId && <Info>GroupId: {accountState.groupId}</Info>}
           </Box>
         )}
 

@@ -74,7 +74,11 @@ export default class ProxyStatus extends BaseCommand<typeof ProxyStatus> {
         recentLogs = lines
           .slice(-5)
           .map((l) => {
-            try { return JSON.parse(l) as LogEntry; } catch { return null; }
+            try {
+              return JSON.parse(l) as LogEntry;
+            } catch {
+              return null;
+            }
           })
           .filter((x): x is LogEntry => x !== null);
       } catch {}
@@ -119,7 +123,9 @@ export default class ProxyStatus extends BaseCommand<typeof ProxyStatus> {
                     <Text color={entry.status && entry.status < 400 ? "green" : "red"}>
                       {entry.status}
                     </Text>
-                    <Text>{entry.method} {entry.path}</Text>
+                    <Text>
+                      {entry.method} {entry.path}
+                    </Text>
                     <Text color="dim">model={entry.model}</Text>
                     <Text color="dim">→{entry.provider}</Text>
                     <Text color="dim">{entry.latency_ms}ms</Text>
@@ -130,9 +136,7 @@ export default class ProxyStatus extends BaseCommand<typeof ProxyStatus> {
           </Box>
         )}
 
-        {!running && (
-          <Text color="dim">Run 'relay proxy start' to start the proxy.</Text>
-        )}
+        {!running && <Text color="dim">Run 'relay proxy start' to start the proxy.</Text>}
       </Box>,
     );
   }

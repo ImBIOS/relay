@@ -29,8 +29,7 @@ const COMMIT_MESSAGE_SCHEMA = {
     },
     message: {
       type: "string",
-      description:
-        "Short description (max 72 chars, imperative mood, no period)",
+      description: "Short description (max 72 chars, imperative mood, no period)",
       maxLength: 72,
     },
     breaking: {
@@ -91,8 +90,7 @@ ${diff}${truncationNote}`;
 
   if (!structured?.type || !structured?.message) {
     throw new Error(
-      "Invalid response structure from commit message generation: " +
-        JSON.stringify(structured),
+      "Invalid response structure from commit message generation: " + JSON.stringify(structured),
     );
   }
 
@@ -126,9 +124,7 @@ export const RelayCommit: Plugin = async ({ $, directory, client }) => {
         const script = `display notification ${JSON.stringify(message)} with title ${JSON.stringify(title)}`;
         await $`osascript -e ${script}`.catch(() => {});
       } else if (process.platform === "linux") {
-        await $`notify-send ${title} ${message} -i dialog-information`.catch(
-          () => {},
-        );
+        await $`notify-send ${title} ${message} -i dialog-information`.catch(() => {});
       }
     } catch {}
   }
@@ -158,7 +154,10 @@ export const RelayCommit: Plugin = async ({ $, directory, client }) => {
       }
 
       if (changes.conflicted) {
-        await log("warn", "Merge conflicts detected — skipping auto-commit. Resolve conflicts first.");
+        await log(
+          "warn",
+          "Merge conflicts detected — skipping auto-commit. Resolve conflicts first.",
+        );
         if (mainSessionId) {
           await injectContext(
             mainSessionId,
@@ -183,10 +182,7 @@ export const RelayCommit: Plugin = async ({ $, directory, client }) => {
 
       await log("info", "Committing", { commitMessage });
 
-      const commitResult = await spawn(
-        ["commit", "-m", commitMessage, "--no-verify"],
-        directory,
-      );
+      const commitResult = await spawn(["commit", "-m", commitMessage, "--no-verify"], directory);
       if (!commitResult.ok) {
         await log("error", "Commit failed", { stderr: commitResult.stderr });
         await sendNotification("relay-commit", "Commit failed: " + commitMessage);
@@ -232,19 +228,13 @@ export const RelayCommit: Plugin = async ({ $, directory, client }) => {
       await sendNotification("relay-commit", `${statusText}: ${commitMessage}`);
 
       if (mainSessionId) {
-        await injectContext(
-          mainSessionId,
-          `[relay-commit] ${statusText}: ${commitMessage}`,
-        );
+        await injectContext(mainSessionId, `[relay-commit] ${statusText}: ${commitMessage}`);
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       await log("error", "Unexpected error in doCommit", { error: message });
       if (mainSessionId) {
-        await injectContext(
-          mainSessionId,
-          `[relay-commit] Error: ${message}`,
-        );
+        await injectContext(mainSessionId, `[relay-commit] Error: ${message}`);
       }
     }
   }

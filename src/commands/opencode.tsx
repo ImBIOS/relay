@@ -70,9 +70,7 @@ export default class OpenCode extends BaseCommand<typeof OpenCode> {
 
     // If no flags, check if OpenCode is configured
     if (!accountsConfig.loadConfig().activeAccountId) {
-      this.error(
-        "No accounts configured. Run 'relay account add' or 'relay config' first."
-      );
+      this.error("No accounts configured. Run 'relay account add' or 'relay config' first.");
     }
 
     // Find opencode CLI
@@ -90,7 +88,7 @@ export default class OpenCode extends BaseCommand<typeof OpenCode> {
         opencodePath = opencodePath + "/opencode-ai/bin/opencode";
       } catch {
         this.error(
-          "OpenCode CLI not found. Please install OpenCode first:\n  curl -fsSL https://opencode.ai/install | bash\n  or: npm i -g opencode-ai"
+          "OpenCode CLI not found. Please install OpenCode first:\n  curl -fsSL https://opencode.ai/install | bash\n  or: npm i -g opencode-ai",
         );
       }
     }
@@ -116,7 +114,7 @@ export default class OpenCode extends BaseCommand<typeof OpenCode> {
         const newAccount = rotationResult.account;
         if (rotationResult.rotated && newAccount) {
           this.log(
-            `[auto-switch] ${previousAccount?.name || "none"} → ${newAccount.name} (${newAccount.provider})`
+            `[auto-switch] ${previousAccount?.name || "none"} → ${newAccount.name} (${newAccount.provider})`,
           );
         }
       }
@@ -128,8 +126,7 @@ export default class OpenCode extends BaseCommand<typeof OpenCode> {
 
         // Only rotate if both providers are configured
         if (zaiConfig.apiKey && minimaxConfig.apiKey) {
-          const newProvider: "zai" | "minimax" =
-            currentProvider === "zai" ? "minimax" : "zai";
+          const newProvider: "zai" | "minimax" = currentProvider === "zai" ? "minimax" : "zai";
           settings.setActiveProvider(newProvider);
           this.log(`[auto-switch] ${currentProvider} → ${newProvider}`);
         }
@@ -145,9 +142,7 @@ export default class OpenCode extends BaseCommand<typeof OpenCode> {
       const legacyConfig = settings.getProviderConfig(legacyProvider);
 
       if (!legacyConfig.apiKey) {
-        this.error(
-          "No accounts configured. Run 'relay config' or 'relay account add' first."
-        );
+        this.error("No accounts configured. Run 'relay config' or 'relay account add' first.");
       }
 
       // Use legacy config

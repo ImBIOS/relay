@@ -34,10 +34,10 @@ When working on this repo, follow these rules:
 
 ## Quick Reference
 
-| Action | How |
-|--------|-----|
-| Create a new feature | `mkdir .relay/features/<NNN>-<slug>` + create `spec.md` |
-| Add QA for a feature | Create `qa.md` in the feature folder |
-| Add a fork patch | Create `patch.md` in the feature folder |
-| Register a feature | Add entry to `.relay/registry.json` |
-| Sync fork with upstream | `gh workflow run fork-sync.yml` |
+| Action                  | How                                                     |
+| ----------------------- | ------------------------------------------------------- |
+| Create a new feature    | `mkdir .relay/features/<NNN>-<slug>` + create `spec.md` |
+| Add QA for a feature    | Create `qa.md` in the feature folder                    |
+| Add a fork patch        | Create `patch.md` in the feature folder                 |
+| Register a feature      | Add entry to `.relay/registry.json`                     |
+| Sync fork with upstream | `gh workflow run fork-sync.yml`                         |

@@ -19,10 +19,7 @@ function getProviderFactory(provider: string): (() => Provider) | null {
 
 export default class Env extends BaseCommand<typeof Env> {
   static description = "Export environment variables";
-  static examples = [
-    "<%= config.bin %> env export",
-    'eval "$(<%= config.bin %> env export)"',
-  ];
+  static examples = ["<%= config.bin %> env export", 'eval "$(<%= config.bin %> env export)"'];
 
   static args = {
     action: Args.string({

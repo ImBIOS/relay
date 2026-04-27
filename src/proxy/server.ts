@@ -12,10 +12,7 @@
 import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import {
-  getActiveAccount,
-  listAccounts,
-} from "../config/accounts-config.js";
+import { getActiveAccount, listAccounts } from "../config/accounts-config.js";
 
 const PORT = Number(process.env.RELAY_PROXY_PORT || "8787");
 const HOST = "127.0.0.1";
@@ -75,7 +72,8 @@ async function handleRequest(req: Request): Promise<Response> {
   const modelProvider = model !== "unknown" ? getProviderForModel(model) : null;
   if (modelProvider) {
     const accounts = listAccounts();
-    account = accounts.find((a) => a.provider === modelProvider && a.isActive) ??
+    account =
+      accounts.find((a) => a.provider === modelProvider && a.isActive) ??
       accounts.find((a) => a.provider === modelProvider) ??
       null;
   }
@@ -146,7 +144,17 @@ console.log(`  log: ${LOG_FILE}`);
 console.log(`  pid: ${process.pid} → ${PID_FILE}`);
 
 // Clean up PID file on exit
-process.on("SIGTERM", () => { try { Bun.file(PID_FILE).delete(); } catch {} process.exit(0); });
-process.on("SIGINT", () => { try { Bun.file(PID_FILE).delete(); } catch {} process.exit(0); });
+process.on("SIGTERM", () => {
+  try {
+    Bun.file(PID_FILE).delete();
+  } catch {}
+  process.exit(0);
+});
+process.on("SIGINT", () => {
+  try {
+    Bun.file(PID_FILE).delete();
+  } catch {}
+  process.exit(0);
+});
 
 export { server };

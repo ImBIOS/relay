@@ -46,9 +46,7 @@ function ConfigUI(): React.ReactElement {
   const [step, setStep] = useState<ConfigStep>("select-providers");
   const [selectedProviders, setSelectedProviders] = useState<string[]>([]);
   const [currentProviderIndex, setCurrentProviderIndex] = useState(0);
-  const [currentConfig, setCurrentConfig] = useState<Partial<ProviderConfig>>(
-    {}
-  );
+  const [currentConfig, setCurrentConfig] = useState<Partial<ProviderConfig>>({});
   const [messages, setMessages] = useState<
     Array<{ type: "info" | "success" | "warning"; text: string }>
   >([]);
@@ -71,9 +69,7 @@ function ConfigUI(): React.ReactElement {
   };
 
   const checkProviderConfig = (provider: string) => {
-    const existingConfig = settings.getProviderConfig(
-      provider as "zai" | "minimax"
-    );
+    const existingConfig = settings.getProviderConfig(provider as "zai" | "minimax");
     if (existingConfig.apiKey) {
       setStep("confirm-reconfigure");
     } else {
@@ -85,25 +81,16 @@ function ConfigUI(): React.ReactElement {
   const handleReconfigure = (reconfigure: boolean) => {
     if (reconfigure) {
       setStep("enter-api-key");
-      addMessage(
-        "info",
-        `Configuring ${currentProvider.toUpperCase()} provider...`
-      );
+      addMessage("info", `Configuring ${currentProvider.toUpperCase()} provider...`);
     } else {
-      addMessage(
-        "info",
-        `Skipping ${currentProvider.toUpperCase()} - already configured.`
-      );
+      addMessage("info", `Skipping ${currentProvider.toUpperCase()} - already configured.`);
       moveToNextProvider();
     }
   };
 
   const handleApiKeySubmit = (apiKey: string) => {
     if (!apiKey) {
-      addMessage(
-        "warning",
-        `Skipping ${currentProvider.toUpperCase()} - no API key provided.`
-      );
+      addMessage("warning", `Skipping ${currentProvider.toUpperCase()} - no API key provided.`);
       moveToNextProvider();
       return;
     }
@@ -120,12 +107,9 @@ function ConfigUI(): React.ReactElement {
     settings.setProviderConfig(
       currentProvider as "zai" | "minimax",
       finalConfig.apiKey!,
-      finalConfig.baseUrl
+      finalConfig.baseUrl,
     );
-    addMessage(
-      "success",
-      `${currentProvider.toUpperCase()} configuration saved!`
-    );
+    addMessage("success", `${currentProvider.toUpperCase()} configuration saved!`);
     moveToNextProvider();
   };
 
@@ -158,20 +142,14 @@ function ConfigUI(): React.ReactElement {
           <Box flexDirection="column" marginTop={1}>
             <Text>Select API providers to configure:</Text>
             <Box paddingLeft={2}>
-              <MultiSelect
-                onSubmit={handleProvidersSelected}
-                options={PROVIDER_OPTIONS}
-              />
+              <MultiSelect onSubmit={handleProvidersSelected} options={PROVIDER_OPTIONS} />
             </Box>
           </Box>
         )}
 
         {step === "confirm-reconfigure" && (
           <Box marginTop={1}>
-            <Text>
-              {currentProvider.toUpperCase()} is already configured.
-              Reconfigure?{" "}
-            </Text>
+            <Text>{currentProvider.toUpperCase()} is already configured. Reconfigure? </Text>
             <ConfirmInput
               defaultChoice="cancel"
               onCancel={() => handleReconfigure(false)}
@@ -183,10 +161,7 @@ function ConfigUI(): React.ReactElement {
         {step === "enter-api-key" && (
           <Box marginTop={1}>
             <Text>Enter API Key for {currentProvider}: </Text>
-            <PasswordInput
-              onSubmit={handleApiKeySubmit}
-              placeholder="Enter API key..."
-            />
+            <PasswordInput onSubmit={handleApiKeySubmit} placeholder="Enter API key..." />
           </Box>
         )}
 
@@ -195,8 +170,8 @@ function ConfigUI(): React.ReactElement {
             <Text>Base URL: </Text>
             <TextInput
               defaultValue={
-                settings.getProviderConfig(currentProvider as "zai" | "minimax")
-                  .baseUrl || PROVIDERS[currentProvider]().getConfig().baseUrl
+                settings.getProviderConfig(currentProvider as "zai" | "minimax").baseUrl ||
+                PROVIDERS[currentProvider]().getConfig().baseUrl
               }
               onSubmit={handleBaseUrlSubmit}
             />

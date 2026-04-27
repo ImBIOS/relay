@@ -1,10 +1,4 @@
-export type LogLevel =
-  | "trace"
-  | "debug"
-  | "info"
-  | "success"
-  | "warning"
-  | "error";
+export type LogLevel = "trace" | "debug" | "info" | "success" | "warning" | "error";
 
 const LOG_LEVEL_ORDER: Record<LogLevel, number> = {
   trace: 0,
@@ -88,9 +82,7 @@ export function debug(message: string): void {
 
 export function table(data: Record<string, string | number>): void {
   const maxKeyLength = Math.max(...Object.keys(data).map((k) => k.length));
-  const maxValLength = Math.max(
-    ...Object.values(data).map((v) => String(v).length)
-  );
+  const maxValLength = Math.max(...Object.values(data).map((v) => String(v).length));
 
   for (const [key, value] of Object.entries(data)) {
     const paddedKey = key.padEnd(maxKeyLength);

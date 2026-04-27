@@ -36,11 +36,7 @@ interface TableRowProps {
 /**
  * Individual table row component for more flexible table layouts.
  */
-export function TableRow({
-  label,
-  value,
-  labelWidth = 20,
-}: TableRowProps): React.ReactElement {
+export function TableRow({ label, value, labelWidth = 20 }: TableRowProps): React.ReactElement {
   return (
     <Box>
       <Text>{label.padEnd(labelWidth)}</Text>

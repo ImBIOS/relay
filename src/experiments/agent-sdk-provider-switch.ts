@@ -30,10 +30,7 @@ function setProviderEnv(provider: Provider): void {
   process.env.API_TIMEOUT_MS = "3000000";
 }
 
-async function runAgentWithProvider(
-  providerInfo: ProviderInfo,
-  prompt: string
-): Promise<void> {
+async function runAgentWithProvider(providerInfo: ProviderInfo, prompt: string): Promise<void> {
   console.log(`\n${"=".repeat(60)}`);
   console.log(`Provider: ${providerInfo.provider.displayName}`);
   console.log(`${"=".repeat(60)}`);
@@ -69,8 +66,7 @@ async function main(): Promise<void> {
   console.log("Claude Agent SDK - Provider Switching Experiment");
   console.log("This script tests switching between MiniMax and Z.AI providers");
 
-  const testPrompt =
-    "What files are in this directory? List them with brief descriptions.";
+  const testPrompt = "What files are in this directory? List them with brief descriptions.";
 
   // Test each provider
   for (const providerInfo of providers) {

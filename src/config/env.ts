@@ -2,18 +2,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 
 export function getEnvPath(): string {
-  return path.join(
-    process.env.HOME || process.env.USERPROFILE || "",
-    ".claude",
-    "relay.env"
-  );
+  return path.join(process.env.HOME || process.env.USERPROFILE || "", ".claude", "relay.env");
 }
 
-export function exportEnvVars(
-  apiKey: string,
-  baseUrl: string,
-  model: string
-): string {
+export function exportEnvVars(apiKey: string, baseUrl: string, model: string): string {
   return `# ImBIOS Environment Variables
 # Run: eval "$(relay env export)"
 export ANTHROPIC_AUTH_TOKEN="${apiKey}"
@@ -23,11 +15,7 @@ export API_TIMEOUT_MS=3000000
 `;
 }
 
-export function writeEnvVars(
-  apiKey: string,
-  baseUrl: string,
-  model: string
-): void {
+export function writeEnvVars(apiKey: string, baseUrl: string, model: string): void {
   const envContent = exportEnvVars(apiKey, baseUrl, model);
   const envPath = getEnvPath();
   const envDir = path.dirname(envPath);

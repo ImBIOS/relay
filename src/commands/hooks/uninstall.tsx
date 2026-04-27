@@ -35,15 +35,11 @@ const RELAY_COMMAND_PATTERN =
   /hooks session-start|hooks post-tool|hooks stop|auto hook|auto-rotate\.sh/;
 
 export default class HooksUninstall extends BaseCommand<typeof HooksUninstall> {
-  static description = "Remove all Claude Code hooks";
+  static description = "Remove all Claude Code hooks and ForgeCode wrapper";
   static examples = ["<%= config.bin %> hooks uninstall"];
 
   async run(): Promise<void> {
-    const settingsFilePath = path.join(
-      os.homedir(),
-      ".claude",
-      "settings.json"
-    );
+    const settingsFilePath = path.join(os.homedir(), ".claude", "settings.json");
     const hooksDir = path.join(os.homedir(), ".claude", "hooks");
     const hookScriptPath = path.join(hooksDir, "auto-rotate.sh");
 
@@ -59,11 +55,7 @@ export default class HooksUninstall extends BaseCommand<typeof HooksUninstall> {
       }
 
       // Remove plugin cache marker
-      const cacheMarker = path.join(
-        os.homedir(),
-        ".claude",
-        ".zai-plugins-installed"
-      );
+      const cacheMarker = path.join(os.homedir(), ".claude", ".zai-plugins-installed");
       if (fs.existsSync(cacheMarker)) {
         fs.unlinkSync(cacheMarker);
       }
@@ -83,22 +75,20 @@ export default class HooksUninstall extends BaseCommand<typeof HooksUninstall> {
           if (settings.hooks?.[hookType]) {
             const originalLength = settings.hooks[hookType]!.length;
 
-            settings.hooks[hookType] = settings.hooks[hookType]!.filter(
-              (hookGroup) => {
-                if (!(hookGroup.hooks && Array.isArray(hookGroup.hooks))) {
-                  return true;
-                }
-
-                const hasOurHook = hookGroup.hooks.some(
-                  (hookConfig) =>
-                    hookConfig.type === "command" &&
-                    hookConfig.command &&
-                    RELAY_COMMAND_PATTERN.test(hookConfig.command)
-                );
-
-                return !hasOurHook;
+            settings.hooks[hookType] = settings.hooks[hookType]!.filter((hookGroup) => {
+              if (!(hookGroup.hooks && Array.isArray(hookGroup.hooks))) {
+                return true;
               }
-            );
+
+              const hasOurHook = hookGroup.hooks.some(
+                (hookConfig) =>
+                  hookConfig.type === "command" &&
+                  hookConfig.command &&
+                  RELAY_COMMAND_PATTERN.test(hookConfig.command),
+              );
+
+              return !hasOurHook;
+            });
 
             if (settings.hooks[hookType]!.length !== originalLength) {
               hooksRemoved += originalLength - settings.hooks[hookType]!.length;
@@ -122,18 +112,54 @@ export default class HooksUninstall extends BaseCommand<typeof HooksUninstall> {
         }
       }
 
-      if (!(hookRemoved || settingsModified)) {
+      // Remove ForgeCode shell wrapper from shell config files
+      const FORGE_WRAPPER_MARKER =
+        "# !! Relay ForgeCode wrapper - managed by 'relay hooks forge-setup' !!";
+      let forgeWrapperRemoved = false;
+      const shellConfigFiles = [
+        path.join(process.env.ZDOTDIR || os.homedir(), ".zshrc"),
+        path.join(process.env.ZDOTDIR || os.homedir(), ".zprofile"),
+        path.join(os.homedir(), ".bashrc"),
+        path.join(os.homedir(), ".bash_profile"),
+        path.join(os.homedir(), ".profile"),
+      ];
+
+      for (const configFile of shellConfigFiles) {
+        if (!fs.existsSync(configFile)) continue;
+
+        let content = fs.readFileSync(configFile, "utf-8");
+        if (!content.includes(FORGE_WRAPPER_MARKER)) continue;
+
+        // Remove the wrapper block (between marker pairs)
+        const lines = content.split("\n");
+        const filtered: string[] = [];
+        let insideBlock = false;
+
+        for (const line of lines) {
+          if (line.includes(FORGE_WRAPPER_MARKER)) {
+            insideBlock = !insideBlock;
+            continue;
+          }
+          if (!insideBlock) {
+            filtered.push(line);
+          }
+        }
+
+        content = filtered.join("\n").replace(/\n{3,}/g, "\n\n");
+        fs.writeFileSync(configFile, content);
+        forgeWrapperRemoved = true;
+      }
+
+      if (!(hookRemoved || settingsModified || forgeWrapperRemoved)) {
         await this.renderApp(
           <Section title="Hooks Uninstall">
             <Box flexDirection="column">
               <Info>No relay hooks found.</Info>
               <Box marginTop={1}>
-                <Text dimColor>
-                  Hooks may have already been removed or were never installed.
-                </Text>
+                <Text dimColor>Hooks may have already been removed or were never installed.</Text>
               </Box>
             </Box>
-          </Section>
+          </Section>,
         );
         return;
       }
@@ -141,7 +167,10 @@ export default class HooksUninstall extends BaseCommand<typeof HooksUninstall> {
       await this.renderApp(
         <Section title="Hooks Uninstall">
           <Box flexDirection="column">
-            <Success>Removed {hooksRemoved} hook(s).</Success>
+            <Success>
+              Removed {hooksRemoved} Claude Code hook(s)
+              {forgeWrapperRemoved ? " and ForgeCode wrapper" : ""}.
+            </Success>
             {hookRemoved && (
               <Box marginTop={1}>
                 <Text dimColor>Removed legacy hook script</Text>
@@ -149,25 +178,28 @@ export default class HooksUninstall extends BaseCommand<typeof HooksUninstall> {
             )}
             {settingsModified && (
               <Box marginTop={1}>
-                <Text dimColor>
-                  Updated Claude settings: {settingsFilePath}
-                </Text>
+                <Text dimColor>Updated Claude settings: {settingsFilePath}</Text>
+              </Box>
+            )}
+            {forgeWrapperRemoved && (
+              <Box marginTop={1}>
+                <Text dimColor>Removed ForgeCode shell wrapper</Text>
               </Box>
             )}
             <Box flexDirection="column" marginTop={1}>
-              <Info>
-                Auto-rotation, formatting, and commit prompts are no longer
-                automatic.
-              </Info>
+              <Info>Auto-rotation, formatting, and commit prompts are no longer automatic.</Info>
               <Box marginTop={1}>
                 <Text dimColor>
                   For notifications, use <Text bold>peon-ping</Text> instead.
                 </Text>
               </Box>
-              <Info>To re-enable hooks, run "relay hooks install".</Info>
+              <Info>To re-enable hooks, run "relay hooks setup".</Info>
+              {forgeWrapperRemoved && (
+                <Info>To re-enable ForgeCode auto-commit, run "relay hooks forge-setup".</Info>
+              )}
             </Box>
           </Box>
-        </Section>
+        </Section>,
       );
     } catch (error: unknown) {
       const err = error as Error;
@@ -179,7 +211,7 @@ export default class HooksUninstall extends BaseCommand<typeof HooksUninstall> {
               <Text color="red">{err.message}</Text>
             </Box>
           </Box>
-        </Section>
+        </Section>,
       );
     }
   }

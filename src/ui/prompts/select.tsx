@@ -48,11 +48,7 @@ function SelectPrompt<T extends string>({
         <Text>{message}</Text>
       </Box>
       <Box paddingLeft={2}>
-        <InkSelect
-          defaultValue={choices[defaultIndex]}
-          onChange={handleChange}
-          options={options}
-        />
+        <InkSelect defaultValue={choices[defaultIndex]} onChange={handleChange} options={options} />
       </Box>
     </Box>
   );
@@ -65,7 +61,7 @@ function SelectPrompt<T extends string>({
 export async function select<T extends string>(
   message: string,
   choices: readonly T[],
-  defaultIndex = 0
+  defaultIndex = 0,
 ): Promise<T> {
   return new Promise((resolve) => {
     const { waitUntilExit } = render(
@@ -74,7 +70,7 @@ export async function select<T extends string>(
         defaultIndex={defaultIndex}
         message={message}
         onSubmit={resolve}
-      />
+      />,
     );
     waitUntilExit();
   });

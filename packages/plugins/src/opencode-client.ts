@@ -42,15 +42,10 @@ async function getBestMiniMaxModel(): Promise<string> {
     .filter(Boolean);
 
   const candidates = available
-    .filter(
-      (id) =>
-        id.startsWith("minimax-coding-plan/") && !id.endsWith("-highspeed"),
-    )
+    .filter((id) => id.startsWith("minimax-coding-plan/") && !id.endsWith("-highspeed"))
     .map(parseMiniMaxVersion)
     .filter((v): v is VersionedModel => v !== null)
-    .sort(
-      (a, b) => b.major - a.major || b.minor - a.minor || b.patch - a.patch,
-    );
+    .sort((a, b) => b.major - a.major || b.minor - a.minor || b.patch - a.patch);
 
   if (candidates.length === 0) {
     throw new Error(
@@ -70,9 +65,7 @@ export async function getModel(): Promise<string> {
   return cachedModel;
 }
 
-export async function withOpencode<T>(
-  fn: (client: OpencodeClient) => Promise<T>,
-): Promise<T> {
+export async function withOpencode<T>(fn: (client: OpencodeClient) => Promise<T>): Promise<T> {
   const model = await getModel();
   const { client, server } = await createOpencode({
     config: { model },

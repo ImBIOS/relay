@@ -6,10 +6,7 @@ import { Info, Success } from "../../ui/index";
 
 export default class DashboardStart extends BaseCommand<typeof DashboardStart> {
   static description = "Start the web dashboard";
-  static examples = [
-    "<%= config.bin %> dashboard start",
-    "<%= config.bin %> dashboard start 8080",
-  ];
+  static examples = ["<%= config.bin %> dashboard start", "<%= config.bin %> dashboard start 8080"];
 
   static args = {
     port: Args.integer({
@@ -27,7 +24,7 @@ export default class DashboardStart extends BaseCommand<typeof DashboardStart> {
       <Box flexDirection="column">
         <Success>Dashboard enabled on port {port}</Success>
         <Info>Run 'relay dashboard' to start the web server</Info>
-      </Box>
+      </Box>,
     );
   }
 }

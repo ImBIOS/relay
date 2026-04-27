@@ -4,12 +4,7 @@ import * as path from "node:path";
 import type { AccountConfig } from "../../config/accounts-config";
 import { error, info, section, success, warning } from "../../utils/logger";
 
-export const OPENCODE_CONFIG_PATH = path.join(
-  homedir(),
-  ".config",
-  "opencode",
-  "opencode.json"
-);
+export const OPENCODE_CONFIG_PATH = path.join(homedir(), ".config", "opencode", "opencode.json");
 
 export interface OpenCodeProviderConfig {
   npm?: string;
@@ -138,15 +133,11 @@ export function configureOpenCode(account: AccountConfig): OpenCodeConfig {
  * Update OpenCode config with placeholders (for env var substitution)
  * This allows rotation without rewriting the config file
  */
-export function configureOpenCodeWithEnvVars(
-  account: AccountConfig
-): OpenCodeConfig {
+export function configureOpenCodeWithEnvVars(account: AccountConfig): OpenCodeConfig {
   const config = loadOpenCodeConfig();
   const envKey = `RELAY_${account.provider.toUpperCase()}_API_KEY`;
   const envGroupId =
-    account.provider === "minimax"
-      ? `RELAY_${account.provider.toUpperCase()}_GROUP_ID`
-      : null;
+    account.provider === "minimax" ? `RELAY_${account.provider.toUpperCase()}_GROUP_ID` : null;
 
   if (!config.$schema) {
     config.$schema = "https://opencode.ai/config.json";
@@ -195,8 +186,7 @@ export async function handleOpenCodeSetup(silent = false): Promise<void> {
 
     // Check if already configured
     const isConfigured =
-      config.provider?.minimax?.options?.apiKey ||
-      config.provider?.zai?.options?.apiKey;
+      config.provider?.minimax?.options?.apiKey || config.provider?.zai?.options?.apiKey;
 
     if (isConfigured && !silent) {
       section("OpenCode Setup");
@@ -332,9 +322,7 @@ export async function handleOpenCodeStatus(silent = false): Promise<void> {
           }
         }
         if (providerConfig.models) {
-          console.log(
-            `    Models: ${Object.keys(providerConfig.models).join(", ")}`
-          );
+          console.log(`    Models: ${Object.keys(providerConfig.models).join(", ")}`);
         }
       }
     }
@@ -344,9 +332,7 @@ export async function handleOpenCodeStatus(silent = false): Promise<void> {
 
     // Check if using env var configuration
     const usesEnvVars = JSON.stringify(config).includes("{env:");
-    console.log(
-      `Environment variables: ${usesEnvVars ? "✓ Using" : "✗ Not using"}`
-    );
+    console.log(`Environment variables: ${usesEnvVars ? "✓ Using" : "✗ Not using"}`);
   }
 }
 

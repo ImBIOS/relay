@@ -24,6 +24,62 @@ interface ClaudeSettings {
   [key: string]: unknown;
 }
 
+const FORGE_WRAPPER_MARKER =
+  "# !! Relay ForgeCode wrapper - managed by 'relay hooks forge-setup' !!";
+
+function getShellConfigFiles(): string[] {
+  const home = os.homedir();
+  const zdotdir = process.env.ZDOTDIR || home;
+  return [
+    path.join(zdotdir, ".zshrc"),
+    path.join(zdotdir, ".zprofile"),
+    path.join(home, ".bashrc"),
+    path.join(home, ".bash_profile"),
+    path.join(home, ".profile"),
+  ];
+}
+
+function checkForgeWrapperInstalled(): boolean {
+  for (const configFile of getShellConfigFiles()) {
+    if (fs.existsSync(configFile)) {
+      const content = fs.readFileSync(configFile, "utf-8");
+      if (content.includes(FORGE_WRAPPER_MARKER)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function removeForgeWrapper(): boolean {
+  let removed = false;
+  for (const configFile of getShellConfigFiles()) {
+    if (!fs.existsSync(configFile)) continue;
+
+    let content = fs.readFileSync(configFile, "utf-8");
+    if (!content.includes(FORGE_WRAPPER_MARKER)) continue;
+
+    const lines = content.split("\n");
+    const filtered: string[] = [];
+    let insideBlock = false;
+
+    for (const line of lines) {
+      if (line.includes(FORGE_WRAPPER_MARKER)) {
+        insideBlock = !insideBlock;
+        continue;
+      }
+      if (!insideBlock) {
+        filtered.push(line);
+      }
+    }
+
+    content = filtered.join("\n").replace(/\n{3,}/g, "\n\n");
+    fs.writeFileSync(configFile, content);
+    removed = true;
+  }
+  return removed;
+}
+
 export async function handleHooksSetup(): Promise<void> {
   const claudeSettingsPath = path.join(os.homedir(), ".claude");
   const settingsFilePath = path.join(claudeSettingsPath, "settings.json");
@@ -64,8 +120,8 @@ export async function handleHooksSetup(): Promise<void> {
           hookConfig.command &&
           (hookConfig.command === sessionStartCommand ||
             hookConfig.command.includes("auto hook") ||
-            hookConfig.command.includes("auto-rotate.sh"))
-      )
+            hookConfig.command.includes("auto-rotate.sh")),
+      ),
     );
     if (sessionStartExists) {
       hooksSkipped++;
@@ -91,8 +147,8 @@ export async function handleHooksSetup(): Promise<void> {
         (hookConfig) =>
           hookConfig.type === "command" &&
           hookConfig.command &&
-          hookConfig.command.includes("hooks post-tool")
-      )
+          hookConfig.command.includes("hooks post-tool"),
+      ),
     );
     if (postToolExists) {
       hooksSkipped++;
@@ -118,8 +174,8 @@ export async function handleHooksSetup(): Promise<void> {
         (hookConfig) =>
           hookConfig.type === "command" &&
           hookConfig.command &&
-          hookConfig.command.includes("hooks stop")
-      )
+          hookConfig.command.includes("hooks stop"),
+      ),
     );
     if (stopExists) {
       hooksSkipped++;
@@ -139,21 +195,19 @@ export async function handleHooksSetup(): Promise<void> {
     fs.writeFileSync(settingsFilePath, JSON.stringify(settings, null, 2));
 
     section("Hooks Setup");
-    success(
-      `Installed ${hooksInstalled} hook(s), ${hooksSkipped} already present.`
-    );
+    success(`Installed ${hooksInstalled} Claude Code hook(s), ${hooksSkipped} already present.`);
     info(`Settings location: ${settingsFilePath}`);
     info("");
-    info("Installed hooks:");
+    info("Installed Claude Code hooks:");
     info("  • SessionStart: Auto-rotate API keys on startup");
     info("  • PostToolUse: Format files after Write|Edit");
     info("  • Stop: Commit prompt on session end");
     info("");
+    info("For ForgeCode auto-commit, run 'relay hooks forge-setup'.");
+    info("");
     info("For notifications, we recommend peon-ping.");
     info("");
-    info(
-      "Uses the relay CLI directly, so all hooks auto-update with the package."
-    );
+    info("Uses the relay CLI directly, so all hooks auto-update with the package.");
   } catch (err: any) {
     section("Hooks Setup");
     error("Failed to install hooks");
@@ -194,31 +248,29 @@ export async function handleHooksUninstall(): Promise<void> {
         if (settings.hooks?.[hookType]) {
           const originalLength = settings.hooks[hookType].length;
 
-          settings.hooks[hookType] = settings.hooks[hookType].filter(
-            (hookGroup) => {
-              if (!(hookGroup.hooks && Array.isArray(hookGroup.hooks))) {
-                return true;
+          settings.hooks[hookType] = settings.hooks[hookType].filter((hookGroup) => {
+            if (!(hookGroup.hooks && Array.isArray(hookGroup.hooks))) {
+              return true;
+            }
+
+            const hasOurHook = hookGroup.hooks.some((hookConfig) => {
+              if (hookConfig.type !== "command" || !hookConfig.command) {
+                return false;
               }
 
-              const hasOurHook = hookGroup.hooks.some((hookConfig) => {
-                if (hookConfig.type !== "command" || !hookConfig.command) {
-                  return false;
-                }
+              const cmd = hookConfig.command;
+              return (
+                cmd === hookScriptPath ||
+                cmd.includes("auto-rotate.sh") ||
+                cmd.includes("auto hook") ||
+                cmd === "relay auto hook --silent" ||
+                cmd.includes("hooks post-tool") ||
+                cmd.includes("hooks stop")
+              );
+            });
 
-                const cmd = hookConfig.command;
-                return (
-                  cmd === hookScriptPath ||
-                  cmd.includes("auto-rotate.sh") ||
-                  cmd.includes("auto hook") ||
-                  cmd === "relay auto hook --silent" ||
-                  cmd.includes("hooks post-tool") ||
-                  cmd.includes("hooks stop")
-                );
-              });
-
-              return !hasOurHook;
-            }
-          );
+            return !hasOurHook;
+          });
 
           if (settings.hooks[hookType].length !== originalLength) {
             hooksRemoved += originalLength - settings.hooks[hookType].length;
@@ -242,15 +294,21 @@ export async function handleHooksUninstall(): Promise<void> {
       }
     }
 
+    // Remove ForgeCode shell wrapper
+    const forgeWrapperRemoved = removeForgeWrapper();
+
     section("Hooks Uninstall");
 
-    if (!(hookRemoved || settingsModified)) {
+    if (!(hookRemoved || settingsModified || forgeWrapperRemoved)) {
       info("No relay hooks found.");
       info("Hooks may have already been removed or were never installed.");
       return;
     }
 
-    success(`Removed ${hooksRemoved} hook(s).`);
+    const parts: string[] = [];
+    if (hooksRemoved > 0) parts.push(`${hooksRemoved} Claude Code hook(s)`);
+    if (forgeWrapperRemoved) parts.push("ForgeCode wrapper");
+    success(`Removed ${parts.join(" and ")}.`);
 
     if (hookRemoved) {
       info("Removed legacy hook script");
@@ -258,13 +316,17 @@ export async function handleHooksUninstall(): Promise<void> {
     if (settingsModified) {
       info(`Updated Claude settings: ${settingsFilePath}`);
     }
+    if (forgeWrapperRemoved) {
+      info("Removed ForgeCode shell wrapper");
+    }
 
     info("");
-    info(
-      "Auto-rotation, formatting, and commit prompts are no longer automatic."
-    );
+    info("Auto-rotation, formatting, and commit prompts are no longer automatic.");
     info("For notifications, use peon-ping instead.");
-    info("To re-enable hooks, run 'relay hooks setup'.");
+    info("To re-enable Claude Code hooks, run 'relay hooks setup'.");
+    if (forgeWrapperRemoved) {
+      info("To re-enable ForgeCode auto-commit, run 'relay hooks forge-setup'.");
+    }
   } catch (err: any) {
     section("Hooks Uninstall");
     error("Failed to uninstall hooks");
@@ -278,8 +340,7 @@ export async function handleHooksStatus(): Promise<void> {
   const hookScriptPath = path.join(hooksDir, "auto-rotate.sh");
 
   const scriptExists = fs.existsSync(hookScriptPath);
-  const scriptExecutable =
-    scriptExists && (fs.statSync(hookScriptPath).mode & 0o755) !== 0;
+  const scriptExecutable = scriptExists && (fs.statSync(hookScriptPath).mode & 0o755) !== 0;
 
   interface HookStatus {
     name: string;
@@ -321,22 +382,20 @@ export async function handleHooksStatus(): Promise<void> {
 
       for (const hook of hooks) {
         if (settings.hooks?.[hook.name as keyof HooksConfig]) {
-          settings.hooks[hook.name as keyof HooksConfig]?.forEach(
-            (hookGroup) => {
-              if (hookGroup.hooks && Array.isArray(hookGroup.hooks)) {
-                hookGroup.hooks.forEach((hookConfig) => {
-                  if (
-                    hookConfig.type === "command" &&
-                    hookConfig.command &&
-                    (hookConfig.command.includes(hook.command.split(" ")[1]) ||
-                      hookConfig.command.includes(hook.hookType))
-                  ) {
-                    hook.registered = true;
-                  }
-                });
-              }
+          settings.hooks[hook.name as keyof HooksConfig]?.forEach((hookGroup) => {
+            if (hookGroup.hooks && Array.isArray(hookGroup.hooks)) {
+              hookGroup.hooks.forEach((hookConfig) => {
+                if (
+                  hookConfig.type === "command" &&
+                  hookConfig.command &&
+                  (hookConfig.command.includes(hook.command.split(" ")[1]) ||
+                    hookConfig.command.includes(hook.hookType))
+                ) {
+                  hook.registered = true;
+                }
+              });
             }
-          );
+          });
         }
       }
     } catch {
@@ -359,15 +418,17 @@ export async function handleHooksStatus(): Promise<void> {
 
   const allHooksInstalled = hooks.every((h) => h.registered);
   const someHooksInstalled = hooks.some((h) => h.registered);
+  const forgeWrapperInstalled = checkForgeWrapperInstalled();
 
   section("Hooks Status");
 
+  console.log("Claude Code:");
   console.log(
-    `Overall Status: ${allHooksInstalled ? "✓ All Installed" : someHooksInstalled ? "⚠ Partial" : "✗ Not Installed"}`
+    `  Overall: ${allHooksInstalled ? "✓ All Installed" : someHooksInstalled ? "⚠ Partial" : "✗ Not Installed"}`,
   );
 
   console.log("");
-  console.log("Installed Hooks:");
+  console.log("  Installed Hooks:");
   for (const hook of hooks) {
     const status = hook.registered ? "✓" : "○";
     const typeLabel = {
@@ -375,38 +436,48 @@ export async function handleHooksStatus(): Promise<void> {
       format: "Format files",
       commit: "Commit prompt",
     }[hook.hookType];
-    console.log(`  ${status} ${hook.name}: ${typeLabel}`);
+    console.log(`    ${status} ${hook.name}: ${typeLabel}`);
     if (hook.registered) {
-      console.log(`    ${hook.command}`);
+      console.log(`      ${hook.command}`);
     }
   }
 
   console.log("");
   console.log(
-    `Legacy Hook Script: ${scriptExists ? (scriptExecutable ? "✓ Found" : "⚠ Not Executable") : "○ Not Found"}`
+    `  Legacy Hook Script: ${scriptExists ? (scriptExecutable ? "✓ Found" : "⚠ Not Executable") : "○ Not Found"}`,
   );
   if (scriptExists) {
-    console.log(`  ${hookScriptPath}`);
+    console.log(`    ${hookScriptPath}`);
   }
 
   console.log("");
-  console.log(`Registered in Settings: ${settingsFound ? "✓ Yes" : "✗ No"}`);
+  console.log(`  Registered in Settings: ${settingsFound ? "✓ Yes" : "✗ No"}`);
   if (settingsFound && !someHooksInstalled) {
-    console.log(`  ${settingsFilePath}`);
+    console.log(`    ${settingsFilePath}`);
   }
 
   console.log("");
-  console.log(`Rotation Enabled: ${rotationEnabled ? "✓ Yes" : "○ No"}`);
-  console.log(`Rotation Strategy: ${rotationStrategy}`);
+  console.log(`  Rotation Enabled: ${rotationEnabled ? "✓ Yes" : "○ No"}`);
+  console.log(`  Rotation Strategy: ${rotationStrategy}`);
+
+  console.log("");
+  console.log("ForgeCode:");
+  console.log(`  Shell Wrapper: ${forgeWrapperInstalled ? "✓ Installed" : "✗ Not Installed"}`);
+  if (forgeWrapperInstalled) {
+    console.log("    Run 'relay hooks forge-setup --uninstall' to remove");
+  } else {
+    console.log("    Run 'relay hooks forge-setup' to enable auto-commit");
+  }
 
   console.log("");
   if (!allHooksInstalled) {
-    warning(`Run 'relay hooks setup' to install missing hooks.`);
+    warning(`Run 'relay hooks setup' to install missing Claude Code hooks.`);
   } else if (rotationEnabled) {
-    success("All hooks are installed and rotation is enabled!");
+    success("All Claude Code hooks are installed and rotation is enabled!");
   } else {
-    warning(
-      "Hooks installed but rotation is disabled. Run 'relay auto enable'."
-    );
+    warning("Claude Code hooks installed but rotation is disabled. Run 'relay auto enable'.");
+  }
+  if (!forgeWrapperInstalled) {
+    info("Run 'relay hooks forge-setup' to enable ForgeCode auto-commit.");
   }
 }

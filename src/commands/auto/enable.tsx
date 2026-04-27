@@ -39,11 +39,8 @@ export default class AutoEnable extends BaseCommand<typeof AutoEnable> {
       <Box flexDirection="column">
         <Success>Auto-rotation enabled.</Success>
         <Info>Strategy: {config.rotation.strategy}</Info>
-        <Info>
-          Cross-provider:{" "}
-          {config.rotation.crossProvider ? "enabled" : "disabled"}
-        </Info>
-      </Box>
+        <Info>Cross-provider: {config.rotation.crossProvider ? "enabled" : "disabled"}</Info>
+      </Box>,
     );
   }
 }

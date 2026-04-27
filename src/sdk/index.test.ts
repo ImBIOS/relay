@@ -1,10 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import * as accountsConfig from "../config/accounts-config";
-import {
-  getActiveCredentials,
-  getAutoRotatedEnv,
-  performAutoRotation,
-} from "./index";
+import { getActiveCredentials, getAutoRotatedEnv, performAutoRotation } from "./index";
 
 describe("SDK Auto-Rotation", () => {
   describe("performAutoRotation", () => {
@@ -79,9 +75,7 @@ describe("SDK Auto-Rotation", () => {
       // This test depends on the actual configuration state
       // In a real test, we'd mock the config
       const credentials = getActiveCredentials();
-      expect(credentials === null || typeof credentials === "object").toBe(
-        true
-      );
+      expect(credentials === null || typeof credentials === "object").toBe(true);
     });
   });
 });

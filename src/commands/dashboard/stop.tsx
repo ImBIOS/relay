@@ -13,7 +13,7 @@ export default class DashboardStop extends BaseCommand<typeof DashboardStop> {
     await this.renderApp(
       <Box>
         <Success>Dashboard disabled.</Success>
-      </Box>
+      </Box>,
     );
   }
 }

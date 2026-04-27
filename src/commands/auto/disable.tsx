@@ -13,7 +13,7 @@ export default class AutoDisable extends BaseCommand<typeof AutoDisable> {
     await this.renderApp(
       <Box>
         <Success>Auto-rotation disabled.</Success>
-      </Box>
+      </Box>,
     );
   }
 }

@@ -29,14 +29,12 @@ export default class CompareDiff extends BaseCommand<typeof CompareDiff> {
       await this.renderApp(
         <Box>
           <ErrorBadge>One or both sessions not found.</ErrorBadge>
-        </Box>
+        </Box>,
       );
       return;
     }
 
-    await this.renderApp(
-      <DiffUI id1={id1} id2={id2} session1={session1} session2={session2} />
-    );
+    await this.renderApp(<DiffUI id1={id1} id2={id2} session1={session1} session2={session2} />);
   }
 }
 
@@ -53,12 +51,7 @@ interface DiffUIProps {
   session2: Session;
 }
 
-function DiffUI({
-  id1,
-  id2,
-  session1,
-  session2,
-}: DiffUIProps): React.ReactElement {
+function DiffUI({ id1, id2, session1, session2 }: DiffUIProps): React.ReactElement {
   return (
     <Section title="Session Comparison">
       <Box flexDirection="column">
@@ -69,22 +62,14 @@ function DiffUI({
         {session1.zaiResult && session2.zaiResult && (
           <Text>
             Z.AI Time Diff:{" "}
-            {(
-              (session1.zaiResult.timeMs - session2.zaiResult.timeMs) /
-              1000
-            ).toFixed(2)}
-            s
+            {((session1.zaiResult.timeMs - session2.zaiResult.timeMs) / 1000).toFixed(2)}s
           </Text>
         )}
 
         {session1.minimaxResult && session2.minimaxResult && (
           <Text>
             MiniMax Time Diff:{" "}
-            {(
-              (session1.minimaxResult.timeMs - session2.minimaxResult.timeMs) /
-              1000
-            ).toFixed(2)}
-            s
+            {((session1.minimaxResult.timeMs - session2.minimaxResult.timeMs) / 1000).toFixed(2)}s
           </Text>
         )}
 

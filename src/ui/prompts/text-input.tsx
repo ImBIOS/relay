@@ -54,17 +54,10 @@ function TextInputPrompt({
  * Show a text input prompt and return the user's input.
  * Replaces inquirer's input() function.
  */
-export async function input(
-  message: string,
-  defaultValue = ""
-): Promise<string> {
+export async function input(message: string, defaultValue = ""): Promise<string> {
   return new Promise((resolve) => {
     const { waitUntilExit } = render(
-      <TextInputPrompt
-        defaultValue={defaultValue}
-        message={message}
-        onSubmit={resolve}
-      />
+      <TextInputPrompt defaultValue={defaultValue} message={message} onSubmit={resolve} />,
     );
     waitUntilExit();
   });

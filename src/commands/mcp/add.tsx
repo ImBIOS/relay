@@ -20,14 +20,7 @@ export default class McpAdd extends BaseCommand<typeof McpAdd> {
   }
 }
 
-type AddStep =
-  | "name"
-  | "command"
-  | "args"
-  | "provider"
-  | "description"
-  | "done"
-  | "error";
+type AddStep = "name" | "command" | "args" | "provider" | "description" | "done" | "error";
 
 function McpAddUI(): React.ReactElement {
   const { exit } = useApp();
@@ -87,10 +80,7 @@ function McpAddUI(): React.ReactElement {
         {step === "name" && (
           <Box>
             <Text>Server name: </Text>
-            <TextInput
-              onSubmit={handleNameSubmit}
-              placeholder="Enter server name..."
-            />
+            <TextInput onSubmit={handleNameSubmit} placeholder="Enter server name..." />
           </Box>
         )}
 
@@ -112,10 +102,7 @@ function McpAddUI(): React.ReactElement {
           <Box flexDirection="column">
             <Text>Provider:</Text>
             <Box paddingLeft={2}>
-              <Select
-                onChange={handleProviderChange}
-                options={PROVIDER_OPTIONS}
-              />
+              <Select onChange={handleProviderChange} options={PROVIDER_OPTIONS} />
             </Box>
           </Box>
         )}
@@ -123,10 +110,7 @@ function McpAddUI(): React.ReactElement {
         {step === "description" && (
           <Box>
             <Text>Description (optional): </Text>
-            <TextInput
-              onSubmit={handleDescriptionSubmit}
-              placeholder="Enter description..."
-            />
+            <TextInput onSubmit={handleDescriptionSubmit} placeholder="Enter description..." />
           </Box>
         )}
 

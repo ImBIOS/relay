@@ -1,12 +1,6 @@
 import { getDefaultBaseUrl } from "../config/provider-metadata";
 import { testAnthropicConnection } from "../utils/anthropic-connection-test";
-import type {
-  Provider,
-  ProviderConfig,
-  UsageOptions,
-  UsageStats,
-  WeeklyUsageStats,
-} from "./base";
+import type { Provider, ProviderConfig, UsageOptions, UsageStats, WeeklyUsageStats } from "./base";
 
 export class ZAIProvider implements Provider {
   name = "zai";
@@ -27,7 +21,7 @@ export class ZAIProvider implements Provider {
         baseUrl: config.baseUrl,
         model: "",
       },
-      "ZAI"
+      "ZAI",
     );
   }
 
@@ -43,17 +37,14 @@ export class ZAIProvider implements Provider {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
 
-      const response = await fetch(
-        "https://api.z.ai/api/monitor/usage/quota/limit",
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
-          signal: controller.signal,
-        }
-      );
+      const response = await fetch("https://api.z.ai/api/monitor/usage/quota/limit", {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        signal: controller.signal,
+      });
 
       clearTimeout(timeoutId);
 
@@ -80,12 +71,8 @@ export class ZAIProvider implements Provider {
       };
 
       // Get both TIME_LIMIT (MCP usage) and TOKENS_LIMIT (model usage)
-      const timeLimit = data.data?.limits?.find(
-        (limit) => limit.type === "TIME_LIMIT"
-      );
-      const tokenLimit = data.data?.limits?.find(
-        (limit) => limit.type === "TOKENS_LIMIT"
-      );
+      const timeLimit = data.data?.limits?.find((limit) => limit.type === "TIME_LIMIT");
+      const tokenLimit = data.data?.limits?.find((limit) => limit.type === "TOKENS_LIMIT");
 
       if (!(timeLimit || tokenLimit)) {
         return { used: 0, limit: 0, remaining: 0, percentUsed: 0, resetsAt: undefined };
@@ -121,10 +108,7 @@ export class ZAIProvider implements Provider {
       }
 
       // For overall usage, combine both (use the higher percentage)
-      const combinedPercent = Math.max(
-        modelUsage.percentUsed,
-        mcpUsage.percentUsed
-      );
+      const combinedPercent = Math.max(modelUsage.percentUsed, mcpUsage.percentUsed);
 
       // Extract reset time from token limit (they share the same 5-hour window)
       // Extract reset time from token limit (they share the same 5-hour window)
@@ -132,12 +116,9 @@ export class ZAIProvider implements Provider {
         ? new Date(tokenLimit.nextResetTime).toISOString()
         : undefined;
 
-
       // Look for weekly limit data (might be in a separate limit entry)
       let weeklyUsage: WeeklyUsageStats | undefined;
-      const weeklyLimit = data.data?.limits?.find(
-        (limit) => limit.type === "WEEKLY_LIMIT"
-      );
+      const weeklyLimit = data.data?.limits?.find((limit) => limit.type === "WEEKLY_LIMIT");
       if (weeklyLimit && weeklyLimit.windowTotal && weeklyLimit.windowTotal > 0) {
         const weeklyUsed = weeklyLimit.windowUsed ?? 0;
         const weeklyLimit_ = weeklyLimit.windowTotal;
@@ -150,10 +131,7 @@ export class ZAIProvider implements Provider {
             ? new Date(weeklyLimit.windowEnd).toISOString()
             : undefined,
         };
-      } else if (
-        tokenLimit?.windowTotal &&
-        tokenLimit.windowTotal > 0
-      ) {
+      } else if (tokenLimit?.windowTotal && tokenLimit.windowTotal > 0) {
         // Weekly data might be embedded in token limit
         const weeklyUsed = tokenLimit.windowUsed ?? 0;
         const weeklyLimit_ = tokenLimit.windowTotal;
@@ -162,9 +140,7 @@ export class ZAIProvider implements Provider {
           limit: weeklyLimit_,
           remaining: Math.max(0, weeklyLimit_ - weeklyUsed),
           percentUsed: weeklyLimit_ > 0 ? (weeklyUsed / weeklyLimit_) * 100 : 0,
-          resetsAt: tokenLimit.windowEnd
-            ? new Date(tokenLimit.windowEnd).toISOString()
-            : undefined,
+          resetsAt: tokenLimit.windowEnd ? new Date(tokenLimit.windowEnd).toISOString() : undefined,
         };
       }
 

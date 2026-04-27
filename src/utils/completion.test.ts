@@ -1,10 +1,5 @@
 import { describe, expect, it } from "bun:test";
-import {
-  getAllCompletions,
-  getShellCompletion,
-  installCompletion,
-  SHELLS,
-} from "./completion";
+import { getAllCompletions, getShellCompletion, installCompletion, SHELLS } from "./completion";
 
 describe("completion", () => {
   describe("SHELLS", () => {
@@ -43,9 +38,7 @@ describe("completion", () => {
     });
 
     it("should throw for unsupported shell", () => {
-      expect(() => getShellCompletion("powershell")).toThrow(
-        "Unsupported shell: powershell"
-      );
+      expect(() => getShellCompletion("powershell")).toThrow("Unsupported shell: powershell");
     });
   });
 

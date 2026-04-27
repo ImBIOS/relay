@@ -75,9 +75,7 @@ export default class ProxyStart extends BaseCommand<typeof ProxyStart> {
     if (!serverScript) {
       await this.renderApp(
         <Box>
-          <Text color="red">
-            Failed to locate the relay proxy server entrypoint.
-          </Text>
+          <Text color="red">Failed to locate the relay proxy server entrypoint.</Text>
         </Box>,
       );
       return;
@@ -125,9 +123,7 @@ export default class ProxyStart extends BaseCommand<typeof ProxyStart> {
       await this.renderApp(
         <Box flexDirection="column">
           <Text color="green">✓ Relay proxy started on port {flags.port}</Text>
-          <Text color="dim">
-            ANTHROPIC_BASE_URL=http://127.0.0.1:{flags.port}/api/anthropic
-          </Text>
+          <Text color="dim">ANTHROPIC_BASE_URL=http://127.0.0.1:{flags.port}/api/anthropic</Text>
           <Text color="dim">Log: ~/.claude/relay-proxy.log</Text>
         </Box>,
       );

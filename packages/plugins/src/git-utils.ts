@@ -1,22 +1,20 @@
 import Bun from "bun";
 
 export function spawn(args: string[], cwd: string) {
-  return new Promise<{ ok: boolean; stdout: string; stderr: string }>(
-    (resolve) => {
-      const proc = Bun.spawn(["git", ...args], {
-        cwd,
-        stdout: "pipe",
-        stderr: "pipe",
-      });
-      proc.exited.then((code) => {
-        const stdout = new Response(proc.stdout).text();
-        const stderr = new Response(proc.stderr).text();
-        Promise.all([stdout, stderr]).then(([out, err]) =>
-          resolve({ ok: code === 0, stdout: out, stderr: err }),
-        );
-      });
-    },
-  );
+  return new Promise<{ ok: boolean; stdout: string; stderr: string }>((resolve) => {
+    const proc = Bun.spawn(["git", ...args], {
+      cwd,
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    proc.exited.then((code) => {
+      const stdout = new Response(proc.stdout).text();
+      const stderr = new Response(proc.stderr).text();
+      Promise.all([stdout, stderr]).then(([out, err]) =>
+        resolve({ ok: code === 0, stdout: out, stderr: err }),
+      );
+    });
+  });
 }
 
 export interface DiffInfo {
@@ -88,5 +86,11 @@ export async function hasUncommittedChanges(directory: string) {
     if (x === "?" || y === "?") untracked = true;
   }
 
-  return { has: staged || unstaged || untracked || conflicted, staged, unstaged, untracked, conflicted };
+  return {
+    has: staged || unstaged || untracked || conflicted,
+    staged,
+    unstaged,
+    untracked,
+    conflicted,
+  };
 }

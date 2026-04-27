@@ -7,10 +7,7 @@ interface PasswordInputPromptProps {
   onSubmit: (value: string) => void;
 }
 
-function PasswordInputPrompt({
-  message,
-  onSubmit,
-}: PasswordInputPromptProps): React.ReactElement {
+function PasswordInputPrompt({ message, onSubmit }: PasswordInputPromptProps): React.ReactElement {
   const { exit } = useApp();
   const [submitted, setSubmitted] = useState(false);
 
@@ -34,10 +31,7 @@ function PasswordInputPrompt({
     <Box>
       <Text color="cyan">? </Text>
       <Text>{message} </Text>
-      <InkPasswordInput
-        onSubmit={handleSubmit}
-        placeholder="Enter password..."
-      />
+      <InkPasswordInput onSubmit={handleSubmit} placeholder="Enter password..." />
     </Box>
   );
 }
@@ -48,9 +42,7 @@ function PasswordInputPrompt({
  */
 export async function password(message: string): Promise<string> {
   return new Promise((resolve) => {
-    const { waitUntilExit } = render(
-      <PasswordInputPrompt message={message} onSubmit={resolve} />
-    );
+    const { waitUntilExit } = render(<PasswordInputPrompt message={message} onSubmit={resolve} />);
     waitUntilExit();
   });
 }

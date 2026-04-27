@@ -21,9 +21,7 @@ const PROVIDER_OPTIONS = listRelayProviders().map((provider) => ({
 
 function isRawModeSupported(): boolean {
   const stdin = process.stdin as { isRawModeSupported?: boolean };
-  return (
-    typeof stdin.isRawModeSupported === "boolean" && stdin.isRawModeSupported
-  );
+  return typeof stdin.isRawModeSupported === "boolean" && stdin.isRawModeSupported;
 }
 
 export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
@@ -57,11 +55,11 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
     const providedApiKey = flags["api-key"] || flags.key;
     const hasFlagInput = Boolean(
       flags.name ||
-        flags.provider ||
-        providedApiKey ||
-        flags["base-url"] ||
-        flags["group-id"] ||
-        flags.activate
+      flags.provider ||
+      providedApiKey ||
+      flags["base-url"] ||
+      flags["group-id"] ||
+      flags.activate,
     );
 
     if (hasFlagInput) {
@@ -81,17 +79,11 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
       await this.renderApp(
         <Section title="Add Account">
           <Box flexDirection="column">
-            <ErrorBadge>
-              Interactive account setup requires a TTY-enabled terminal.
-            </ErrorBadge>
-            <Info>
-              Use a non-interactive command instead, for example:
-            </Info>
-            <Info>
-              relay account add --name zai --provider zai --key sk-xxx
-            </Info>
+            <ErrorBadge>Interactive account setup requires a TTY-enabled terminal.</ErrorBadge>
+            <Info>Use a non-interactive command instead, for example:</Info>
+            <Info>relay account add --name zai --provider zai --key sk-xxx</Info>
           </Box>
-        </Section>
+        </Section>,
       );
       return;
     }
@@ -115,27 +107,19 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
     }
 
     if (!input.name || !input.provider || !apiKey) {
-      throw new Error(
-        "Non-interactive mode requires --name, --provider, and --api-key/--key."
-      );
+      throw new Error("Non-interactive mode requires --name, --provider, and --api-key/--key.");
     }
 
     if (!isRelayProvider(input.provider)) {
       throw new Error(
-        `Unsupported provider \"${input.provider}\". Use one of: ${listRelayProviders().join(", ")}.`
+        `Unsupported provider \"${input.provider}\". Use one of: ${listRelayProviders().join(", ")}.`,
       );
     }
 
     const provider = input.provider;
     const baseUrl = input.baseUrl || getDefaultBaseUrl(provider);
     const hadActiveAccount = Boolean(getActiveAccount());
-    const account = addAccount(
-      input.name,
-      provider,
-      apiKey,
-      baseUrl,
-      input.groupId || undefined
-    );
+    const account = addAccount(input.name, provider, apiKey, baseUrl, input.groupId || undefined);
 
     settings.setProviderConfig(provider, apiKey, baseUrl);
 
@@ -155,14 +139,7 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
   }
 }
 
-type AddStep =
-  | "name"
-  | "provider"
-  | "api-key"
-  | "group-id"
-  | "base-url"
-  | "done"
-  | "error";
+type AddStep = "name" | "provider" | "api-key" | "group-id" | "base-url" | "done" | "error";
 
 function AccountAddUI(): React.ReactElement {
   const { exit } = useApp();
@@ -219,13 +196,7 @@ function AccountAddUI(): React.ReactElement {
     const finalBaseUrl = value || getDefaultBaseUrl(provider);
     const hadActiveAccount = Boolean(getActiveAccount());
 
-    const account = addAccount(
-      name,
-      provider,
-      apiKey,
-      finalBaseUrl,
-      groupId || undefined
-    );
+    const account = addAccount(name, provider, apiKey, finalBaseUrl, groupId || undefined);
 
     settings.setProviderConfig(provider, apiKey, finalBaseUrl);
     if (!hadActiveAccount) {
@@ -244,10 +215,7 @@ function AccountAddUI(): React.ReactElement {
         {step === "name" && (
           <Box>
             <Text>Account name: </Text>
-            <TextInput
-              onSubmit={handleNameSubmit}
-              placeholder="Enter account name..."
-            />
+            <TextInput onSubmit={handleNameSubmit} placeholder="Enter account name..." />
           </Box>
         )}
 
@@ -255,10 +223,7 @@ function AccountAddUI(): React.ReactElement {
           <Box flexDirection="column">
             <Text>Select provider:</Text>
             <Box paddingLeft={2}>
-              <Select
-                onChange={handleProviderChange}
-                options={PROVIDER_OPTIONS}
-              />
+              <Select onChange={handleProviderChange} options={PROVIDER_OPTIONS} />
             </Box>
           </Box>
         )}
@@ -266,10 +231,7 @@ function AccountAddUI(): React.ReactElement {
         {step === "api-key" && (
           <Box>
             <Text>API Key for {provider}: </Text>
-            <PasswordInput
-              onSubmit={handleApiKeySubmit}
-              placeholder="Enter API key..."
-            />
+            <PasswordInput onSubmit={handleApiKeySubmit} placeholder="Enter API key..." />
           </Box>
         )}
 
@@ -297,10 +259,7 @@ function AccountAddUI(): React.ReactElement {
         {step === "base-url" && (
           <Box>
             <Text>Base URL: </Text>
-            <TextInput
-              defaultValue={getDefaultBaseUrl(provider)}
-              onSubmit={handleBaseUrlSubmit}
-            />
+            <TextInput defaultValue={getDefaultBaseUrl(provider)} onSubmit={handleBaseUrlSubmit} />
           </Box>
         )}
 

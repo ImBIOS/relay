@@ -15,10 +15,7 @@ const PROVIDERS: Record<string, () => Provider> = {
 
 export default class Switch extends BaseCommand<typeof Switch> {
   static description = "Switch active provider";
-  static examples = [
-    "<%= config.bin %> switch zai",
-    "<%= config.bin %> switch minimax",
-  ];
+  static examples = ["<%= config.bin %> switch zai", "<%= config.bin %> switch minimax"];
 
   static args = {
     provider: Args.string({
@@ -35,7 +32,7 @@ export default class Switch extends BaseCommand<typeof Switch> {
       await this.renderApp(
         <Box>
           <ErrorBadge>Usage: relay switch &lt;zai|minimax&gt;</ErrorBadge>
-        </Box>
+        </Box>,
       );
       return;
     }
@@ -46,10 +43,8 @@ export default class Switch extends BaseCommand<typeof Switch> {
     if (!config.apiKey) {
       await this.renderApp(
         <Box>
-          <Warning>
-            {provider.displayName} is not configured. Run "relay config" first.
-          </Warning>
-        </Box>
+          <Warning>{provider.displayName} is not configured. Run "relay config" first.</Warning>
+        </Box>,
       );
       return;
     }
@@ -64,9 +59,7 @@ interface SwitchSuccessProps {
   providerName: string;
 }
 
-function SwitchSuccess({
-  providerName,
-}: SwitchSuccessProps): React.ReactElement {
+function SwitchSuccess({ providerName }: SwitchSuccessProps): React.ReactElement {
   return (
     <Box flexDirection="column">
       <Success>Switched to {providerName}</Success>
