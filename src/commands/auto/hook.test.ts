@@ -473,6 +473,7 @@ describe("Git Reset Disaster - Prevention & Recovery", () => {
  *    → Never modify in-place
  *
  * 5. COMMIT EARLY AND OFTEN
+//  * TODO: Don't do fallback with WIP commits - instead, throw error
  *    → "WIP: [feature name]" commits are valid
  *    → Can be amended/rebased later
  */

@@ -4,12 +4,12 @@
 // Sends desktop notifications and prompts to commit uncommitted changes
 //===============================================================================
 
+import { Flags } from "@oclif/core";
+import { Box, Text } from "ink";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import { existsSync } from "node:fs";
 import * as path from "node:path";
-import { Flags } from "@oclif/core";
-import { Box, Text } from "ink";
 import { BaseCommand } from "../../oclif/base";
 import { Info, Section, Warning } from "../../ui/index";
 
@@ -185,7 +185,7 @@ function runGitCommand(args: string[]): Promise<{ success: boolean; output: stri
   });
 }
 
-async function generateConventionalCommit(message: string): Promise<string | null> {
+async function generateConventionalCommit(message: string): Promise<string> {
   // Get diff stat to help generate a good commit message
   const diffResult = await runGitCommand(["diff", "--cached", "--stat"]);
   const stagedFiles = diffResult.success ? diffResult.output : "";
@@ -194,7 +194,7 @@ async function generateConventionalCommit(message: string): Promise<string | nul
   const shortDiff = await runGitCommand(["diff", "--cached", "--no-color", "-U1"]);
   const diffContent = shortDiff.success ? shortDiff.output.slice(0, 4000) : "";
 
-  return new Promise((resolve) => {
+  return new Promise<string>((resolve, reject) => {
     const prompt = `Generate a conventional commit message for this change.
 
 Message from user: ${message}
@@ -226,14 +226,20 @@ Return ONLY the commit message, no explanation or formatting.`;
     proc.on("close", (code) => {
       if (code === 0 && output.trim()) {
         // Extract first line of commit message
-        const commitMsg = output.trim().split("\n")[0];
+        const commitMsg = output.trim().split("\n")[0]!;
         resolve(commitMsg);
       } else {
-        resolve(null);
+        reject(
+          new Error(
+            `[relay] Claude CLI failed to generate commit message (exit ${code}): ${output.trim().slice(0, 200)}`,
+          ),
+        );
       }
     });
 
-    proc.on("error", () => resolve(null));
+    proc.on("error", (err) =>
+      reject(new Error(`[relay] Failed to spawn Claude CLI for commit message generation: ${err.message}`)),
+    );
 
     proc.stdin?.write(prompt);
     proc.stdin?.end();
@@ -315,15 +321,17 @@ export default class HooksStop extends BaseCommand<typeof HooksStop> {
         console.log("\n🤖 Generating conventional commit message...");
       }
 
-      let commitMessage = await generateConventionalCommit(message);
+      let commitMessage: string;
+      try {
+        commitMessage = await generateConventionalCommit(message);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(msg);
+        console.error("Uncommitted changes remain — commit manually");
+        return;
+      }
 
-      // Fallback to WIP if Claude fails to generate a message
-      if (!commitMessage) {
-        commitMessage = `WIP: ${message}`;
-        if (options.verbose) {
-          console.log("⚠️  Claude failed to generate commit message, using WIP fallback");
-        }
-      } else if (options.verbose) {
+      if (options.verbose) {
         console.log(`📝 Commit message: ${commitMessage}`);
       }
 
