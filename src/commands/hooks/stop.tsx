@@ -209,7 +209,7 @@ Follow conventional commits format (feat/fix/docs/style/refactor/perf/test/build
 Include a short description (under 72 characters). Be specific about what changed.
 Return ONLY the commit message, no explanation or formatting.`;
 
-    const proc = spawn("claude", ["-p", "--output-format", "text"], {
+    const proc = spawn("claude", ["-p", "--output-format", "text", "--model", "MiniMax-M2.7"], {
       stdio: ["pipe", "pipe", "pipe"],
       env: {
         ...process.env,

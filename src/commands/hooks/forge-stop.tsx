@@ -197,6 +197,7 @@ ${diffContent || "No diff available"}`;
     for await (const message of query({
       prompt,
       options: {
+        model: "MiniMax-M2.7",
         outputFormat: {
           type: "json_schema",
           z: CONVENTIONAL_COMMIT_SCHEMA,
