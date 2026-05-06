@@ -20,6 +20,8 @@ forge() {
   local _relay_exit_code
   command forge "$@"
   _relay_exit_code=$?
+  # Print blank lines to prevent starship prompt from overwriting forge output
+  echo; echo; echo
   if [ -n "$RELAY_FORGE_WRAPPER" ]; then
     relay hooks forge-stop --silent 2>/dev/null
   fi
@@ -33,6 +35,8 @@ forge() {
   local _relay_exit_code
   command forge "$@"
   _relay_exit_code=$?
+  # Print blank lines to prevent starship prompt from overwriting forge output
+  echo; echo; echo
   if [ -n "$RELAY_FORGE_WRAPPER" ]; then
     relay hooks forge-stop --silent 2>/dev/null
   fi
