@@ -18,8 +18,15 @@ const FORGE_WRAPPER_FUNCTION = `# !! Relay ForgeCode wrapper - managed by 'relay
 # Wraps the 'forge' command to run auto-commit on session exit.
 forge() {
   local _relay_exit_code
+  # Trap SIGINT (Ctrl+C) so post-processing doesn't clear forge's terminal output
+  trap 'return 130' INT
   command forge "$@"
   _relay_exit_code=$?
+  trap - INT
+  # Skip post-processing when forge was interrupted (exit code 130 = SIGINT)
+  if [ $_relay_exit_code -eq 130 ]; then
+    return $_relay_exit_code
+  fi
   # Print blank lines to prevent starship prompt from overwriting forge output
   echo; echo; echo
   if [ -n "$RELAY_FORGE_WRAPPER" ]; then
@@ -33,8 +40,15 @@ const FORGE_WRAPPER_BASH = `# !! Relay ForgeCode wrapper - managed by 'relay hoo
 # Wraps the 'forge' command to run auto-commit on session exit.
 forge() {
   local _relay_exit_code
+  # Trap SIGINT (Ctrl+C) so post-processing doesn't clear forge's terminal output
+  trap 'return 130' INT
   command forge "$@"
   _relay_exit_code=$?
+  trap - INT
+  # Skip post-processing when forge was interrupted (exit code 130 = SIGINT)
+  if [ $_relay_exit_code -eq 130 ]; then
+    return $_relay_exit_code
+  fi
   # Print blank lines to prevent starship prompt from overwriting forge output
   echo; echo; echo
   if [ -n "$RELAY_FORGE_WRAPPER" ]; then
