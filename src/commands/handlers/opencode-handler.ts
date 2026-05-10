@@ -67,18 +67,6 @@ function getOpenCodeProviderName(provider: "zai" | "minimax"): string {
 }
 
 /**
- * Get the base URL for a provider
- */
-function getProviderBaseUrl(provider: "zai" | "minimax"): string {
-  switch (provider) {
-    case "zai":
-      return "https://api.z.ai/api/anthropic";
-    case "minimax":
-      return "https://api.minimax.io/anthropic/v1";
-  }
-}
-
-/**
  * Get the model name for OpenCode based on provider
  */
 function getOpenCodeModelName(provider: "zai" | "minimax"): string {
@@ -136,8 +124,8 @@ export function configureOpenCode(account: AccountConfig): OpenCodeConfig {
 export function configureOpenCodeWithEnvVars(account: AccountConfig): OpenCodeConfig {
   const config = loadOpenCodeConfig();
   const envKey = `RELAY_${account.provider.toUpperCase()}_API_KEY`;
-  const envGroupId =
-    account.provider === "minimax" ? `RELAY_${account.provider.toUpperCase()}_GROUP_ID` : null;
+  // envGroupId is reserved for future MiniMax group ID support
+  void envKey;
 
   if (!config.$schema) {
     config.$schema = "https://opencode.ai/config.json";

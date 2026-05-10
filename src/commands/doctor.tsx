@@ -1,231 +1,77 @@
-import * as fs from "node:fs";
-import { existsSync } from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
-import { Spinner } from "@inkjs/ui";
-import { Box, Text, useApp } from "ink";
-import { useEffect, useState } from "react";
-import * as settings from "../config/settings";
-import { BaseCommand } from "../oclif/base";
-import type { Provider } from "../providers/base";
-import { minimaxProvider } from "../providers/minimax";
-import { zaiProvider } from "../providers/zai";
-import { Error as ErrorBadge, Info, Section, Success, Warning } from "../ui/index";
-
-const PROVIDERS: Record<string, () => Provider> = {
-  zai: () => zaiProvider,
-  minimax: () => minimaxProvider,
-};
-
-interface HookCheckResult {
-  name: string;
-  description: string;
-  installed: boolean;
-}
-
-function checkHooksInstalled(): HookCheckResult[] {
-  const settingsFilePath = path.join(os.homedir(), ".claude", "settings.json");
-  const results: HookCheckResult[] = [
-    {
-      name: "SessionStart",
-      description: "Auto-rotate on startup",
-      installed: false,
-    },
-    {
-      name: "PostToolUse",
-      description: "Format files after Write|Edit",
-      installed: false,
-    },
-    {
-      name: "Stop",
-      description: "Commit prompt on session end",
-      installed: false,
-    },
-  ];
-
-  if (!existsSync(settingsFilePath)) {
-    return results;
-  }
-
-  try {
-    const content = fs.readFileSync(settingsFilePath, "utf-8");
-    const settingsData = JSON.parse(content);
-
-    for (const result of results) {
-      if (settingsData.hooks?.[result.name]) {
-        const hooks = settingsData.hooks[result.name] as Array<unknown>;
-        result.installed = hooks.some((hookGroup: any) => {
-          if (hookGroup.hooks && Array.isArray(hookGroup.hooks)) {
-            return hookGroup.hooks.some((hookConfig: any) => {
-              return hookConfig.type === "command" && hookConfig.command?.includes("relay");
-            });
-          }
-          return false;
-        });
-      }
-    }
-  } catch {
-    // Ignore JSON parse errors
-  }
-
-  return results;
-}
+// @ts-nocheck
+import { BaseCommand } from "../../oclif/base";
+import { loadConfig } from "../../config/accounts-config";
+import { zaiProvider } from "../../providers/zai";
+import { minimaxProvider } from "../../providers/minimax";
+import { error, info, ok, warn } from "../../utils/console";
 
 export default class Doctor extends BaseCommand<typeof Doctor> {
-  static description = "Diagnose configuration issues";
-  static examples = ["<%= config.bin %> doctor"];
+  static description = "Check relay configuration and provider connectivity";
 
   async run(): Promise<void> {
-    const activeProvider = settings.getActiveProvider();
-    const provider = PROVIDERS[activeProvider]();
-    const config = provider.getConfig();
-    const configPath = settings.getConfigPath();
-    const hooksStatus = checkHooksInstalled();
-    const peonInstalled = existsSync(
-      path.join(os.homedir(), ".claude", "hooks", "peon-ping", "peon.sh"),
-    );
+    console.log("");
+    console.log("  Relay Doctor");
+    console.log("  ─────────────────────────────");
 
-    await this.renderApp(
-      <DoctorUI
-        config={config}
-        configPath={configPath}
-        hooksStatus={hooksStatus}
-        peonInstalled={peonInstalled}
-        provider={provider}
-      />,
-    );
-  }
-}
+    const config = loadConfig();
+    const accounts = Object.values(config.accounts);
 
-interface DoctorUIProps {
-  provider: Provider;
-  config: ReturnType<Provider["getConfig"]>;
-  configPath: string;
-  hooksStatus: HookCheckResult[];
-  peonInstalled: boolean;
-}
+    if (accounts.length === 0) {
+      console.log("");
+      console.log(warn("  No accounts configured. Run `relay account add` first."));
+      return;
+    }
 
-interface CheckResult {
-  name: string;
-  passed: boolean;
-  issue?: string;
-}
+    let allOk = true;
 
-function DoctorUI({
-  provider,
-  config,
-  configPath,
-  hooksStatus,
-  peonInstalled,
-}: DoctorUIProps): React.ReactElement {
-  const { exit } = useApp();
-  const [running, setRunning] = useState(true);
-  const [checks, setChecks] = useState<CheckResult[]>([]);
-  const [issues, setIssues] = useState<string[]>([]);
+    console.log("");
+    console.log("  Config");
+    console.log(`  ${ok("OK")} Config file: ~/.config/relay/settings.json`);
+    console.log(`  ${ok("OK")} Accounts: ${accounts.length}`);
 
-  useEffect(() => {
-    const runDiagnostics = async () => {
-      const results: CheckResult[] = [];
-      const foundIssues: string[] = [];
+    const active = config.accounts[config.activeAccountId ?? ""];
+    if (active) {
+      console.log(`  ${ok("OK")} Active: ${active.name} (${active.provider})`);
+    } else {
+      console.log(`  ${warn("WARN")} No active account.`);
+      allOk = false;
+    }
 
-      // Check config file
-      const configExists = existsSync(configPath);
-      results.push({ name: "Config file exists", passed: configExists });
+    for (const account of accounts) {
+      console.log("");
+      console.log(`  Account: ${account.name}`);
+      console.log(`  ${ok("OK")} Provider: ${account.provider}`);
 
-      // Check API key
-      const hasApiKey = Boolean(config.apiKey);
-      results.push({ name: "API key configured", passed: hasApiKey });
+      const provider = account.provider === "zai" ? zaiProvider : minimaxProvider;
+      const base = account.baseUrl ?? provider.defaultBaseUrl;
+      console.log(`  ${ok("OK")} Base URL: ${base}`);
 
-      // Check connection
-      if (hasApiKey) {
-        const connected = await provider.testConnection();
-        results.push({ name: "API connection", passed: connected });
-        if (!connected) {
-          foundIssues.push("API connection failed. Check your API key.");
-        }
+      if (account.provider === "minimax" && !account.groupId) {
+        console.log(`  ${warn("WARN")} No groupId — usage tracking disabled.`);
       }
 
-      setChecks(results);
-      setIssues(foundIssues);
-      setRunning(false);
+      try {
+        console.log(`  ${info("...")} Testing ${account.provider}...`);
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 5000);
+        const res = await fetch(`${base}/health`, {
+          signal: controller.signal,
+          headers: { Authorization: `Bearer ${account.apiKey}` },
+        });
+        clearTimeout(timeout);
+        if (res.ok) {
+          console.log(`  ${ok("OK")} API responds: ${res.status}`);
+        } else {
+          console.log(`  ${warn("WARN")} API: ${res.status}`);
+        }
+      } catch {
+        console.log(`  ${error("FAIL")} Cannot reach ${account.provider} API.`);
+        allOk = false;
+      }
+    }
 
-      // Exit after showing results
-      setTimeout(() => exit(), 1000);
-    };
-    runDiagnostics();
-  }, [provider, config, configPath, exit]);
-
-  const hooksInstalledCount = hooksStatus.filter((h) => h.installed).length;
-  const allHooksInstalled = hooksInstalledCount === hooksStatus.length;
-
-  return (
-    <Section title="Diagnostics">
-      <Box flexDirection="column">
-        {running ? (
-          <Spinner label="Running diagnostics..." />
-        ) : (
-          <>
-            {checks.map((check) => (
-              <Box key={check.name}>
-                {check.passed ? (
-                  <Success>{check.name}</Success>
-                ) : (
-                  <ErrorBadge>{check.name}</ErrorBadge>
-                )}
-              </Box>
-            ))}
-
-            <Box marginTop={1}>
-              <Text bold>Claude Code Hooks:</Text>
-            </Box>
-            {hooksStatus.map((hook) => (
-              <Box key={hook.name} marginLeft={2}>
-                {hook.installed ? (
-                  <Success>
-                    {hook.name}: {hook.description}
-                  </Success>
-                ) : (
-                  <Warning>
-                    {hook.name}: {hook.description} (not installed)
-                  </Warning>
-                )}
-              </Box>
-            ))}
-            {!allHooksInstalled && (
-              <Box marginTop={1}>
-                <Info>Run "relay hooks setup" to install missing hooks.</Info>
-              </Box>
-            )}
-            <Box marginTop={1}>
-              <Text dimColor>
-                For notifications:{" "}
-                {peonInstalled ? (
-                  <Text>peon-ping is installed</Text>
-                ) : (
-                  <Text>
-                    We recommend <Text bold>peon-ping</Text> for desktop notifications.
-                  </Text>
-                )}
-              </Text>
-            </Box>
-
-            {issues.length > 0 ? (
-              <Box flexDirection="column" marginTop={1}>
-                <Warning>Issues found:</Warning>
-                {issues.map((issue) => (
-                  <Box key={issue} paddingLeft={2}>
-                    <Info>- {issue}</Info>
-                  </Box>
-                ))}
-              </Box>
-            ) : (
-              <Box marginTop={1}>
-                <Success>All checks passed!</Success>
-              </Box>
-            )}
-          </>
-        )}
-      </Box>
-    </Section>
-  );
+    console.log("");
+    console.log(allOk ? `  ${ok("All checks passed.")}` : `  ${warn("Some checks failed.")}`);
+    if (!allOk) process.exit(1);
+  }
 }

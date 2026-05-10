@@ -1,19 +1,14 @@
-import { Box } from "ink";
-import { configureRotation } from "../../config/accounts-config";
 import { BaseCommand } from "../../oclif/base";
-import { Success } from "../../ui/index";
+import { configureRotation } from "../../config/accounts-config";
+import { success } from "../../utils/console";
 
 export default class AutoDisable extends BaseCommand<typeof AutoDisable> {
-  static description = "Disable auto-rotation";
-  static examples = ["<%= config.bin %> auto disable"];
+  static description = "Disable automatic provider rotation";
 
   async run(): Promise<void> {
     configureRotation(false);
 
-    await this.renderApp(
-      <Box>
-        <Success>Auto-rotation disabled.</Success>
-      </Box>,
-    );
+    console.log("");
+    console.log(success("Auto rotation disabled."));
   }
 }

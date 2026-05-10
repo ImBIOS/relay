@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
 import * as path from "node:path";
 import type { ClaudeResult, IsolatedSession } from "./isolation";
 
@@ -28,7 +29,7 @@ export async function spawnClaudeInstance(options: SpawnOptions): Promise<Claude
 
   // Create a prompt file
   const promptPath = path.join(session.providerPath, ".prompt.txt");
-  require("node:fs").writeFileSync(promptPath, prompt);
+  writeFileSync(promptPath, prompt);
 
   return new Promise((resolve) => {
     // Use -p flag for programmatic execution per official docs

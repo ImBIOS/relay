@@ -1,3 +1,10 @@
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │  COMMUNITY-MAINTAINED                                                        │
+// │  This command supports OpenCode integration.                                  │
+// │  It is NOT officially maintained by the relay author.                         │
+// │  It may be broken. Fixes welcome from community contributors.                 │
+// └─────────────────────────────────────────────────────────────────────────────┘
+
 import { type ChildProcess, execSync, spawn } from "node:child_process";
 import { Flags } from "@oclif/core";
 import * as accountsConfig from "../config/accounts-config";
@@ -146,7 +153,12 @@ export default class OpenCode extends BaseCommand<typeof OpenCode> {
       }
 
       // Use legacy config
-      const provider = PROVIDERS[legacyProvider]();
+      const providerFn = PROVIDERS[legacyProvider];
+      if (!providerFn) {
+        this.error(`Unknown provider: ${legacyProvider}`);
+        return;
+      }
+      const provider = providerFn();
       const providerConfig = provider.getConfig();
 
       // Build environment
@@ -176,13 +188,13 @@ export default class OpenCode extends BaseCommand<typeof OpenCode> {
     // Build environment with active account credentials
     const opencodeEnv = getOpenCodeEnv(activeAccount);
 
-    const childEnv: Record<string, string> = {
+    const childEnv: Record<string, string | undefined> = {
       ...process.env,
-      RELAY_PROVIDER_NPM: opencodeEnv.RELAY_PROVIDER_NPM,
-      RELAY_BASE_URL: opencodeEnv.RELAY_BASE_URL,
-      RELAY_API_KEY: opencodeEnv.RELAY_API_KEY,
-      RELAY_GROUP_ID: opencodeEnv.RELAY_GROUP_ID,
-      RELAY_PROVIDER: opencodeEnv.RELAY_PROVIDER,
+      RELAY_PROVIDER_NPM: opencodeEnv.RELAY_PROVIDER_NPM ?? "",
+      RELAY_BASE_URL: opencodeEnv.RELAY_BASE_URL ?? "",
+      RELAY_API_KEY: opencodeEnv.RELAY_API_KEY ?? "",
+      RELAY_GROUP_ID: opencodeEnv.RELAY_GROUP_ID ?? "",
+      RELAY_PROVIDER: opencodeEnv.RELAY_PROVIDER ?? "",
     };
 
     // Clear Claude Code env vars to avoid conflicts

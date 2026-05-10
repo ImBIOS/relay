@@ -13,7 +13,7 @@
  * - Opt-out via RELAY_DISABLE_TELEMETRY=1
  */
 
-import { appendFileSync, existsSync, mkdirSync, renameSync, statSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 
@@ -179,7 +179,7 @@ export function readTelemetryLog(): TelemetryEntry[] {
   if (!existsSync(TELEMETRY_FILE)) return [];
 
   try {
-    const content = require("node:fs").readFileSync(TELEMETRY_FILE, "utf-8");
+    const content = readFileSync(TELEMETRY_FILE, "utf-8");
     return content
       .split("\n")
       .filter((line: string) => line.trim().length > 0)
@@ -207,29 +207,16 @@ export function getAllKnownCommands(): string[] {
     "": [
       "analytics",
       "claude",
-      "completion",
       "config",
-      "cost",
-      "dashboard",
       "doctor",
-      "env",
-      "first-run",
       "help",
-      "history",
-      "init",
       "opencode",
-      "plugin",
-      "rotate",
       "status",
-      "switch",
-      "test",
       "usage",
       "version",
     ],
-    account: ["add", "edit", "list", "remove", "switch"],
-    alert: ["add", "disable", "enable", "list"],
+    account: ["add", "edit", "list", "remove", "switch", "migrate-names"],
     auto: ["disable", "enable", "rotate", "status"],
-    dashboard: ["start", "status", "stop"],
     hooks: [
       "forge-setup",
       "forge-stop",
@@ -241,10 +228,6 @@ export function getAllKnownCommands(): string[] {
       "stop",
       "uninstall",
     ],
-    mcp: ["add", "add-predefined", "disable", "enable", "export", "list", "remove", "test"],
-    plugins: ["index", "install", "status", "templates", "uninstall"],
-    profile: ["create", "delete", "export", "list", "switch"],
-    project: ["doctor", "init"],
     proxy: ["start", "status", "stop"],
   };
 

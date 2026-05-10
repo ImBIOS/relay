@@ -1,3 +1,6 @@
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync, renameSync } from "node:fs";
+import { dirname } from "node:path";
+import { getDefaultBaseUrl } from "./provider-metadata";
 export interface AccountConfig {
   id: string;
   name: string;
@@ -16,30 +19,7 @@ export interface AccountConfig {
   };
 }
 
-export interface AlertConfig {
-  id: string;
-  type: "usage" | "quota" | "error";
-  threshold: number;
-  enabled: boolean;
-  lastTriggered?: string;
-}
-
-export interface NotificationConfig {
-  method: "console" | "webhook" | "email";
-  endpoint?: string;
-  enabled: boolean;
-}
-
 export type RotationStrategy = "round-robin" | "least-used" | "priority" | "random";
-
-export type SoundFlavor = "default" | "warcraft" | "retro" | "classic-doom" | "pokemon" | "zelda";
-
-export interface SoundConfig {
-  flavor: SoundFlavor;
-  enabled: boolean;
-  volume: number;
-  customPaths?: Partial<Record<SoundFlavor, Record<string, string>>>;
-}
 
 export interface RotationConfig {
   enabled: boolean;
@@ -53,17 +33,6 @@ export interface RELAYConfig {
   version: "2.0.0";
   accounts: Record<string, AccountConfig>;
   activeAccountId: string | null;
-  activeModelProviderId: string | null;
-  activeMcpProviderId: string | null;
-  alerts: AlertConfig[];
-  notifications: NotificationConfig;
-  dashboard: {
-    port: number;
-    host: string;
-    enabled: boolean;
-    authToken?: string;
-  };
-  sound: SoundConfig;
   rotation: RotationConfig;
 }
 
@@ -71,27 +40,6 @@ export const DEFAULT_CONFIG: RELAYConfig = {
   version: "2.0.0",
   accounts: {},
   activeAccountId: null,
-  activeModelProviderId: null,
-  activeMcpProviderId: null,
-  alerts: [
-    { id: "usage-80", type: "usage", threshold: 80, enabled: true },
-    { id: "usage-90", type: "usage", threshold: 90, enabled: true },
-    { id: "quota-low", type: "quota", threshold: 10, enabled: true },
-  ],
-  notifications: {
-    method: "console",
-    enabled: true,
-  },
-  dashboard: {
-    port: 3456,
-    host: "localhost",
-    enabled: false,
-  },
-  sound: {
-    flavor: "default",
-    enabled: true,
-    volume: 0.7,
-  },
   rotation: {
     enabled: true,
     strategy: "least-used",
@@ -99,51 +47,66 @@ export const DEFAULT_CONFIG: RELAYConfig = {
   },
 };
 
+// ── Config cache ──────────────────────────────────────────────────────
+let _config: RELAYConfig | undefined;
+let _configMtime = 0;
+
 export function getConfigPath(): string {
   return `${process.env.HOME || process.env.USERPROFILE}/.config/relay/settings.json`;
 }
 
 export function loadConfig(): RELAYConfig {
+  const configPath = getConfigPath();
   try {
-    const fs = require("node:fs");
-    const _path = require("node:path");
-    const configPath = getConfigPath();
-
-    if (fs.existsSync(configPath)) {
-      const content = fs.readFileSync(configPath, "utf-8");
-      const config = JSON.parse(content);
-      return { ...DEFAULT_CONFIG, ...config };
+    const stat = statSync(configPath);
+    if (_config && stat.mtimeMs === _configMtime) {
+      return _config;
     }
+    const content = readFileSync(configPath, "utf-8");
+    const parsed = JSON.parse(content);
+    _config = { ...DEFAULT_CONFIG, ...parsed } as RELAYConfig;
+    _configMtime = stat.mtimeMs;
+    return _config;
   } catch {
-    // Ignore errors
+    _config = { ...DEFAULT_CONFIG };
+    return _config;
   }
-  return { ...DEFAULT_CONFIG };
 }
 
 export function saveConfig(config: RELAYConfig): void {
-  const fs = require("node:fs");
-  const path = require("node:path");
   const configPath = getConfigPath();
-  const configDir = path.dirname(configPath);
+  const configDir = dirname(configPath);
 
-  if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true });
+  if (!existsSync(configDir)) {
+    mkdirSync(configDir, { recursive: true });
   }
 
-  fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+  // Atomic write: write to tmp then rename
+  const tmpPath = `${configPath}.tmp`;
+  writeFileSync(tmpPath, JSON.stringify(config, null, 2));
+  renameSync(tmpPath, configPath);
+
+  // Update cache immediately
+  _config = config;
+  try {
+    _configMtime = statSync(configPath).mtimeMs;
+  } catch {
+    // ignore
+  }
 }
 
 export function generateAccountId(): string {
   return `acc_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function addAccount(
-  name: string,
-  provider: "zai" | "minimax",
-  apiKey: string,
-  baseUrl: string,
-  groupId?: string,
-): AccountConfig {
+export function addAccount(input: {
+  name: string;
+  provider: "zai" | "minimax";
+  apiKey: string;
+  baseUrl?: string;
+  groupId?: string;
+}): AccountConfig {
+  const { name, provider, apiKey, baseUrl, groupId } = input;
   const id = generateAccountId();
   const now = new Date().toISOString();
 
@@ -152,7 +115,7 @@ export function addAccount(
     name,
     provider,
     apiKey,
-    baseUrl,
+    baseUrl: baseUrl ?? getDefaultBaseUrl(provider),
     priority: 0,
     isActive: true,
     createdAt: now,
@@ -186,23 +149,31 @@ export function updateAccount(id: string, updates: Partial<AccountConfig>): Acco
   saveConfig(config);
   return config.accounts[id];
 }
-
-export function deleteAccount(id: string): boolean {
+export function deleteAccount(id: string): AccountConfig | null {
   const config = loadConfig();
-
-  if (!config.accounts[id]) {
-    return false;
-  }
+  const account = config.accounts[id];
+  if (!account) return null;
 
   delete config.accounts[id];
-
   if (config.activeAccountId === id) {
     const remainingIds = Object.keys(config.accounts);
-    config.activeAccountId = remainingIds.length > 0 ? remainingIds[0] : null;
+    config.activeAccountId = remainingIds.length > 0 ? remainingIds[0]! : null;
   }
-
   saveConfig(config);
-  return true;
+  return account;
+}
+export function getAccount(id: string): AccountConfig | null {
+  const config = loadConfig();
+  return config.accounts[id] ?? null;
+}
+
+export function switchAccount(id: string): AccountConfig | null {
+  const config = loadConfig();
+  if (!config.accounts[id]) return null;
+  config.activeAccountId = id;
+  config.accounts[id]!.lastUsed = new Date().toISOString();
+  saveConfig(config);
+  return config.accounts[id]!;
 }
 
 export function getActiveAccount(): AccountConfig | null {
@@ -216,47 +187,6 @@ export function getActiveAccount(): AccountConfig | null {
 export function listAccounts(): AccountConfig[] {
   const config = loadConfig();
   return Object.values(config.accounts).sort((a, b) => a.priority - b.priority);
-}
-
-export function switchAccount(id: string): boolean {
-  const config = loadConfig();
-
-  if (!config.accounts[id]) {
-    return false;
-  }
-
-  config.activeAccountId = id;
-  config.activeModelProviderId = id;
-  config.activeMcpProviderId = id;
-  config.accounts[id].lastUsed = new Date().toISOString();
-  saveConfig(config);
-  return true;
-}
-
-export function setActiveModelProvider(id: string): boolean {
-  const config = loadConfig();
-
-  if (!config.accounts[id]) {
-    return false;
-  }
-
-  config.activeModelProviderId = id;
-  config.accounts[id].lastUsed = new Date().toISOString();
-  saveConfig(config);
-  return true;
-}
-
-export function setActiveMcpProvider(id: string): boolean {
-  const config = loadConfig();
-
-  if (!config.accounts[id]) {
-    return false;
-  }
-
-  config.activeMcpProviderId = id;
-  config.accounts[id].lastUsed = new Date().toISOString();
-  saveConfig(config);
-  return true;
 }
 
 export function rotateApiKey(provider: "zai" | "minimax"): AccountConfig | null {
@@ -278,77 +208,12 @@ export function rotateApiKey(provider: "zai" | "minimax"): AccountConfig | null 
   const nextIndex = (currentIndex + 1) % providerAccounts.length;
   const nextAccount = providerAccounts[nextIndex];
 
-  config.activeAccountId = nextAccount.id;
-  nextAccount.lastUsed = new Date().toISOString();
+  // nextAccount is guaranteed to exist since providerAccounts.length > 0
+  config.activeAccountId = nextAccount!.id;
+  nextAccount!.lastUsed = new Date().toISOString();
   saveConfig(config);
 
-  return nextAccount;
-}
-
-export function checkAlerts(usage: {
-  used: number;
-  limit: number;
-  remaining?: number;
-}): AlertConfig[] {
-  const config = loadConfig();
-  const triggered: AlertConfig[] = [];
-
-  const percentUsed = usage.limit > 0 ? (usage.used / usage.limit) * 100 : 0;
-
-  for (const alert of config.alerts) {
-    if (!alert.enabled) {
-      continue;
-    }
-
-    if (alert.type === "usage" && percentUsed >= alert.threshold) {
-      triggered.push(alert);
-    }
-    if (alert.type === "quota" && (usage.remaining ?? 0) <= alert.threshold) {
-      triggered.push(alert);
-    }
-  }
-
-  return triggered;
-}
-
-export function updateAlert(id: string, updates: Partial<AlertConfig>): AlertConfig | null {
-  const config = loadConfig();
-  const alertIndex = config.alerts.findIndex((a) => a.id === id);
-
-  if (alertIndex === -1) {
-    return null;
-  }
-
-  config.alerts[alertIndex] = { ...config.alerts[alertIndex], ...updates };
-  saveConfig(config);
-  return config.alerts[alertIndex];
-}
-
-export function toggleDashboard(enabled: boolean, port?: number, host?: string): void {
-  const config = loadConfig();
-  config.dashboard.enabled = enabled;
-  if (port) {
-    config.dashboard.port = port;
-  }
-  if (host) {
-    config.dashboard.host = host;
-  }
-  if (enabled && !config.dashboard.authToken) {
-    config.dashboard.authToken = `relay_${Math.random().toString(36).slice(2, 16)}`;
-  }
-  saveConfig(config);
-}
-
-export function getSoundConfig(): SoundConfig {
-  const config = loadConfig();
-  return config.sound;
-}
-
-export function updateSoundConfig(updates: Partial<SoundConfig>): SoundConfig {
-  const config = loadConfig();
-  config.sound = { ...config.sound, ...updates };
-  saveConfig(config);
-  return config.sound;
+  return nextAccount!;
 }
 
 export function configureRotation(
@@ -387,10 +252,6 @@ async function fetchAndUpdateUsage(account: AccountConfig): Promise<number> {
   if (account.usage?.lastUpdated) {
     const age = Date.now() - new Date(account.usage.lastUpdated).getTime();
     if (age < USAGE_CACHE_TTL_MS && account.usage.limit > 0) {
-      // Use cached data — skip API call
-      if (account.provider === "zai") {
-        return (account.usage.used / account.usage.limit) * 100;
-      }
       return (account.usage.used / account.usage.limit) * 100;
     }
   }
@@ -458,9 +319,9 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
     case "random": {
       const otherAccounts = allAccounts.filter((a) => a.id !== currentId);
       if (otherAccounts.length === 0) {
-        nextAccount = allAccounts[0];
+        nextAccount = allAccounts[0] ?? null;
       } else {
-        nextAccount = otherAccounts[Math.floor(Math.random() * otherAccounts.length)];
+        nextAccount = otherAccounts[Math.floor(Math.random() * otherAccounts.length)] ?? null;
       }
       break;
     }
@@ -469,7 +330,7 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
       const sorted = allAccounts.sort((a, b) => a.priority - b.priority);
       const currentIndex = sorted.findIndex((a) => a.id === currentId);
       const nextIndex = (currentIndex + 1) % sorted.length;
-      nextAccount = sorted[nextIndex];
+      nextAccount = sorted[nextIndex] ?? null;
       break;
     }
 
@@ -484,7 +345,7 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
 
       // Sort by actual usage (lowest first)
       accountsWithUsage.sort((a, b) => a.usage - b.usage);
-      nextAccount = accountsWithUsage[0].account;
+      nextAccount = accountsWithUsage[0]?.account ?? null;
       break;
     }
 
@@ -504,7 +365,7 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
           }
         } else {
           // No usage data yet - use highest priority account
-          nextAccount = sorted[0];
+          nextAccount = sorted[0] ?? null;
           break;
         }
       }
@@ -523,8 +384,6 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
   const didRotate = nextAccount !== null && nextAccount.id !== currentId;
   if (didRotate && nextAccount) {
     config.activeAccountId = nextAccount.id;
-    config.activeModelProviderId = nextAccount.id;
-    config.activeMcpProviderId = nextAccount.id;
     nextAccount.lastUsed = new Date().toISOString();
     config.rotation.lastRotation = new Date().toISOString();
     saveConfig(config);

@@ -52,7 +52,7 @@ export function log(message: string, level: LogLevel = "info"): void {
   }
   const color = COLORS[level];
   const prefix = LEVEL_PREFIXES[level];
-  const timestamp = new Date().toISOString().split("T")[1].split(".")[0];
+  const timestamp = new Date().toISOString().split("T")[1]?.split(".")[0] ?? "";
   console.log(`${color}[${timestamp}] ${prefix} ${message}${COLORS.reset}`);
 }
 
@@ -82,7 +82,7 @@ export function debug(message: string): void {
 
 export function table(data: Record<string, string | number>): void {
   const maxKeyLength = Math.max(...Object.keys(data).map((k) => k.length));
-  const maxValLength = Math.max(...Object.values(data).map((v) => String(v).length));
+  const maxValLength = Math.max(0, ...Object.values(data).map((v) => String(v).length));
 
   for (const [key, value] of Object.entries(data)) {
     const paddedKey = key.padEnd(maxKeyLength);

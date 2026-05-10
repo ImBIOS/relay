@@ -13,21 +13,16 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.119",
     "@anthropic-ai/sdk": "^0.72.1",
+    "@clack/prompts": "^1.3.0",
     "@imbios/forgecode-sdk": "file:../../submodules/forgecode-sdk",
-    "@inkjs/ui": "^2.0.0",
     "@oclif/core": "^4.8.0",
-    "ink": "^6.6.0",
     "jsonc": "^2.0.0",
-    "react": "^19.2.5",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@happy-dom/global-registrator": "^20.5.0",
-    "@testing-library/jest-dom": "^6.9.1",
-    "@testing-library/react": "^16.3.2",
     "@types/bun": "^1.3.12",
-    "@types/node": "^24.10.1",
-    "@types/react": "^19.2.14"
+    "@types/node": "^24.10.1"
   },
   "exports": {
     ".": "./src/oclif/base.tsx",
@@ -60,23 +55,11 @@
       "account": {
         "description": "Multi-account management"
       },
-      "alert": {
-        "description": "Alert configuration"
-      },
       "auto": {
         "description": "Cross-provider auto-rotation"
       },
-      "compare": {
-        "description": "Side-by-side Claude comparison"
-      },
-      "dashboard": {
-        "description": "Web dashboard management"
-      },
-      "mcp": {
-        "description": "MCP server management"
-      },
-      "profile": {
-        "description": "Manage configuration profiles"
+      "hooks": {
+        "description": "Claude Code / ForgeCode hook management"
       },
       "proxy": {
         "description": "Anthropic API proxy server for hot-switching providers"
@@ -84,15 +67,18 @@
     }
   },
   "scripts": {
-    "build": "bun build src/cli.ts --outfile=bin/relay.bundled.js --target=node --packages=external",
-    "dev": "bun --hot src/cli.ts",
+    "build": "bun build src/run.ts --outfile=bin/relay.bundled.js --target=node --packages=external",
+    "check": "oxlint . && oxfmt --check src/",
+    "check:fix": "oxlint . --fix && oxfmt --write src/",
+    "dev": "bun --hot src/run.ts",
+    "format": "oxfmt --write src/",
+    "format:check": "oxfmt --check src/",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "test:watch": "bun test --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "bun tsc --noEmit --skipLibCheck"
   },
-  "type": "module",
-  "workspaces": [
-    "packages/*"
-  ]
+  "type": "module"
 }

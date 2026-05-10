@@ -13,13 +13,12 @@
 
 import { query } from "@imbios/forgecode-sdk";
 import { Flags } from "@oclif/core";
-import { Box, Text } from "ink";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import * as path from "node:path";
 import { z } from "zod";
 import { BaseCommand } from "../../oclif/base";
-import { Info, Section } from "../../ui/index";
+import { ok } from "../../utils/console";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -554,27 +553,9 @@ export default class HooksForgeStop extends BaseCommand<typeof HooksForgeStop> {
       );
     }
 
-    if (options.silent) {
-      return;
-    }
-
     // Show summary in non-silent mode
-    await this.renderApp(
-      <Section title="ForgeCode Session End">
-        <Box flexDirection="column">
-          {options.verbose && (
-            <Box flexDirection="column" marginTop={1}>
-              <Info>Git status:</Info>
-              <Box marginLeft={2}>
-                <Text>
-                  Staged: {changes.staged ? "Yes" : "No"} | Unstaged:{" "}
-                  {changes.unstaged ? "Yes" : "No"} | Untracked: {changes.untracked ? "Yes" : "No"}
-                </Text>
-              </Box>
-            </Box>
-          )}
-        </Box>
-      </Section>,
-    );
+    if (options.verbose) {
+      console.log(`\n  ${ok("Git status:")} Staged=${changes.staged ? "Yes" : "No"} Unstaged=${changes.unstaged ? "Yes" : "No"} Untracked=${changes.untracked ? "Yes" : "No"}`);
+    }
   }
 }

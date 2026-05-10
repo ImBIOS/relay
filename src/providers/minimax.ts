@@ -45,7 +45,7 @@ export class MiniMaxProvider implements Provider {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s for full round-trip
 
       const url = `https://platform.minimax.io/v1/api/openplatform/coding_plan/remains?GroupId=${groupId}`;
 
@@ -58,9 +58,8 @@ export class MiniMaxProvider implements Provider {
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
       if (!response.ok) {
+        clearTimeout(timeoutId);
         return { used: 0, limit: 0, remaining: 0, percentUsed: 0, resetsAt: undefined };
       }
 
@@ -115,6 +114,8 @@ export class MiniMaxProvider implements Provider {
             : undefined,
         };
       }
+
+      clearTimeout(timeoutId); // Cleared AFTER response body fully consumed
 
       return {
         used,

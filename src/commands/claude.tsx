@@ -1,3 +1,10 @@
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │  COMMUNITY-MAINTAINED                                                        │
+// │  This command supports direct Claude CLI integration.                         │
+// │  It is NOT officially maintained by the relay author.                         │
+// │  It may be broken. Fixes welcome from community contributors.                 │
+// └─────────────────────────────────────────────────────────────────────────────┘
+
 import { execSync, spawn } from "node:child_process";
 import * as accountsConfig from "../config/accounts-config";
 import * as settings from "../config/settings";
@@ -81,7 +88,12 @@ export default class Claude extends BaseCommand<typeof Claude> {
       }
 
       // Use legacy config
-      const provider = PROVIDERS[legacyProvider]();
+      const providerFn = PROVIDERS[legacyProvider];
+      if (!providerFn) {
+        this.error(`Unknown provider: ${legacyProvider}`);
+        return;
+      }
+      const provider = providerFn();
       const providerConfig = provider.getConfig();
 
       // Build environment - only disable non-essential traffic for MiniMax

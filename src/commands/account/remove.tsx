@@ -1,35 +1,31 @@
-import { Args } from "@oclif/core";
-import { Box } from "ink";
-import { deleteAccount } from "../../config/accounts-config";
 import { BaseCommand } from "../../oclif/base";
-import { Error as ErrorBadge, Success } from "../../ui/index";
+import { deleteAccount } from "../../config/accounts-config";
+import { divider, error, ok } from "../../utils/console";
 
 export default class AccountRemove extends BaseCommand<typeof AccountRemove> {
-  static description = "Remove an account";
-  static examples = ["<%= config.bin %> account remove acc_123456"];
-
-  static args = {
-    id: Args.string({
-      description: "Account ID to remove",
-      required: true,
-    }),
-  };
+  static description = "Remove a provider account";
+  static examples = [
+    "<%= config.bin %> account remove acc_xxx",
+  ];
 
   async run(): Promise<void> {
-    const id = this.args.id;
+    const accountId = this.argv?.[0] as string | undefined;
 
-    if (deleteAccount(id)) {
-      await this.renderApp(
-        <Box>
-          <Success>Account {id} removed.</Success>
-        </Box>,
-      );
-    } else {
-      await this.renderApp(
-        <Box>
-          <ErrorBadge>Failed to remove account "{id}".</ErrorBadge>
-        </Box>,
-      );
+    if (!accountId) {
+      console.error(error("Usage: relay account remove <account-id>"));
+      console.error("Run 'relay account list' to see account IDs.");
+      this.exit(1);
     }
+
+    const deleted = deleteAccount(accountId);
+    if (!deleted) {
+      console.error(error(`Account not found: ${accountId}`));
+      console.error("Run 'relay account list' to see account IDs.");
+      this.exit(1);
+    }
+
+    console.log("");
+    console.log(ok(`Removed account: ${deleted.name} (${deleted.provider})`));
+    console.log(divider("─", 50));
   }
 }

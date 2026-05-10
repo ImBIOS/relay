@@ -1,5 +1,5 @@
-import { Box, Text } from "ink";
 import { BaseCommand } from "../../oclif/base";
+import { divider, heading, item, subheading } from "../../utils/console";
 
 export default class Auto extends BaseCommand<typeof Auto> {
   static description = "Cross-provider auto-rotation";
@@ -10,39 +10,18 @@ export default class Auto extends BaseCommand<typeof Auto> {
   ];
 
   async run(): Promise<void> {
-    await this.renderApp(<AutoHelp />);
+    console.log("");
+    console.log(heading("ImBIOS Auto-Rotation"));
+    console.log(divider("─", 50));
+    console.log(subheading("Commands:"));
+    console.log(`  ${item("enable [strategy]")} Enable auto-rotation`);
+    console.log(`  ${item("disable")}           Disable auto-rotation`);
+    console.log(`  ${item("status")}             Show current rotation status`);
+    console.log(`  ${item("rotate")}              Manually trigger rotation`);
+    console.log("");
+    console.log(subheading("Strategies:"));
+    console.log("  least-used   Pick account with lowest usage (default)");
+    console.log("  round-robin  Cycle through accounts sequentially");
+    console.log("  random       Randomly select account");
   }
-}
-
-function AutoHelp(): React.ReactElement {
-  return (
-    <Box flexDirection="column">
-      <Text bold>ImBIOS Auto-Rotation</Text>
-      <Text />
-      <Text>Usage: relay auto &lt;command&gt; [options]</Text>
-      <Text />
-      <Text bold>Commands:</Text>
-      <Text> enable [strategy] Enable auto-rotation</Text>
-      <Text> disable Disable auto-rotation</Text>
-      <Text> status Show current rotation status</Text>
-      <Text> rotate Manually trigger rotation</Text>
-      <Text> hook SessionStart hook (for internal use)</Text>
-      <Text />
-      <Text bold>Options:</Text>
-      <Text> --cross-provider Enable cross-provider rotation</Text>
-      <Text />
-      <Text bold>Strategies:</Text>
-      <Text> round-robin Cycle through accounts sequentially</Text>
-      <Text> least-used Pick account with lowest usage</Text>
-      <Text> priority Pick highest priority account</Text>
-      <Text> random Randomly select account</Text>
-      <Text />
-      <Text bold>Examples:</Text>
-      <Text> relay auto enable round-robin</Text>
-      <Text> relay auto enable random --cross-provider</Text>
-      <Text> relay auto status</Text>
-      <Text> relay auto rotate</Text>
-      <Text> relay auto hook --silent</Text>
-    </Box>
-  );
 }

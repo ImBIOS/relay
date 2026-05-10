@@ -91,6 +91,7 @@ export function installCompletion(
   dryRun = false,
 ): { success: boolean; message: string } {
   const _completion = getShellCompletion(shell);
+  void _completion;
   const paths: Record<string, string> = {
     bash: "~/.bash_completion",
     zsh: "~/.zshrc",

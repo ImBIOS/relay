@@ -1,69 +1,63 @@
-import * as fs from "node:fs";
-import * as os from "node:os";
-import * as path from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { dirname } from "node:path";
 
-export interface RELAYConfig {
-  provider: "zai" | "minimax";
+// ── Config path ─────────────────────────────────────────────────────────────
+const SETTINGS_DIR = `${process.env.HOME || homedir()}/.config/relay`;
+const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
+
+// ── Legacy config interface (matches the old v1 config format) ────────────────
+interface LegacyConfig {
+  version?: string;
+  provider?: "zai" | "minimax";
+  activeModelProviderId?: string;
+  activeMcpProviderId?: string;
   zai?: {
-    apiKey: string;
-    baseUrl: string;
-    models: string[];
+    apiKey?: string;
+    baseUrl?: string;
+    models?: string[];
   };
   minimax?: {
-    apiKey: string;
-    baseUrl: string;
-    models: string[];
+    apiKey?: string;
+    baseUrl?: string;
+    models?: string[];
+    groupId?: string;
   };
-  history?: {
-    zai?: UsageRecord[];
-    minimax?: UsageRecord[];
-  };
+  history?: Array<{
+    timestamp: string;
+    provider: string;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    cost: number;
+  }>;
 }
 
-export interface UsageRecord {
-  date: string;
-  used: number;
-  limit: number;
-}
-
-const CONFIG_PATH = path.join(os.homedir(), ".config", "relay", "settings.json");
-
-export function getConfigDir(): string {
-  return path.join(os.homedir(), ".config", "relay");
-}
-
-export function getConfigPath(): string {
-  return CONFIG_PATH;
-}
-
-export function loadConfig(): RELAYConfig {
+// ── Load / Save ───────────────────────────────────────────────────────────────
+export function loadSettings(): LegacyConfig {
   try {
-    if (fs.existsSync(CONFIG_PATH)) {
-      const content = fs.readFileSync(CONFIG_PATH, "utf-8");
-      return JSON.parse(content) as RELAYConfig;
+    if (existsSync(SETTINGS_PATH)) {
+      const raw = readFileSync(SETTINGS_PATH, "utf-8");
+      return JSON.parse(raw);
     }
   } catch {
-    // Ignore errors
+    // ignore
   }
-  return { provider: "zai" };
+  return {};
 }
 
-export function saveConfig(config: RELAYConfig): void {
-  const configDir = getConfigDir();
-  if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true });
-  }
-  fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+export function saveSettings(settings: LegacyConfig): LegacyConfig {
+  const dir = dirname(SETTINGS_PATH);
+  if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+  writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
+  return settings;
 }
 
+// ── Provider config helpers (used by legacy SDK) ────────────────────────────
 export function getProviderConfig(provider: "zai" | "minimax"): Record<string, string> {
-  const config = loadConfig();
+  const config = loadSettings();
   const providerConfig = config[provider];
-
-  if (!providerConfig) {
-    return {};
-  }
-
+  if (!providerConfig) return {};
   return {
     apiKey: "apiKey" in providerConfig ? (providerConfig.apiKey as string) : "",
     baseUrl: "baseUrl" in providerConfig ? (providerConfig.baseUrl as string) : "",
@@ -72,50 +66,18 @@ export function getProviderConfig(provider: "zai" | "minimax"): Record<string, s
 
 export function setProviderConfig(
   provider: "zai" | "minimax",
-  apiKey: string,
-  baseUrl: string,
-): void {
-  const config = loadConfig();
-  config[provider] = { apiKey, baseUrl, models: [] };
-  saveConfig(config);
+  data: { apiKey: string; baseUrl: string; models?: string[] },
+): LegacyConfig {
+  const settings = loadSettings();
+  const updated = { ...settings, [provider]: { apiKey: data.apiKey, baseUrl: data.baseUrl, models: data.models ?? [] } };
+  return saveSettings(updated);
 }
 
 export function getActiveProvider(): "zai" | "minimax" {
-  const config = loadConfig();
-  return config.provider || "zai";
+  return loadSettings().provider ?? "zai";
 }
 
-export function setActiveProvider(provider: "zai" | "minimax"): void {
-  const config = loadConfig();
-  config.provider = provider;
-  saveConfig(config);
-}
-
-export function recordUsage(provider: "zai" | "minimax", used: number, limit: number): void {
-  const config = loadConfig();
-  const today = new Date().toISOString().split("T")[0];
-
-  if (!config.history) {
-    config.history = {};
-  }
-  if (!config.history[provider]) {
-    config.history[provider] = [];
-  }
-
-  const existing = config.history[provider]?.find((r) => r.date === today);
-  if (existing) {
-    existing.used = used;
-    existing.limit = limit;
-  } else {
-    config.history[provider]?.push({ date: today, used, limit });
-    // Keep only last 30 days
-    config.history[provider] = config.history[provider]?.slice(-30);
-  }
-
-  saveConfig(config);
-}
-
-export function getUsageHistory(provider: "zai" | "minimax"): UsageRecord[] {
-  const config = loadConfig();
-  return config.history?.[provider] || [];
+export function setActiveProvider(provider: "zai" | "minimax"): LegacyConfig {
+  const settings = loadSettings();
+  return saveSettings({ ...settings, provider });
 }

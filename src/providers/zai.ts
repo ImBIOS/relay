@@ -35,7 +35,7 @@ export class ZAIProvider implements Provider {
 
     try {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000); // 5s timeout
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s for full round-trip
 
       const response = await fetch("https://api.z.ai/api/monitor/usage/quota/limit", {
         method: "GET",
@@ -46,9 +46,8 @@ export class ZAIProvider implements Provider {
         signal: controller.signal,
       });
 
-      clearTimeout(timeoutId);
-
       if (!response.ok) {
+        clearTimeout(timeoutId);
         return { used: 0, limit: 0, remaining: 0, percentUsed: 0, resetsAt: undefined };
       }
 
@@ -93,7 +92,10 @@ export class ZAIProvider implements Provider {
       let modelUsage: UsageStats;
       if (tokenLimit) {
         // unit: 3 = millions, so number is the limit in millions of tokens
-        const tokenLimit_ = tokenLimit.limit ?? tokenLimit.number * 1_000_000;
+        // The API may return 'limit' or 'number' for the token count (where number is in millions)
+        const rawLimit = (tokenLimit as Record<string, unknown>).limit;
+        const rawNumber = (tokenLimit as Record<string, unknown>).number;
+        const tokenLimit_ = (typeof rawLimit === 'number' ? rawLimit : typeof rawNumber === 'number' ? (rawNumber as number) * 1_000_000 : 0);
         const tokenUsed = tokenLimit.percentage
           ? Math.round((tokenLimit.percentage / 100) * tokenLimit_)
           : 0;
@@ -143,6 +145,8 @@ export class ZAIProvider implements Provider {
           resetsAt: tokenLimit.windowEnd ? new Date(tokenLimit.windowEnd).toISOString() : undefined,
         };
       }
+
+      clearTimeout(timeoutId); // Cleared AFTER response body fully consumed
 
       return {
         used: modelUsage.used + mcpUsage.used,

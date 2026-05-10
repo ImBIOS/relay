@@ -1,0 +1,19 @@
+FROM oven/bun:1 AS base
+
+# Install git and dependencies
+RUN apt-get update && apt-get install -y git openssh-client && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /relay
+COPY . .
+RUN bun install
+
+# Configure git identity for auto-commit tests
+RUN git config --global user.email "test@relay.local"
+RUN git config --global user.name "Relay Test"
+
+# Create a test user home dir
+ENV HOME=/tmp/testhome
+RUN mkdir -p $HOME/.claude $HOME/.config/relay
+
+# Entrypoint runs the test suite
+ENTRYPOINT ["bun", "test", "--timeout", "60000"]

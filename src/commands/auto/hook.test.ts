@@ -50,11 +50,6 @@ describe("relay hook - Disaster Prevention Tests", () => {
         },
       },
       activeAccountId: "acc_test_1",
-      activeModelProviderId: "acc_test_1",
-      activeMcpProviderId: "acc_test_1",
-      alerts: [],
-      notifications: { method: "console" as const, enabled: true },
-      dashboard: { port: 3456, host: "localhost", enabled: false },
       rotation: {
         enabled: true,
         strategy: "round-robin" as const,
@@ -132,7 +127,7 @@ describe("relay hook - Disaster Prevention Tests", () => {
       const untrackedFile = path.join(TEST_DIR, "work.txt");
       fs.writeFileSync(untrackedFile, "data");
 
-      const result = spawnSync("bun", [RELAY_BIN, "auto", "hook", "--silent"], {
+      spawnSync("bun", [RELAY_BIN, "auto", "hook", "--silent"], {
         env: { ...process.env, HOME: TEST_DIR, RELAY_TEST_MODE: "1" },
         timeout: 5000,
       });
@@ -223,8 +218,6 @@ describe("relay hook - Disaster Prevention Tests", () => {
       let config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
       config.rotation.enabled = false;
       config.activeAccountId = "acc_test_1";
-      config.activeModelProviderId = "acc_test_1";
-      config.activeMcpProviderId = "acc_test_1";
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
 
       spawnSync("bun", [RELAY_BIN, "auto", "hook", "--silent"], {
@@ -239,8 +232,6 @@ describe("relay hook - Disaster Prevention Tests", () => {
       // Test MiniMax provider (account 2)
       config = JSON.parse(fs.readFileSync(CONFIG_PATH, "utf-8"));
       config.activeAccountId = "acc_test_2";
-      config.activeModelProviderId = "acc_test_2";
-      config.activeMcpProviderId = "acc_test_2";
       fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
 
       spawnSync("bun", [RELAY_BIN, "auto", "hook", "--silent"], {
@@ -305,7 +296,7 @@ describe("Git Reset Disaster - Prevention & Recovery", () => {
       // Simulate the dangerous command: git reset --hard HEAD
       // NOTE: git reset --hard doesn't delete untracked files normally
       // The disaster happened when combined with merge conflicts and stashes
-      const resetResult = spawnSync("git", ["reset", "--hard", "HEAD"], {
+      spawnSync("git", ["reset", "--hard", "HEAD"], {
         cwd: GIT_TEST_DIR,
       });
 
@@ -436,7 +427,7 @@ describe("Git Reset Disaster - Prevention & Recovery", () => {
 
       // Verify stash was created (exit code 0 means success, but 1 can mean nothing to stash which is ok)
       // Accept both 0 (success) and 1 (nothing to stash) as valid
-      expect([0, 1]).toContain(stashResult.status);
+      expect([0, 1]).toContain(stashResult.status ?? 1);
 
       // Verify untracked file is preserved
       expect(fs.existsSync(untrackedFile)).toBe(true);

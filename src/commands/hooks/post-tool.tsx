@@ -4,15 +4,12 @@
 // Primary: Biome (JS/TS/JSX/JSON/CSS/GraphQL)
 // Fallbacks: Language-specific formatters for other languages
 //===============================================================================
-
-import { spawn } from "node:child_process";
-import * as fs from "node:fs";
-import { existsSync } from "node:fs";
-import * as path from "node:path";
 import { Flags } from "@oclif/core";
-import { Box, Text } from "ink";
+import { spawn } from "node:child_process";
+import { existsSync, readFileSync, readdirSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
+import { basename, extname } from "node:path";
 import { BaseCommand } from "../../oclif/base";
-import { Info, Section, Success, Warning } from "../../ui/index";
+import { divider, error, ok, warn } from "../../utils/console";
 
 interface FormatOptions {
   silent: boolean;
@@ -68,15 +65,15 @@ async function formatJson(file: string): Promise<boolean> {
   if (!hasCommand("jq")) return false;
   const tmpFile = `${file}.tmp_${Date.now()}`;
   try {
-    fs.writeFileSync(tmpFile, fs.readFileSync(file));
+    writeFileSync(tmpFile, readFileSync(file));
     const result = await runCommand("jq", [".", "-o", tmpFile, file]);
     if (result.success) {
-      fs.renameSync(tmpFile, file);
+      renameSync(tmpFile, file);
       return true;
     }
-    if (existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+    if (existsSync(tmpFile)) unlinkSync(tmpFile);
   } catch {
-    if (existsSync(tmpFile)) fs.unlinkSync(tmpFile);
+    if (existsSync(tmpFile)) unlinkSync(tmpFile);
   }
   return false;
 }
@@ -141,13 +138,13 @@ async function formatFile(file: string): Promise<FormatResult> {
     return { file, success: false, formatted: false };
   }
 
-  const filename = path.basename(file);
+  const filename = basename(file);
   if (filename.startsWith(".") && filename !== ".Biome") {
     return { file, success: true, formatted: false };
   }
 
-  const ext = path.extname(file).slice(1).toLowerCase();
-  const base = path.basename(file, path.extname(file));
+  const ext = extname(file).slice(1).toLowerCase();
+  const base = basename(file, extname(file));
   if (ext === base) {
     return { file, success: true, formatted: false };
   }
@@ -323,7 +320,7 @@ export default class PostTool extends BaseCommand<typeof PostTool> {
 
     // If no files from args and not --all, read from stdin
     if (files.length === 0 && !options.all) {
-      const stdin = fs.readFileSync("/dev/stdin", "utf-8");
+      const stdin = readFileSync("/dev/stdin", "utf-8");
       const filePath = extractFilePathFromInput(stdin);
       if (filePath && existsSync(filePath)) {
         files.push(filePath);
@@ -332,7 +329,7 @@ export default class PostTool extends BaseCommand<typeof PostTool> {
 
     // If --all flag, find all files in current directory
     if (options.all) {
-      const entries = fs.readdirSync(".", { withFileTypes: true });
+      const entries = readdirSync(".", { withFileTypes: true });
       for (const entry of entries) {
         if (entry.isFile() && !entry.name.startsWith(".")) {
           files.push(entry.name);
@@ -342,14 +339,9 @@ export default class PostTool extends BaseCommand<typeof PostTool> {
 
     if (files.length === 0) {
       if (!options.silent) {
-        await this.renderApp(
-          <Section title="Post-Tool Format">
-            <Info>No files to format.</Info>
-            <Box marginTop={1}>
-              <Text dimColor>Usage: relay hooks post-tool [--verbose] [--all] [files...]</Text>
-            </Box>
-          </Section>,
-        );
+        console.log("");
+        console.log("  No files to format.");
+        console.log("  Usage: relay hooks post-tool [--verbose] [--all] [files...]");
       }
       return;
     }
@@ -364,43 +356,22 @@ export default class PostTool extends BaseCommand<typeof PostTool> {
     const formattedCount = results.filter((r) => r.formatted).length;
     const errorCount = results.filter((r) => !r.success).length;
 
-    // Play sound after formatting completes (if any files were formatted)
-    if (formattedCount > 0) {
-    }
-
     if (!options.silent) {
-      await this.renderApp(
-        <Section title="Post-Tool Format">
-          <Box flexDirection="column">
-            {options.verbose &&
-              results.map((r) => (
-                <Box key={r.file}>
-                  {r.formatted ? (
-                    <Success>{r.file}</Success>
-                  ) : r.success ? (
-                    <Text color="gray">{r.file}</Text>
-                  ) : (
-                    <Warning>{r.file}</Warning>
-                  )}
-                </Box>
-              ))}
-            <Box marginTop={1}>
-              <Text>
-                Formatted:{" "}
-                <Text bold color="green">
-                  {formattedCount}
-                </Text>{" "}
-                file(s)
-              </Text>
-            </Box>
-            {errorCount > 0 && (
-              <Box marginTop={1}>
-                <Text color="yellow">{errorCount} file(s) could not be formatted</Text>
-              </Box>
-            )}
-          </Box>
-        </Section>,
-      );
+      console.log("");
+      console.log("  Post-Tool Format");
+      console.log(divider("─", 40));
+
+      if (options.verbose) {
+        for (const r of results) {
+          const icon = r.formatted ? ok("OK") : r.success ? "  " : error("FAIL");
+          console.log(`  ${icon} ${r.file}`);
+        }
+      }
+
+      console.log(`  ${ok("Formatted:")} ${formattedCount} file(s)`);
+      if (errorCount > 0) {
+        console.log(`  ${warn(`${errorCount} file(s) could not be formatted`)}`);
+      }
     }
   }
 }

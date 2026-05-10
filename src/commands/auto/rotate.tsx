@@ -1,8 +1,7 @@
 import { Flags } from "@oclif/core";
-import { Box } from "ink";
 import { rotateAcrossProviders } from "../../config/accounts-config";
 import { BaseCommand } from "../../oclif/base";
-import { Error as ErrorBadge, Success } from "../../ui/index";
+import { error, ok } from "../../utils/console";
 
 export default class AutoRotate extends BaseCommand<typeof AutoRotate> {
   static description = "Manually trigger rotation";
@@ -48,19 +47,9 @@ export default class AutoRotate extends BaseCommand<typeof AutoRotate> {
     }
 
     if (newAccount) {
-      await this.renderApp(
-        <Box>
-          <Success>
-            {rotated ? "Rotated to" : "Using"}: {newAccount.name} ({newAccount.provider})
-          </Success>
-        </Box>,
-      );
+      console.log(`\n  ${ok((rotated ? "Rotated to" : "Using") + ":")} ${newAccount.name} (${newAccount.provider})`);
     } else {
-      await this.renderApp(
-        <Box>
-          <ErrorBadge>No accounts available for rotation.</ErrorBadge>
-        </Box>,
-      );
+      console.log(`\n  ${error("No accounts available for rotation.")}`);
     }
   }
 }

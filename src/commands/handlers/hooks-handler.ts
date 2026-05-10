@@ -388,7 +388,7 @@ export async function handleHooksStatus(): Promise<void> {
                 if (
                   hookConfig.type === "command" &&
                   hookConfig.command &&
-                  (hookConfig.command.includes(hook.command.split(" ")[1]) ||
+                  (hookConfig.command.includes(hook.command.split(" ")[1] ?? "") ||
                     hookConfig.command.includes(hook.hookType))
                 ) {
                   hook.registered = true;

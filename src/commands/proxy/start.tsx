@@ -1,140 +1,36 @@
-import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import { fileURLToPath } from "node:url";
+import { BaseCommand } from "../../oclif/base";
 import { Flags } from "@oclif/core";
-import { Box, Text } from "ink";
-import { BaseCommand } from "../../oclif/base.js";
-
-const PID_FILE = join(homedir(), ".claude", "relay-proxy.pid");
-
-function isRunning(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function resolveProxyServerScriptPath(): string | null {
-  for (const relativePath of ["../../proxy/server.ts", "../../proxy/server.js"]) {
-    const candidatePath = fileURLToPath(new URL(relativePath, import.meta.url));
-    if (existsSync(candidatePath)) {
-      return candidatePath;
-    }
-  }
-
-  return null;
-}
+import { startProxy } from "../../proxy/index";
+import { error, info, ok, success } from "../../utils/console";
 
 export default class ProxyStart extends BaseCommand<typeof ProxyStart> {
-  static description = "Start the relay proxy server";
-
-  static examples = [
-    "<%= config.bin %> proxy start",
-    "<%= config.bin %> proxy start --port 8787",
-    "<%= config.bin %> proxy start --foreground",
-  ];
-
-  static flags = {
-    port: Flags.integer({
-      char: "p",
-      description: "Port to listen on",
-      default: 8787,
-    }),
-    foreground: Flags.boolean({
-      char: "f",
-      description: "Run in foreground (don't detach)",
-      default: false,
-    }),
-  };
+  static description = "Start the relay proxy server on :8787";
+  static flags = { port: Flags.integer({ default: 8787 }) };
 
   async run(): Promise<void> {
     const { flags } = await this.parse(ProxyStart);
+    const port = flags.port ?? 8787;
 
-    // Check if already running
-    if (existsSync(PID_FILE)) {
-      try {
-        const pid = Number(readFileSync(PID_FILE, "utf-8").trim());
-        if (isRunning(pid)) {
-          await this.renderApp(
-            <Box>
-              <Text color="yellow">
-                Proxy already running (pid {pid}). Run 'relay proxy stop' first.
-              </Text>
-            </Box>,
-          );
-          return;
-        }
-      } catch {}
-    }
+    console.log(`  ${info("Starting relay proxy on :" + port + "...")}`);
 
-    const serverScript = resolveProxyServerScriptPath();
-
-    if (!serverScript) {
-      await this.renderApp(
-        <Box>
-          <Text color="red">Failed to locate the relay proxy server entrypoint.</Text>
-        </Box>,
-      );
-      return;
-    }
-
-    if (flags.foreground) {
-      // Run in foreground — useful for debugging
-      await this.renderApp(
-        <Box>
-          <Text>Starting proxy on port {flags.port} (foreground)...</Text>
-        </Box>,
-      );
-      const proc = Bun.spawn([process.execPath, serverScript], {
-        env: { ...process.env, RELAY_PROXY_PORT: String(flags.port) },
-        stdout: "inherit",
-        stderr: "inherit",
-      });
-      await proc.exited;
-      return;
-    }
-
-    // Detached background process
-    const child = Bun.spawn([process.execPath, serverScript], {
-      env: { ...process.env, RELAY_PROXY_PORT: String(flags.port) },
-      stdout: null,
-      stderr: null,
-      stdin: null,
-    });
-
-    // Give it a moment to start and write PID
-    await Bun.sleep(300);
-
-    // Verify it started
-    let started = false;
     try {
-      const res = await fetch(`http://127.0.0.1:${flags.port}/health`, {
-        signal: AbortSignal.timeout(2000),
-      });
-      started = res.ok;
-    } catch {}
+      await startProxy({ port });
 
-    child.unref();
-
-    if (started) {
-      await this.renderApp(
-        <Box flexDirection="column">
-          <Text color="green">✓ Relay proxy started on port {flags.port}</Text>
-          <Text color="dim">ANTHROPIC_BASE_URL=http://127.0.0.1:{flags.port}/api/anthropic</Text>
-          <Text color="dim">Log: ~/.claude/relay-proxy.log</Text>
-        </Box>,
-      );
-    } else {
-      await this.renderApp(
-        <Box>
-          <Text color="red">
-            Failed to start proxy. Check ~/.claude/relay-proxy.log for errors.
-          </Text>
-        </Box>,
-      );
+      console.log("");
+      console.log(success(`  Relay proxy running on http://127.0.0.1:${port}`));
+      console.log(`  ${ok("Health:")} http://127.0.0.1:${port}/health`);
+      console.log("");
+      console.log("  Set in your shell:");
+      console.log(`    export ANTHROPIC_BASE_URL=http://127.0.0.1:${port}`);
+      console.log("    export ANTHROPIC_AUTH_TOKEN=relay");
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code === "EADDRINUSE") {
+        console.error(error(`  Port ${port} is already in use.`));
+        console.error("  Stop it first: relay proxy stop");
+      } else {
+        console.error(error(`  Failed to start proxy: ${e}`));
+      }
+      this.exit(1);
     }
   }
 }

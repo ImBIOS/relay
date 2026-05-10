@@ -1,8 +1,10 @@
 import { Command, type Interfaces } from "@oclif/core";
-import { type Instance, type RenderOptions, render } from "ink";
-import type React from "react";
 import { loadConfig } from "../config/accounts-config";
-import { createStartEntry, writeCompletionEntry, type TelemetryEntry } from "../utils/telemetry";
+import {
+  createStartEntry,
+  writeCompletionEntry,
+  type TelemetryEntry,
+} from "../utils/telemetry";
 
 export type InferredFlags<T extends typeof Command> = Interfaces.InferredFlags<
   (typeof BaseCommand)["baseFlags"] & T["flags"]
@@ -21,7 +23,6 @@ function checkMiniMaxGroupId(): void {
     );
 
     if (minimaxAccounts.length > 0) {
-      // Use console.warn for non-blocking warning
       console.warn("\n⚠️  Warning:");
       for (const account of minimaxAccounts) {
         console.warn(
@@ -37,15 +38,14 @@ function checkMiniMaxGroupId(): void {
 }
 
 /**
- * Base command class that integrates oclif with ink for React-based CLI UI.
- * All commands should extend this class.
+ * Base command class for all relay CLI commands.
+ * Provides telemetry, MiniMax groupId warnings, and oclif argument parsing.
  */
 export abstract class BaseCommand<T extends typeof Command> extends Command {
   static enableJsonFlag = true;
 
   protected flags!: InferredFlags<T>;
   protected args!: InferredArgs<T>;
-  private inkInstance: Instance | null = null;
   private telemetryEntry: TelemetryEntry | null = null;
   private telemetryStartMs: number = 0;
 
@@ -62,11 +62,9 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
       this.flags = flags as InferredFlags<T>;
       this.args = args as InferredArgs<T>;
     } catch (error) {
-      // If parsing fails, set defaults
       this.flags = {} as InferredFlags<T>;
       this.args = {} as InferredArgs<T>;
 
-      // For non-strict commands (like claude), populate argv
       if (this.ctor.strict === false) {
         // argv is already populated by the parent constructor
       } else {
@@ -75,7 +73,6 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     }
 
     // Only run MiniMax groupId check for interactive (non-silent) commands
-    // This avoids unnecessary config I/O in hook context
     const isSilent = this.argv.includes("--silent");
     if (!isSilent) {
       checkMiniMaxGroupId();
@@ -91,77 +88,17 @@ export abstract class BaseCommand<T extends typeof Command> extends Command {
     );
   }
 
-  /**
-   * Render an ink React component and wait for it to exit.
-   * Use this for interactive UI components.
-   * @param autoExit - If true, automatically exit after rendering (default: true for non-TTY)
-   */
-  protected async renderApp(
-    element: React.ReactElement,
-    options?: RenderOptions & { autoExit?: boolean },
-  ): Promise<void> {
-    const { autoExit, ...renderOptions } = options || {};
-    this.inkInstance = render(element, renderOptions);
-
-    // Auto-exit for non-interactive contexts or when explicitly requested
-    const shouldAutoExit = autoExit ?? !process.stdout.isTTY;
-    if (shouldAutoExit) {
-      // Give ink time to render, then exit
-      setTimeout(() => {
-        if (this.inkInstance) {
-          this.inkInstance.unmount();
-        }
-      }, 150);
-    }
-
-    await this.inkInstance.waitUntilExit();
-  }
-
-  /**
-   * Render an ink React component without waiting for exit.
-   * Use this for static output that doesn't need user interaction.
-   */
-  protected renderStatic(element: React.ReactElement, options?: RenderOptions): Instance {
-    this.inkInstance = render(element, options);
-    return this.inkInstance;
-  }
-
-  /**
-   * Unmount the current ink instance if one exists.
-   */
-  protected unmount(): void {
-    if (this.inkInstance) {
-      this.inkInstance.unmount();
-      this.inkInstance = null;
-    }
-  }
-
-  /**
-   * Rerender the current ink instance with a new element.
-   */
-  protected rerender(element: React.ReactElement): void {
-    if (this.inkInstance) {
-      this.inkInstance.rerender(element);
-    }
-  }
-
   protected async catch(err: Error & { exitCode?: number }): Promise<void> {
     this.recordTelemetry(err.exitCode ?? 1, err.message);
-    this.unmount();
     throw err;
   }
 
   protected async finally(_: Error | undefined): Promise<void> {
-    // Record successful completion (only if catch didn't already record)
     if (this.telemetryEntry && this.telemetryEntry.exit_code === null) {
       this.recordTelemetry(0);
     }
   }
 
-  /**
-   * Write telemetry entry with completion data.
-   * Called from catch (on error) or finally (on success).
-   */
   private recordTelemetry(exitCode: number, errorMessage?: string): void {
     if (!this.telemetryEntry) return;
     const durationMs = Date.now() - this.telemetryStartMs;

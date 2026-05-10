@@ -1,5 +1,5 @@
-import { Box, Text } from "ink";
 import { BaseCommand } from "../../oclif/base";
+import { divider, heading, item, subheading } from "../../utils/console";
 
 export default class Account extends BaseCommand<typeof Account> {
   static description = "Multi-account management";
@@ -11,36 +11,21 @@ export default class Account extends BaseCommand<typeof Account> {
   ];
 
   async run(): Promise<void> {
-    await this.renderApp(<AccountHelp />);
+    console.log("");
+    console.log(heading("ImBIOS Multi-Account Management"));
+    console.log(divider("─", 50));
+    console.log(subheading("Commands:"));
+    console.log(`  ${item("list")}       List all accounts`);
+    console.log(`  ${item("add")}        Add a new account`);
+    console.log(`  ${item("edit <id>")}  Edit an existing account`);
+    console.log(`  ${item("switch <id>")} Switch to an account`);
+    console.log(`  ${item("remove <id>")} Remove an account`);
+    console.log(`  ${item("migrate-names")} Migrate existing names to email format`);
+    console.log("");
+    console.log(subheading("Edit flags:"));
+    console.log("  --name <value>   Account name (must be email address)");
+    console.log("  --api-key <val>  API key");
+    console.log("  --group-id <val>  Group ID (MiniMax only)");
+    console.log("  --base-url <url> Base URL");
   }
-}
-
-function AccountHelp(): React.ReactElement {
-  return (
-    <Box flexDirection="column">
-      <Text bold>ImBIOS Multi-Account Management</Text>
-      <Text />
-      <Text>Usage: relay account &lt;command&gt; [options]</Text>
-      <Text />
-      <Text bold>Commands:</Text>
-      <Text> list List all accounts</Text>
-      <Text> add Add a new account</Text>
-      <Text> edit &lt;id&gt; [flags] Edit an existing account</Text>
-      <Text> switch &lt;id&gt; Switch to an account</Text>
-      <Text> remove &lt;id&gt; Remove an account</Text>
-      <Text />
-      <Text bold>Edit flags:</Text>
-      <Text> --name &lt;value&gt; Account name</Text>
-      <Text> --api-key &lt;value&gt; API key</Text>
-      <Text> --group-id &lt;value&gt; Group ID (MiniMax only)</Text>
-      <Text> --base-url &lt;value&gt; Base URL</Text>
-      <Text />
-      <Text bold>Examples:</Text>
-      <Text> relay account list</Text>
-      <Text> relay account add</Text>
-      <Text> relay account edit minimax_default</Text>
-      <Text> relay account edit minimax_default --group-id 12345</Text>
-      <Text> relay account switch acc_123456</Text>
-    </Box>
-  );
 }

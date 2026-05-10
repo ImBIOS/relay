@@ -1,17 +1,23 @@
 #!/usr/bin/env bun
+// ┌─────────────────────────────────────────────────────────────────────────────┐
+// │  COMMUNITY-MAINTAINED                                                        │
+// │  This command supports Claude Code session-end notifications + commit prompt. │
+// │  It is NOT officially maintained by the relay author.                         │
+// │  It may be broken. Fixes welcome from community contributors.                 │
+// └─────────────────────────────────────────────────────────────────────────────┘
+
 //===============================================================================
 // Session End Hook - Notifications + Commit Prompt
 // Sends desktop notifications and prompts to commit uncommitted changes
 //===============================================================================
 
 import { Flags } from "@oclif/core";
-import { Box, Text } from "ink";
 import { spawn } from "node:child_process";
 import * as fs from "node:fs";
 import { existsSync } from "node:fs";
 import * as path from "node:path";
 import { BaseCommand } from "../../oclif/base";
-import { Info, Section, Warning } from "../../ui/index";
+import { divider, ok, warn } from "../../utils/console";
 
 type CommitMode = "critical" | "normal" | "none";
 
@@ -41,7 +47,7 @@ function extractMessageFromTranscript(transcriptPath: string, maxLength = 100): 
     const lines = content.trim().split("\n");
 
     for (let i = lines.length - 1; i >= 0; i--) {
-      const line = lines[i].trim();
+      const line = lines[i]?.trim();
       if (!line) continue;
 
       try {
@@ -327,7 +333,7 @@ export default class HooksStop extends BaseCommand<typeof HooksStop> {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error(msg);
-        console.error("Uncommitted changes remain — commit manually");
+    console.log(divider("─", 40));
         return;
       }
 
@@ -418,33 +424,17 @@ export default class HooksStop extends BaseCommand<typeof HooksStop> {
       return;
     }
 
-    // In non-silent mode, show summary
-    await this.renderApp(
-      <Section title="Session Complete">
-        <Box flexDirection="column">
-          <Box marginBottom={1}>
-            <Text>{message}</Text>
-          </Box>
-
-          {hasChanges && options.noCommit && (
-            <Box marginTop={1}>
-              <Warning>You have uncommitted changes. Use --no-commit to skip auto-commit.</Warning>
-            </Box>
-          )}
-
-          {options.verbose && (
-            <Box flexDirection="column" marginTop={1}>
-              <Info>Git status:</Info>
-              <Box marginLeft={2}>
-                <Text>
-                  Staged: {changes.staged ? "Yes" : "No"} | Unstaged:{" "}
-                  {changes.unstaged ? "Yes" : "No"} | Untracked: {changes.untracked ? "Yes" : "No"}
-                </Text>
-              </Box>
-            </Box>
-          )}
-        </Box>
-      </Section>,
-    );
+    // Show summary
+    console.log("");
+    console.log("  Session Complete");
+    console.log(divider("─", 40));
+    console.log(`  ${message}`);
+    if (hasChanges && options.noCommit) {
+      console.log(`  ${warn("Uncommitted changes present. Use --no-commit to skip auto-commit.")}`);
+    }
+    if (options.verbose) {
+      console.log("");
+      console.log(`  ${ok("Git status:")} Staged=${changes.staged ? "Yes" : "No"} Unstaged=${changes.unstaged ? "Yes" : "No"} Untracked=${changes.untracked ? "Yes" : "No"}`);
+    }
   }
 }

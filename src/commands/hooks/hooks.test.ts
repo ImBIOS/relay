@@ -252,11 +252,6 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
           },
         },
         activeAccountId: "test_acc",
-        activeModelProviderId: "test_acc",
-        activeMcpProviderId: "test_acc",
-        alerts: [],
-        notifications: { method: "console" as const, enabled: true },
-        dashboard: { port: 3456, host: "localhost", enabled: false },
         rotation: {
           enabled: false,
           strategy: "round-robin" as const,

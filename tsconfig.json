@@ -1,13 +1,22 @@
 {
   "extends": "../../packages/config/tsconfig.base.json",
   "compilerOptions": {
+    // Override workspace base: noUncheckedIndexedAccess breaks oclif this.argv array indexing
+    "noUncheckedIndexedAccess": false,
     "outDir": "./dist",
     "rootDir": "./src",
     "declaration": true,
     "jsx": "react-jsx",
     "jsxImportSource": "react",
-    "types": ["node", "bun"]
+    "types": ["node", "bun"],
+    // Allow .ts extensions in imports (needed for submodules that use TypeScript path syntax)
+    "allowImportingTsExtensions": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "src/experiments/**"]
+  "exclude": [
+    "node_modules",
+    "dist",
+    "src/experiments/**",
+    "node_modules/@imbios/forgecode-sdk/**"
+  ]
 }
