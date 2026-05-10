@@ -21,11 +21,11 @@ export default class AccountList extends BaseCommand<typeof AccountList> {
 
     for (const acc of accounts) {
       const isActive = acc.id === activeAccount?.id;
-      const marker = isActive ? bulletActive : bulletInactive;
-      console.log(`${marker} ${acc.name} (${acc.provider}) — ${isActive ? "active" : acc.id}`);
+      const marker = isActive ? bulletActive(acc.name) : bulletInactive(acc.name);
+      console.log(`${marker} (${acc.provider}) — ${isActive ? "active" : acc.id}`);
     }
 
     console.log("");
-    console.log(`${bullet} Active account: ${activeAccount?.name ?? "none"}`);
+    console.log(`${bullet(`Active account: ${activeAccount?.name ?? "none"}`)}`);
   }
 }

@@ -1,9 +1,9 @@
 // @ts-nocheck
-import { BaseCommand } from "../../oclif/base";
-import { loadConfig } from "../../config/accounts-config";
-import { zaiProvider } from "../../providers/zai";
-import { minimaxProvider } from "../../providers/minimax";
-import { error, info, ok, warn } from "../../utils/console";
+import { BaseCommand } from "../oclif/base";
+import { loadConfig } from "../config/accounts-config";
+import { zaiProvider } from "../providers/zai";
+import { minimaxProvider } from "../providers/minimax";
+import { error, info, ok, warn } from "../utils/console";
 
 export default class Doctor extends BaseCommand<typeof Doctor> {
   static description = "Check relay configuration and provider connectivity";

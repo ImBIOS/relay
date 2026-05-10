@@ -1,6 +1,6 @@
-import { BaseCommand } from "../../oclif/base";
-import { readTelemetry } from "../../utils/telemetry";
-import { divider, error } from "../../utils/console";
+import { BaseCommand } from "../oclif/base";
+import { readTelemetryLog } from "../utils/telemetry";
+import { divider, error } from "../utils/console";
 
 export default class Analytics extends BaseCommand<typeof Analytics> {
   static description = "Show usage analytics from telemetry";
@@ -11,7 +11,7 @@ export default class Analytics extends BaseCommand<typeof Analytics> {
     console.log(divider("─", 40));
 
     try {
-      const events = readTelemetry();
+      const events = readTelemetryLog();
       if (events.length === 0) {
         console.log("");
         console.log("  No telemetry data yet.");
@@ -28,7 +28,7 @@ export default class Analytics extends BaseCommand<typeof Analytics> {
 
       console.log(`\n  Total events: ${total}`);
       console.log(
-        `  Time range:   ${events[0]?.timestamp ?? "?"} → ${events.at(-1)?.timestamp ?? "?"}`,
+        `  Time range:   ${events[0]?.ts ?? "?"} → ${events.at(-1)?.ts ?? "?"}`,
       );
       console.log("\n  Top commands:");
       for (const [cmd, count] of sorted.slice(0, 10)) {
