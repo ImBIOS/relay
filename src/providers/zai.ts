@@ -88,63 +88,49 @@ export class ZAIProvider implements Provider {
         : { used: 0, limit: 0, remaining: 0, percentUsed: 0 };
 
       // Handle TOKENS_LIMIT - may only have percentage and number (limit in tokens)
-      // number: 5 means 5 million tokens (unit=3 is millions)
-      let modelUsage: UsageStats;
-      if (tokenLimit) {
-        // unit: 3 = millions, so number is the limit in millions of tokens
-        // The API may return 'limit' or 'number' for the token count (where number is in millions)
-        const rawLimit = (tokenLimit as Record<string, unknown>).limit;
-        const rawNumber = (tokenLimit as Record<string, unknown>).number;
+      // unit: 3 = millions, so number is the limit in millions of tokens
+      // unit: 6 = weekly millions (per week reset)
+      const tokenLimits = data.data?.limits?.filter((limit) => limit.type === "TOKENS_LIMIT" && limit.unit === 3);
+      const weeklyLimits = data.data?.limits?.filter((limit) => limit.type === "TOKENS_LIMIT" && limit.unit === 6);
+
+      let modelUsage: UsageStats = { used: 0, limit: 0, remaining: 0, percentUsed: 0 };
+      let weeklyUsage: WeeklyUsageStats | undefined;
+
+      for (const limit of tokenLimits ?? []) {
+        const rawLimit = (limit as Record<string, unknown>).limit;
+        const rawNumber = (limit as Record<string, unknown>).number;
         const tokenLimit_ = (typeof rawLimit === 'number' ? rawLimit : typeof rawNumber === 'number' ? (rawNumber as number) * 1_000_000 : 0);
-        const tokenUsed = tokenLimit.percentage
-          ? Math.round((tokenLimit.percentage / 100) * tokenLimit_)
-          : 0;
+        const tokenUsed = limit.percentage ? Math.round((limit.percentage / 100) * tokenLimit_) : 0;
         modelUsage = {
           used: tokenUsed,
           limit: tokenLimit_,
           remaining: tokenLimit_ - tokenUsed,
-          percentUsed: tokenLimit.percentage ?? 0,
+          percentUsed: limit.percentage ?? 0,
         };
-      } else {
-        modelUsage = { used: 0, limit: 0, remaining: 0, percentUsed: 0 };
+      }
+
+      // Weekly limit is TOKENS_LIMIT with unit=6 (millions per week)
+      for (const limit of weeklyLimits ?? []) {
+        const rawLimit = (limit as Record<string, unknown>).limit;
+        const rawNumber = (limit as Record<string, unknown>).number;
+        const weeklyLimit_ = (typeof rawLimit === 'number' ? rawLimit : typeof rawNumber === 'number' ? (rawNumber as number) * 1_000_000 : 0);
+        const weeklyUsed = limit.percentage ? Math.round((limit.percentage / 100) * weeklyLimit_) : 0;
+        weeklyUsage = {
+          used: weeklyUsed,
+          limit: weeklyLimit_,
+          remaining: weeklyLimit_ - weeklyUsed,
+          percentUsed: limit.percentage ?? 0,
+          resetsAt: limit.nextResetTime ? new Date(limit.nextResetTime).toISOString() : undefined,
+        };
       }
 
       // For overall usage, combine both (use the higher percentage)
       const combinedPercent = Math.max(modelUsage.percentUsed, mcpUsage.percentUsed);
 
       // Extract reset time from token limit (they share the same 5-hour window)
-      // Extract reset time from token limit (they share the same 5-hour window)
-      const resetsAt = tokenLimit?.nextResetTime
-        ? new Date(tokenLimit.nextResetTime).toISOString()
+      const resetsAt = tokenLimits[0]?.nextResetTime
+        ? new Date(tokenLimits[0].nextResetTime).toISOString()
         : undefined;
-
-      // Look for weekly limit data (might be in a separate limit entry)
-      let weeklyUsage: WeeklyUsageStats | undefined;
-      const weeklyLimit = data.data?.limits?.find((limit) => limit.type === "WEEKLY_LIMIT");
-      if (weeklyLimit && weeklyLimit.windowTotal && weeklyLimit.windowTotal > 0) {
-        const weeklyUsed = weeklyLimit.windowUsed ?? 0;
-        const weeklyLimit_ = weeklyLimit.windowTotal;
-        weeklyUsage = {
-          used: weeklyUsed,
-          limit: weeklyLimit_,
-          remaining: Math.max(0, weeklyLimit_ - weeklyUsed),
-          percentUsed: weeklyLimit_ > 0 ? (weeklyUsed / weeklyLimit_) * 100 : 0,
-          resetsAt: weeklyLimit.windowEnd
-            ? new Date(weeklyLimit.windowEnd).toISOString()
-            : undefined,
-        };
-      } else if (tokenLimit?.windowTotal && tokenLimit.windowTotal > 0) {
-        // Weekly data might be embedded in token limit
-        const weeklyUsed = tokenLimit.windowUsed ?? 0;
-        const weeklyLimit_ = tokenLimit.windowTotal;
-        weeklyUsage = {
-          used: weeklyUsed,
-          limit: weeklyLimit_,
-          remaining: Math.max(0, weeklyLimit_ - weeklyUsed),
-          percentUsed: weeklyLimit_ > 0 ? (weeklyUsed / weeklyLimit_) * 100 : 0,
-          resetsAt: tokenLimit.windowEnd ? new Date(tokenLimit.windowEnd).toISOString() : undefined,
-        };
-      }
 
       clearTimeout(timeoutId); // Cleared AFTER response body fully consumed
 
