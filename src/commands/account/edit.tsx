@@ -1,3 +1,4 @@
+import { Flags } from "@oclif/core";
 import { isCancel, select, text } from "@clack/prompts";
 import { getAccount, updateAccount } from "../../config/accounts-config";
 import * as settings from "../../config/settings";
@@ -11,6 +12,14 @@ export default class AccountEdit extends BaseCommand<typeof AccountEdit> {
     "<%= config.bin %> account edit acc_xxx --name user@zai.com",
     "<%= config.bin %> account edit acc_xxx --group-id grp-xxx",
   ];
+  static flags = {
+    name: Flags.string({ description: "New account name (email address)" }),
+    "api-key": Flags.string({ description: "New API key" }),
+    "group-id": Flags.string({ description: "Group ID (MiniMax only)" }),
+    "base-url": Flags.string({ description: "Custom base URL" }),
+  };
+  // Use non-strict mode to allow account IDs that look like flags to pass through
+  static strict = false;
 
   async run(): Promise<void> {
     const accountId = this.argv?.[0] as string | undefined;
@@ -22,10 +31,11 @@ export default class AccountEdit extends BaseCommand<typeof AccountEdit> {
     }
 
     // ── Non-interactive flags ────────────────────────────────────────────────
-    const nameFlag = this.flags.name as string | undefined;
-    const apiKeyFlag = this.flags["api-key"] as string | undefined;
-    const groupIdFlag = this.flags["group-id"] as string | undefined;
-    const baseUrlFlag = this.flags["base-url"] as string | undefined;
+    const { flags } = await this.parse(AccountEdit);
+    const nameFlag = flags.name as string | undefined;
+    const apiKeyFlag = flags["api-key"] as string | undefined;
+    const groupIdFlag = flags["group-id"] as string | undefined;
+    const baseUrlFlag = flags["base-url"] as string | undefined;
 
     const hasFlags = !!(nameFlag || apiKeyFlag || groupIdFlag || baseUrlFlag);
 

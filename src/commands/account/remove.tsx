@@ -7,6 +7,8 @@ export default class AccountRemove extends BaseCommand<typeof AccountRemove> {
   static examples = [
     "<%= config.bin %> account remove acc_xxx",
   ];
+  // Use non-strict mode to allow account IDs that look like flags to pass through
+  static strict = false;
 
   async run(): Promise<void> {
     const accountId = this.argv?.[0] as string | undefined;

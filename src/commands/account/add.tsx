@@ -1,3 +1,4 @@
+import { Flags } from "@oclif/core";
 import { addAccount, getActiveAccount, switchAccount } from "../../config/accounts-config";
 import {
   getDefaultBaseUrl,
@@ -16,27 +17,42 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
     "<%= config.bin %> account add",
     "<%= config.bin %> account add --name user@zai.com --provider zai --key sk-xxx",
   ];
+  static flags = {
+    name: Flags.string({ description: "Account name (email address)" }),
+    provider: Flags.string({ description: "Provider (zai or minimax)" }),
+    key: Flags.string({ description: "API key" }),
+    "group-id": Flags.string({ description: "Group ID (MiniMax only)" }),
+  };
+  // Use non-strict mode to allow flexible argument passing
+  static strict = false;
 
   async run(): Promise<void> {
-    const nameArg = this.argv?.[0] as string | undefined;
-    const providerArg = this.argv?.[1] as string | undefined;
-    const apiKeyArg = this.argv?.[2] as string | undefined;
+    const { flags } = await this.parse(AccountAdd);
 
-    // ── Collect inputs (non-interactive args or interactive prompts) ─────────
+    // ── Collect inputs (non-interactive flags or interactive prompts) ─────────
     let name: string;
     let provider: string;
     let apiKey: string;
     let baseUrl: string | undefined;
     let groupId: string | undefined;
 
-    if (nameArg && providerArg && apiKeyArg) {
+    // Use flags if provided, otherwise fall back to interactive
+    if (flags.name && flags.provider && flags.key) {
       // Fully non-interactive
-      name = nameArg;
-      provider = providerArg;
-      apiKey = apiKeyArg;
+      name = flags.name;
+      provider = flags.provider;
+      apiKey = flags.key;
+      if (flags["group-id"]) {
+        groupId = flags["group-id"];
+      }
+    } else if (flags.name || flags.provider || flags.key) {
+      // Partial flags provided - need at least name, provider, key
+      console.error("Error: --name, --provider, and --key are all required for non-interactive mode");
+      console.error("Usage: relay account add --name user@zai.com --provider zai --key sk-xxx");
+      this.exit(1);
     } else {
       // Interactive: name
-      name = nameArg ?? "";
+      name = "";
       while (!name) {
         const raw = (await text({
           message: "  Account name (email address):",
@@ -53,18 +69,17 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
 
       // Interactive: provider
       const providers = listRelayProviders();
-      provider = (providerArg ??
-        (await select({
-          message: "  Provider:",
-          options: providers.map((p) => ({
-            label: getProviderCliLabel(p),
-            value: p,
-          })),
-        }))) as string;
+      provider = (await select({
+        message: "  Provider:",
+        options: providers.map((p) => ({
+          label: getProviderCliLabel(p),
+          value: p,
+        })),
+      })) as string;
       if (isCancel(provider)) return;
 
       // Interactive: api key
-      apiKey = apiKeyArg ?? "";
+      apiKey = "";
       while (!apiKey) {
         const raw = (await text({
           message: `  API key for ${provider.toUpperCase()}:`,

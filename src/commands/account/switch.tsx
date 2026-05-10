@@ -8,6 +8,8 @@ export default class AccountSwitch extends BaseCommand<typeof AccountSwitch> {
     "<%= config.bin %> account switch acc_xxx",
     "<%= config.bin %> account switch zai",
   ];
+  // Use non-strict mode to allow account IDs that look like flags to pass through
+  static strict = false;
 
   async run(): Promise<void> {
     const target = this.argv?.[0] as string | undefined;
