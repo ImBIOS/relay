@@ -88,9 +88,8 @@ export default class Usage extends BaseCommand<typeof Usage> {
       if (!provider) continue;
 
       const stats = await provider.getUsage({ apiKey: account.apiKey, groupId: account.groupId });
-      const resetLocal = formatResetsAt(stats.resetsAt ?? "");
-      const resetAbsolute = resetLocal.split(" (")[0] ?? "";
-      const left = formatResetsAt(stats.resetsAt ?? "").match(/\((\d+h \d+m)\)/)?.[1] ?? "";
+      const resetAbsolute = formatResetAtAbsolute(stats.resetsAt ?? undefined);
+      const resetRelative = formatResetsAt(stats.resetsAt ?? undefined);
       const pct = stats.percentUsed?.toFixed(1) ?? "0.0";
       const used = formatNumber(stats.used);
       const limit = formatNumber(stats.limit);
@@ -98,7 +97,7 @@ export default class Usage extends BaseCommand<typeof Usage> {
       console.log(`\n  ${account.name}`);
       console.log(`  ${account.provider === "zai" ? "Z.AI" : "MiniMax"} — ${account.provider}`);
       console.log(`  ${used} / ${limit} tokens · ${pct}% used`);
-      console.log(`  Resets at ${resetAbsolute}${left ? ` (${left})` : ""}`);
+      console.log(`  Resets at ${resetAbsolute} (${resetRelative})`);
 
       if (stats.weeklyUsage) {
         const weeklyPct = stats.weeklyUsage.percentUsed?.toFixed(1) ?? "0.0";
