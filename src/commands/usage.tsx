@@ -3,7 +3,7 @@ import { Flags } from "@oclif/core";
 import { loadConfig } from "../config/accounts-config";
 import { zaiProvider } from "../providers/zai";
 import { minimaxProvider } from "../providers/minimax";
-import { formatNumber, formatResetsAt } from "../utils/format";
+import { formatNumber, formatResetsAt, formatResetAtAbsolute } from "../utils/format";
 import { dim, warn } from "../utils/console";
 
 export default class Usage extends BaseCommand<typeof Usage> {
@@ -43,12 +43,20 @@ export default class Usage extends BaseCommand<typeof Usage> {
       console.log(`  ${dim("Usage:")} ${stats.percentUsed.toFixed(1)}%`);
     }
     if (stats.resetsAt) {
-      console.log(`  ${dim("Resets At:")} ${formatResetsAt(stats.resetsAt)}`);
-      const left = stats.remaining;
-      const h = Math.floor(left / 3600);
-      const m = Math.floor((left % 3600) / 60);
-      console.log(`  ${dim("Resets In:")} ${h > 0 ? `${h}h ` : ""}${m}m left`);
+      const absolute = formatResetAtAbsolute(stats.resetsAt);
+      const relative = formatResetsAt(stats.resetsAt);
+      console.log(`  ${dim("Resets At:")} ${absolute} (${relative})`);
     }
+    if (stats.weeklyUsage) {
+      const weeklyPct = stats.weeklyUsage.percentUsed?.toFixed(1) ?? "0.0";
+      const weeklyUsed = formatNumber(stats.weeklyUsage.used);
+      const weeklyLimit = formatNumber(stats.weeklyUsage.limit);
+      const weeklyReset = stats.weeklyUsage.resetsAt
+        ? `${formatResetAtAbsolute(stats.weeklyUsage.resetsAt)} (${formatResetsAt(stats.weeklyUsage.resetsAt)})`
+        : "N/A";
+      console.log(`  ${dim("Weekly:")} ${weeklyUsed} / ${weeklyLimit} · ${weeklyPct}% · resets ${weeklyReset}`);
+    }
+
     if (active.groupId) console.log(`  ${dim("GroupId:")} ${active.groupId}`);
 
     if (!stats.remaining && !stats.limit) {
@@ -91,6 +99,15 @@ export default class Usage extends BaseCommand<typeof Usage> {
       console.log(`  ${account.provider === "zai" ? "Z.AI" : "MiniMax"} — ${account.provider}`);
       console.log(`  ${used} / ${limit} tokens · ${pct}% used`);
       console.log(`  Resets at ${resetAbsolute}${left ? ` (${left})` : ""}`);
+
+      if (stats.weeklyUsage) {
+        const weeklyPct = stats.weeklyUsage.percentUsed?.toFixed(1) ?? "0.0";
+        const weeklyUsed = formatNumber(stats.weeklyUsage.used);
+        const weeklyLimit = formatNumber(stats.weeklyUsage.limit);
+        const weeklyResetAbsolute = formatResetAtAbsolute(stats.weeklyUsage.resetsAt ?? undefined);
+        const weeklyResetRelative = formatResetsAt(stats.weeklyUsage.resetsAt ?? undefined);
+        console.log(`  Weekly: ${weeklyUsed} / ${weeklyLimit} · ${weeklyPct}% · resets ${weeklyResetAbsolute} (${weeklyResetRelative})`);
+      }
     }
   }
 }
