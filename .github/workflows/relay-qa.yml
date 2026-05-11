@@ -22,63 +22,98 @@ permissions:
   contents: read
 
 jobs:
-  check-features:
+  validate-patches:
     runs-on: ubuntu-latest
-    outputs:
-      features: ${{ steps.features.outputs.list }}
     steps:
       - uses: actions/checkout@v4
-      - name: Find features
-        id: features
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then
+            bun install
+          fi
+      - name: Validate all patches
+        run: |
+          if command -v relay &>/dev/null; then
+            RELAY_CMD="relay"
+          elif [ -f src/run.ts ]; then
+            RELAY_CMD="bun src/run.ts"
+          else
+            RELAY_CMD="bun run relay"
+          fi
+
+          $RELAY_CMD patch validate --strict
+
+  validate-specs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate feature specs
         run: |
           if [ ! -d .relay/features ]; then
             echo "No .relay/features directory found."
-            echo "list=" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
-          FEATURES=""
+          MISSING=0
+          ERRORS=0
+
           for dir in .relay/features/*/; do
             NAME=$(basename "$dir")
-            FEATURES="$FEATURES $NAME"
-          done
+            SPEC="${dir}spec.md"
+            QA="${dir}qa.md"
+            PATCH="${dir}patch.md"
 
-          echo "list=$FEATURES" >> "$GITHUB_OUTPUT"
-          echo "Found features:$FEATURES"
-
-  validate-spec-qa-pairs:
-    runs-on: ubuntu-latest
-    needs: check-features
-    steps:
-      - uses: actions/checkout@v4
-      - name: Validate every feature folder has spec.md and qa.md
-        run: |
-          MISSING=0
-          for FEATURE in ${{ needs.check-features.outputs.features }}; do
-            DIR=".relay/features/${FEATURE}"
-
-            if [ ! -f "${DIR}/spec.md" ]; then
-              echo "MISSING: ${DIR}/spec.md (feature folder exists but no spec)"
+            if [ ! -f "$SPEC" ]; then
+              echo "MISSING: ${NAME}/spec.md"
               MISSING=$((MISSING + 1))
             else
-              echo "OK: ${FEATURE}/spec.md exists"
+              # Check required sections
+              for SECTION in "Overview" "Requirements" "Acceptance Criteria"; do
+                if ! grep -q "## $SECTION" "$SPEC"; then
+                  echo "ERROR: $SPEC missing '## $SECTION' section"
+                  ERRORS=$((ERRORS + 1))
+                fi
+              done
+
+              # Check status frontmatter
+              if ! head -5 "$SPEC" | grep -q "Status:"; then
+                echo "ERROR: $SPEC missing Status frontmatter"
+                ERRORS=$((ERRORS + 1))
+              fi
             fi
 
-            if [ ! -f "${DIR}/qa.md" ]; then
-              echo "MISSING: ${DIR}/qa.md (spec exists but no QA doc)"
+            if [ ! -f "$QA" ]; then
+              echo "MISSING: ${NAME}/qa.md"
               MISSING=$((MISSING + 1))
-            else
-              echo "OK: ${FEATURE}/qa.md exists"
+            fi
+
+            # If patch.md exists, validate required sections
+            if [ -f "$PATCH" ]; then
+              if ! grep -q "## Intent" "$PATCH"; then
+                echo "ERROR: $PATCH missing '## Intent' section"
+                ERRORS=$((ERRORS + 1))
+              fi
+              if ! grep -q "## Reconciliation Notes" "$PATCH"; then
+                echo "WARN: $PATCH missing '## Reconciliation Notes' section (recommended)"
+              fi
             fi
           done
 
           if [ $MISSING -gt 0 ]; then
             echo "::warning::$MISSING missing doc(s) in feature folders"
           fi
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS spec format error(s) found"
+            exit 1
+          fi
+
+          echo "All specs pass format validation."
 
   run-tests:
     runs-on: ubuntu-latest
-    needs: check-features
+    needs: validate-patches
     steps:
       - uses: actions/checkout@v4
       - name: Setup Bun
@@ -87,40 +122,3 @@ jobs:
         run: bun install
       - name: Run tests
         run: bun test
-
-  lint-specs:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Check spec format
-        run: |
-          if [ ! -d .relay/features ]; then
-            exit 0
-          fi
-
-          ERRORS=0
-          for dir in .relay/features/*/; do
-            SPEC="${dir}spec.md"
-            [ ! -f "$SPEC" ] && continue
-
-            # Check required sections
-            for SECTION in "Overview" "Requirements" "Acceptance Criteria"; do
-              if ! grep -q "## $SECTION" "$SPEC"; then
-                echo "ERROR: $SPEC missing '## $SECTION' section"
-                ERRORS=$((ERRORS + 1))
-              fi
-            done
-
-            # Check status frontmatter
-            if ! head -5 "$SPEC" | grep -q "Status:"; then
-              echo "ERROR: $SPEC missing Status frontmatter"
-              ERRORS=$((ERRORS + 1))
-            fi
-          done
-
-          if [ $ERRORS -gt 0 ]; then
-            echo "::error::$ERRORS spec format error(s) found"
-            exit 1
-          fi
-
-          echo "All specs pass format validation."

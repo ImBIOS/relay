@@ -36,19 +36,22 @@ jobs:
             echo "upstream=$PARENT" >> "$GITHUB_OUTPUT"
             echo "This is a fork. Upstream: $PARENT"
           else
-            echo "This is not a fork. Skipping sync."
+            echo "This is not a fork."
           fi
 
   read-config:
     runs-on: ubuntu-latest
     needs: check-fork
-    if: needs.check-fork.outputs.is-fork == 'true'
+    if: needs.check-fork.outputs.is-fork == 'true' || true
     outputs:
       enabled: ${{ steps.config.outputs.enabled }}
+      upstream: ${{ steps.config.outputs.upstream }}
       upstream-branch: ${{ steps.config.outputs.upstream-branch }}
       conflict-strategy: ${{ steps.config.outputs.conflict-strategy }}
       reapply-patches: ${{ steps.config.outputs.reapply-patches }}
       manage-issues: ${{ steps.config.outputs.manage-issues }}
+      create-prs: ${{ steps.config.outputs.create-prs }}
+      ai-reapply: ${{ steps.config.outputs.ai-reapply }}
     steps:
       - uses: actions/checkout@v4
       - name: Read upstream config
@@ -68,15 +71,27 @@ jobs:
             exit 0
           fi
 
+          # Support explicit upstream field for non-fork repos
+          CONFIG_UPSTREAM=$(jq -r '.upstream // empty' .relay/upstream.json)
+          DETECTED_UPSTREAM="${{ needs.check-fork.outputs.upstream }}"
+          FINAL_UPSTREAM="${CONFIG_UPSTREAM:-$DETECTED_UPSTREAM}"
+          echo "upstream=$FINAL_UPSTREAM" >> "$GITHUB_OUTPUT"
+
           echo "upstream-branch=$(jq -r '.upstreamBranch // "main"' .relay/upstream.json)" >> "$GITHUB_OUTPUT"
           echo "conflict-strategy=$(jq -r '.conflictStrategy // "attempt-rebase"' .relay/upstream.json)" >> "$GITHUB_OUTPUT"
           echo "reapply-patches=$(jq -r '.reapplyPatches // true' .relay/upstream.json)" >> "$GITHUB_OUTPUT"
           echo "manage-issues=$(jq -r '.manageUpstreamIssues // true' .relay/upstream.json)" >> "$GITHUB_OUTPUT"
+          echo "create-prs=$(jq -r '.createUpstreamPRs // true' .relay/upstream.json)" >> "$GITHUB_OUTPUT"
+          echo "ai-reapply=$(jq -r '.aiReapply // true' .relay/upstream.json)" >> "$GITHUB_OUTPUT"
 
   sync:
     runs-on: ubuntu-latest
     needs: [check-fork, read-config]
     if: needs.read-config.outputs.enabled == 'true'
+    outputs:
+      has_changes: ${{ steps.merge.outputs.has_changes }}
+      has_conflicts: ${{ steps.merge.outputs.has_conflicts }}
+      behind: ${{ steps.fetch.outputs.behind }}
     steps:
       - name: Checkout fork
         uses: actions/checkout@v4
@@ -89,20 +104,27 @@ jobs:
           git config user.name "fork-sync[bot]"
           git config user.email "fork-sync[bot]@users.noreply.github.com"
 
-      - name: Add upstream remote
+      - name: Fetch upstream
+        id: fetch
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          UPSTREAM="${{ needs.check-fork.outputs.upstream }}"
+          UPSTREAM="${{ needs.read-config.outputs.upstream }}"
           BRANCH="${{ needs.read-config.outputs.upstream-branch }}"
           REF="${{ github.event.inputs.upstream-ref || format('refs/heads/{0}', BRANCH) }}"
 
-          git remote add upstream "https://github.com/${UPSTREAM}.git"
+          if [ -z "$UPSTREAM" ]; then
+            echo "No upstream configured. Skipping sync."
+            echo "has_changes=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+
+          git remote add upstream "https://github.com/${UPSTREAM}.git" || true
           git fetch upstream
 
           LOCAL=$(git rev-parse HEAD)
-          UPSTREAM_COMMIT=$(git rev-parse "$REF")
-          BEHIND=$(git rev-list HEAD.."$REF" --count)
+          UPSTREAM_COMMIT=$(git rev-parse "$REF" 2>/dev/null || echo "")
+          BEHIND=$(git rev-list HEAD.."$REF" --count 2>/dev/null || echo "0")
 
           echo "local=$LOCAL" >> "$GITHUB_ENV"
           echo "upstream_commit=$UPSTREAM_COMMIT" >> "$GITHUB_ENV"
@@ -118,6 +140,7 @@ jobs:
           fi
 
       - name: Merge upstream
+        id: merge
         if: env.has_changes == 'true'
         env:
           STRATEGY: ${{ needs.read-config.outputs.conflict-strategy }}
@@ -125,31 +148,35 @@ jobs:
           SYNC_BRANCH="sync/upstream-$(date +%Y%m%d-%H%M%S)"
           git checkout -b "$SYNC_BRANCH"
 
+          HAS_CONFLICTS="false"
+
           if [ "$STRATEGY" = "attempt-rebase" ]; then
-            git rebase "upstream/${{ env.ref }}" || {
-              echo "Rebase conflicts detected. Attempting to resolve..."
+            git rebase "${{ env.ref }}" || {
+              echo "Rebase conflicts detected. Attempting merge..."
               git rebase --abort
-              git merge "upstream/${{ env.ref }}" --no-edit || {
-                echo "Merge conflicts detected. Recording for patch re-application."
-                echo "has_conflicts=true" >> "$GITHUB_ENV"
+              git merge "${{ env.ref }}" --no-edit || {
+                echo "Merge conflicts detected."
+                HAS_CONFLICTS="true"
+                git diff --name-only --diff-filter=U | head -20
               }
             }
           else
-            git merge "upstream/${{ env.ref }}" --no-edit || {
+            git merge "${{ env.ref }}" --no-edit || {
               if [ "$STRATEGY" = "fail" ]; then
                 echo "ERROR: Merge conflict detected and conflict strategy is 'fail'."
                 exit 1
               else
-                echo "WARNING: Merge conflict detected. Skipping conflicting files."
-                echo "has_conflicts=true" >> "$GITHUB_ENV"
+                echo "WARNING: Merge conflict detected."
+                HAS_CONFLICTS="true"
               fi
             }
           fi
 
+          echo "has_conflicts=$HAS_CONFLICTS" >> "$GITHUB_OUTPUT"
           git push origin "$SYNC_BRANCH"
           echo "sync_branch=$SYNC_BRANCH" >> "$GITHUB_ENV"
 
-      - name: Create sync PR
+      - name: Create sync PR with health report
         if: env.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -157,6 +184,42 @@ jobs:
           BEHIND="${{ env.behind }}"
           UPSTREAM_COMMIT="${{ env.upstream_commit }}"
           SYNC_BRANCH="${{ env.sync_branch }}"
+          HAS_CONFLICTS="${{ steps.merge.outputs.has_conflicts }}"
+
+          # Build conflict section
+          CONFLICT_SECTION=""
+          if [ "$HAS_CONFLICTS" = "true" ]; then
+            CONFLICT_FILES=$(git diff --name-only --diff-filter=U 2>/dev/null || echo "unknown")
+            CONFLICT_SECTION="
+
+          ### Conflicts Detected
+
+          The following files have conflicts that need resolution:
+          \`\`\`
+          ${CONFLICT_FILES}
+          \`\`\`
+
+          The Relay Patch workflow will attempt to re-apply patches after merge."
+          fi
+
+          # Build patch summary
+          PATCH_SUMMARY=""
+          if [ -f .relay/registry.json ]; then
+            ACTIVE=$(jq '[.features[] | select(.status=="active" and .hasPatch==true)] | length' .relay/registry.json 2>/dev/null || echo "0")
+            RETIRED=$(jq '[.features[] | select(.status=="retired")] | length' .relay/registry.json 2>/dev/null || echo "0")
+            CONFLICTED=$(jq '[.features[] | select(.status=="conflicted")] | length' .relay/registry.json 2>/dev/null || echo "0")
+            HEALTH=$(jq -r '.forkHealthScore // "N/A"' .relay/registry.json 2>/dev/null || echo "N/A")
+            PATCH_SUMMARY="
+
+          ### Patch Health Dashboard
+
+          | Metric | Value |
+          |--------|-------|
+          | Active patches | ${ACTIVE} |
+          | Retired patches | ${RETIRED} |
+          | Conflicted patches | ${CONFLICTED} |
+          | Health score | ${HEALTH}/100 |"
+          fi
 
           gh pr create \
             --title "sync: upstream ${UPSTREAM_COMMIT:0:7} ($BEHIND commits)" \
@@ -165,25 +228,26 @@ jobs:
           - **Upstream commit**: ${UPSTREAM_COMMIT}
           - **Commits behind**: ${BEHIND}
           - **Sync branch**: ${SYNC_BRANCH}
+          - **Conflicts**: ${HAS_CONFLICTS}
 
-          After this PR is merged, the Relay Patch workflow will re-apply any active patches." \
+          After this PR is merged, the Relay Patch workflow will re-apply any active patches.${CONFLICT_SECTION}${PATCH_SUMMARY}" \
             --base "${{ github.ref_name }}" \
             --head "$SYNC_BRANCH" \
-            --label "automated,fork-sync"
+            --label "automated,fork-sync" || true
 
       - name: Manage upstream issues and PRs
         if: needs.read-config.outputs.manage-issues == 'true' && env.has_changes == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CREATE_PRS: ${{ needs.read-config.outputs.create-prs }}
         run: |
-          UPSTREAM="${{ needs.check-fork.outputs.upstream }}"
+          UPSTREAM="${{ needs.read-config.outputs.upstream }}"
 
           if [ ! -f .relay/registry.json ]; then
             echo "No feature registry found."
             exit 0
           fi
 
-          # Find features with patches that have upstream issues
           PATCHED_FEATURES=$(jq -r '.features[] | select(.hasPatch==true) | "\(.id)-\(.slug)"' .relay/registry.json)
 
           for FEATURE in $PATCHED_FEATURES; do
@@ -217,20 +281,56 @@ jobs:
 
           ---
           *This issue is managed by the Relay fork-sync workflow.*" \
-                --label "enhancement,from-fork" 2>&1 || echo "Failed to create issue (may need write access)")
+                --label "enhancement,from-fork" 2>&1 || echo "Failed to create issue")
 
-              if [ -n "$ISSUE_URL" ]; then
+              if echo "$ISSUE_URL" | grep -q "https://"; then
                 echo "Created upstream issue: $ISSUE_URL"
                 jq --arg id "$FEATURE_ID" --arg url "$ISSUE_URL" \
                   '(.features[] | select(.id==$id)).upstreamIssue = $url' \
                   .relay/registry.json > .relay/registry.tmp.json
                 mv .relay/registry.tmp.json .relay/registry.json
+
+                # Optionally create a PR with the patch diff
+                if [ "$CREATE_PRS" = "true" ] && [ -f "$PATCH_FILE" ]; then
+                  echo "Creating upstream PR for $FEATURE..."
+
+                  BRANCH_NAME="fork-patch/${FEATURE}"
+                  git checkout -b "$BRANCH_NAME" 2>/dev/null || true
+                  git push origin "$BRANCH_NAME" 2>/dev/null || true
+
+                  PR_URL=$(gh pr create \
+                    --repo "$UPSTREAM" \
+                    --head "${{ github.repository_owner }}:${BRANCH_NAME}" \
+                    --title "[Fork Patch] ${FEATURE}" \
+                    --body "Implements feature from fork patch.
+
+          **Fork**: ${{ github.repository }}
+          **Feature**: ${FEATURE}
+
+          ## Intent
+
+          ${INTENT}
+
+          ---
+          *This PR is managed by the Relay fork-sync workflow.*" \
+                    2>&1 || echo "Failed to create PR (may need fork permissions)")
+
+                  if echo "$PR_URL" | grep -q "https://"; then
+                    echo "Created upstream PR: $PR_URL"
+                    jq --arg id "$FEATURE_ID" --arg url "$PR_URL" \
+                      '(.features[] | select(.id==$id)).upstreamPR = $url' \
+                      .relay/registry.json > .relay/registry.tmp.json
+                    mv .relay/registry.tmp.json .relay/registry.json
+                  fi
+
+                  git checkout - 2>/dev/null || true
+                fi
               fi
             else
               echo "Feature $FEATURE tracked in upstream issue: $UPSTREAM_ISSUE"
               STATE=$(gh issue view "$UPSTREAM_ISSUE" --repo "$UPSTREAM" --json state -q '.state' 2>/dev/null || echo "unknown")
               if [ "$STATE" = "CLOSED" ]; then
-                echo "Upstream issue $UPSTREAM_ISSUE is closed. Consider removing patch."
+                echo "Upstream issue $UPSTREAM_ISSUE is closed. Consider running check-merged."
               fi
             fi
           done
@@ -245,11 +345,56 @@ jobs:
   trigger-patches:
     runs-on: ubuntu-latest
     needs: [read-config, sync]
-    if: needs.read-config.outputs.reapply-patches == 'true'
+    if: needs.read-config.outputs.reapply-patches == 'true' && needs.sync.outputs.has_changes == 'true'
     steps:
       - name: Trigger Relay Patch workflow
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "Triggering Relay Patch workflow to re-apply patches after sync..."
-          gh workflow run relay-patch.yml --field feature=all || echo "Could not trigger patch workflow (may need to wait for sync PR merge)"
+          gh workflow run relay-patch.yml --field feature=all || echo "Could not trigger patch workflow"
+
+  conflict-report:
+    runs-on: ubuntu-latest
+    needs: [read-config, sync]
+    if: needs.sync.outputs.has_conflicts == 'true'
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create conflict report issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          CONFLICT_FILES=$(git diff --name-only --diff-filter=U 2>/dev/null || echo "unknown")
+
+          EXISTING=$(gh issue list --label "conflict,automated" --state open --json number -q '.[0].number' 2>/dev/null || echo "")
+
+          if [ -n "$EXISTING" ]; then
+            echo "Updating existing conflict issue #$EXISTING"
+            gh issue comment "$EXISTING" --body "New conflicts detected on $(date -u +%Y-%m-%dT%H:%M:%SZ):
+
+          \`\`\`
+          ${CONFLICT_FILES}
+          \`\`\`" || true
+          else
+            gh issue create \
+              --title "Sync conflicts detected ($(date +%Y-%m-%d))" \
+              --body "Automated conflict report from fork-sync workflow.
+
+          ## Conflicted Files
+
+          \`\`\`
+          ${CONFLICT_FILES}
+          \`\`\`
+
+          ## Next Steps
+
+          1. Review the conflicts
+          2. Run \`relay patch apply\` to re-apply patches
+          3. Or manually resolve conflicts
+
+          ---
+          *This issue is managed by the Relay fork-sync workflow.*" \
+              --label "conflict,automated" || true
+          fi

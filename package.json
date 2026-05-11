@@ -61,6 +61,9 @@
       "hooks": {
         "description": "Claude Code / ForgeCode hook management"
       },
+      "patch": {
+        "description": "Fork patch management — track, re-apply, and sync customizations with upstream"
+      },
       "proxy": {
         "description": "Anthropic API proxy server for hot-switching providers"
       }

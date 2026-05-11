@@ -1,3 +1,9 @@
+/**
+ * This part is maintained by community
+ * For any issues or contributions, please open an issue or a pull request in the GitHub repository of this project
+ * Repository: github.com/ImBIOS/relay
+ */
+
 import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import * as path from "node:path";

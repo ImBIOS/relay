@@ -11,6 +11,7 @@ on:
         options:
           - apply
           - check-merged
+          - analyze
       feature:
         description: "Feature slug to apply patch for (e.g., '001-proxy'), or 'all' for all features with patch.md"
         required: false
@@ -30,9 +31,9 @@ permissions:
 
 jobs:
   apply-patches:
-    if: ${{ github.event.inputs.action != 'check-merged' }}
+    if: github.event.inputs.action == 'apply' || github.event.inputs.action == '' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -42,6 +43,12 @@ jobs:
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then
+            bun install
+          fi
 
       - name: Find features with patches
         id: features
@@ -59,12 +66,27 @@ jobs:
           echo "features=$FEATURES" >> "$GITHUB_OUTPUT"
           echo "Features with patches:$FEATURES"
 
-      - name: Apply patches
+      - name: Read AI config
+        id: ai-config
+        run: |
+          if [ -f .relay/upstream.json ]; then
+            echo "ai-reapply=$(jq -r '.aiReapply // true' .relay/upstream.json)" >> "$GITHUB_OUTPUT"
+            echo "ai-model=$(jq -r '.aiModel // "claude-sonnet-4-20250514"' .relay/upstream.json)" >> "$GITHUB_OUTPUT"
+            echo "ai-max-turns=$(jq -r '.aiMaxTurns // 30' .relay/upstream.json)" >> "$GITHUB_OUTPUT"
+          else
+            echo "ai-reapply=true" >> "$GITHUB_OUTPUT"
+            echo "ai-model=claude-sonnet-4-20250514" >> "$GITHUB_OUTPUT"
+            echo "ai-max-turns=30" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Apply patches with AI
+        if: steps.ai-config.outputs.ai-reapply == 'true'
         env:
           TARGET: ${{ github.event.inputs.feature || 'all' }}
           DRY_RUN: ${{ github.event.inputs.dry-run || 'false' }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          echo "=== Relay Patch ==="
+          echo "=== Relay Patch (AI-powered) ==="
           echo "Target: $TARGET"
           echo "Dry run: $DRY_RUN"
           echo ""
@@ -80,48 +102,55 @@ jobs:
             exit 0
           fi
 
-          CHANGED=0
-          for FEATURE in $FEATURES; do
-            PATCH_FILE=".relay/features/${FEATURE}/patch.md"
-            if [ ! -f "$PATCH_FILE" ]; then
-              echo "WARNING: Patch file not found: $PATCH_FILE"
-              continue
-            fi
+          # Use relay CLI if available, otherwise use bun directly
+          if command -v relay &>/dev/null; then
+            RELAY_CMD="relay"
+          elif [ -f src/run.ts ]; then
+            RELAY_CMD="bun src/run.ts"
+          else
+            RELAY_CMD="bun run relay"
+          fi
 
-            echo "--- Applying patch: $FEATURE ---"
-            echo "File: $PATCH_FILE"
+          if [ "$DRY_RUN" = "true" ]; then
+            $RELAY_CMD patch apply --feature "$TARGET" --dry-run
+          else
+            $RELAY_CMD patch apply --feature "$TARGET"
+          fi
 
-            if [ "$DRY_RUN" = "true" ]; then
-              echo "[DRY RUN] Would apply patch from $PATCH_FILE"
-              continue
-            fi
+      - name: Apply patches (no AI)
+        if: steps.ai-config.outputs.ai-reapply != 'true'
+        env:
+          TARGET: ${{ github.event.inputs.feature || 'all' }}
+          DRY_RUN: ${{ github.event.inputs.dry-run || 'false' }}
+        run: |
+          echo "=== Relay Patch (no AI) ==="
+          echo "Target: $TARGET"
+          echo "Dry run: $DRY_RUN"
+          echo ""
 
-            # Extract intent and reconciliation notes from the patch file
-            INTENT=$(awk '/^## Intent$/,/^## [^I]/' "$PATCH_FILE" | head -n -1 | tail -n +2)
-            RECONCILIATION=$(awk '/^## Reconciliation Notes$/,/^## [^R]/' "$PATCH_FILE" | head -n -1 | tail -n +2)
+          if [ "$TARGET" = "all" ]; then
+            FEATURES="${{ steps.features.outputs.features }}"
+          else
+            FEATURES="$TARGET"
+          fi
 
-            echo "Intent: $(echo "$INTENT" | head -1)"
-            echo ""
+          if [ -z "$FEATURES" ]; then
+            echo "No features with patches to apply."
+            exit 0
+          fi
 
-            # Check if feature references an upstream issue
-            if [ -f .relay/registry.json ]; then
-              UPSTREAM_ISSUE=$(jq -r --arg id "$(echo $FEATURE | grep -o '^[0-9]*')" \
-                '.features[] | select(.id==$id) | .upstreamIssue // empty' \
-                .relay/registry.json 2>/dev/null)
-              if [ -n "$UPSTREAM_ISSUE" ]; then
-                echo "Upstream issue: $UPSTREAM_ISSUE"
-              fi
-            fi
+          if command -v relay &>/dev/null; then
+            RELAY_CMD="relay"
+          elif [ -f src/run.ts ]; then
+            RELAY_CMD="bun src/run.ts"
+          else
+            RELAY_CMD="bun run relay"
+          fi
 
-            CHANGED=$((CHANGED + 1))
-            echo ""
-          done
-
-          echo "=== Summary ==="
-          echo "Patches processed: $CHANGED"
+          $RELAY_CMD patch apply --feature "$TARGET" --no-ai
 
       - name: Commit changes
-        if: ${{ github.event.inputs.dry-run != 'true' }}
+        if: github.event.inputs.dry-run != 'true'
         run: |
           git config user.name "relay-patch[bot]"
           git config user.email "relay-patch[bot]@users.noreply.github.com"
@@ -129,8 +158,30 @@ jobs:
           git diff --cached --quiet || git commit -m "chore: apply relay patches [skip ci]"
           git push
 
+      - name: Generate health report
+        if: always()
+        run: |
+          echo "## Patch Health Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ -f .relay/registry.json ]; then
+            ACTIVE=$(jq '[.features[] | select(.status=="active" and .hasPatch==true)] | length' .relay/registry.json 2>/dev/null || echo "0")
+            RETIRED=$(jq '[.features[] | select(.status=="retired")] | length' .relay/registry.json 2>/dev/null || echo "0")
+            CONFLICTED=$(jq '[.features[] | select(.status=="conflicted")] | length' .relay/registry.json 2>/dev/null || echo "0")
+            LAST_APPLY=$(jq -r '.lastPatchApply // "never"' .relay/registry.json 2>/dev/null || echo "never")
+
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Active patches | ${ACTIVE} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Retired patches | ${RETIRED} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Conflicted | ${CONFLICTED} |" >> $GITHUB_STEP_SUMMARY
+            echo "| Last apply | ${LAST_APPLY} |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "No registry found." >> $GITHUB_STEP_SUMMARY
+          fi
+
   check-merged:
-    if: ${{ github.event.inputs.action == 'check-merged' }}
+    if: github.event.inputs.action == 'check-merged'
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -143,128 +194,25 @@ jobs:
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
 
-      - name: Find features with patches
-        id: features
+      - name: Install dependencies
         run: |
-          FEATURES=""
-          if [ -d .relay/features ]; then
-            for dir in .relay/features/*/; do
-              if [ -f "${dir}patch.md" ]; then
-                NAME=$(basename "$dir")
-                FEATURES="$FEATURES $NAME"
-              fi
-            done
+          if [ -f package.json ]; then
+            bun install
           fi
-
-          echo "features=$FEATURES" >> "$GITHUB_OUTPUT"
-          echo "Features with patches:$FEATURES"
 
       - name: Check upstream merge status
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          FEATURES="${{ steps.features.outputs.features }}"
-
-          if [ -z "$FEATURES" ]; then
-            echo "No features with patches to check."
-            exit 0
+          if command -v relay &>/dev/null; then
+            RELAY_CMD="relay"
+          elif [ -f src/run.ts ]; then
+            RELAY_CMD="bun src/run.ts"
+          else
+            RELAY_CMD="bun run relay"
           fi
 
-          CHANGED=0
-          for FEATURE in $FEATURES; do
-            FEATURE_ID=$(echo "$FEATURE" | grep -o '^[0-9]*')
-            PATCH_FILE=".relay/features/${FEATURE}/patch.md"
-
-            echo "--- Checking: $FEATURE ---"
-
-            # Look up upstream issue and PR from registry
-            UPSTREAM_ISSUE=$(jq -r --arg id "$FEATURE_ID" \
-              '.features[] | select(.id==$id) | .upstreamIssue // empty' \
-              .relay/registry.json 2>/dev/null)
-
-            UPSTREAM_PR=$(jq -r --arg id "$FEATURE_ID" \
-              '.features[] | select(.id==$id) | .upstreamPR // empty' \
-              .relay/registry.json 2>/dev/null)
-
-            if [ -z "$UPSTREAM_ISSUE" ]; then
-              echo "  No upstream issue configured. Skipping."
-              echo ""
-              continue
-            fi
-
-            echo "  Upstream issue: $UPSTREAM_ISSUE"
-
-            # Check if the upstream issue is closed
-            ISSUE_STATE=$(gh issue view "$UPSTREAM_ISSUE" --json state -q '.state' 2>/dev/null || echo "unknown")
-            echo "  Issue state: $ISSUE_STATE"
-
-            if [ "$ISSUE_STATE" != "CLOSED" ]; then
-              echo "  Issue is still open. Skipping."
-              echo ""
-              continue
-            fi
-
-            # Check if the upstream PR is merged (if configured)
-            if [ -n "$UPSTREAM_PR" ]; then
-              echo "  Upstream PR: $UPSTREAM_PR"
-              PR_STATE=$(gh pr view "$UPSTREAM_PR" --json state -q '.state' 2>/dev/null || echo "unknown")
-              PR_MERGED=$(gh pr view "$UPSTREAM_PR" --json mergedAt -q '.mergedAt' 2>/dev/null || echo "null")
-              echo "  PR state: $PR_STATE, mergedAt: $PR_MERGED"
-
-              if [ "$PR_STATE" = "MERGED" ] || [ "$PR_MERGED" != "null" ]; then
-                echo "  PR is merged! Feature is fully upstream."
-
-                # Remove patch.md
-                rm -f "$PATCH_FILE"
-                echo "  Removed patch.md"
-
-                # Update registry.json: clear hasPatch, upstreamIssue, upstreamPR
-                FEATURE_ID_ESCAPED=$(echo "$FEATURE_ID" | sed 's/"/\\"/g')
-                jq --arg id "$FEATURE_ID_ESCAPED" \
-                  '(.features[] | select(.id==$id)) |= del(.hasPatch, .upstreamIssue, .upstreamPR) | (.features[] | select(.id==$id)) += {"hasPatch": false}' \
-                  .relay/registry.json > .relay/registry.json.tmp
-                mv .relay/registry.json.tmp .relay/registry.json
-                echo "  Updated registry.json"
-
-                # Post thank-you comment on the upstream issue
-                gh issue comment "$UPSTREAM_ISSUE" \
-                  --body "Thank you for merging this contribution! The fork patch for this feature has been cleaned up automatically." \
-                  2>/dev/null || echo "  WARNING: Failed to post comment on upstream issue."
-
-                CHANGED=$((CHANGED + 1))
-                echo "  Feature $FEATURE marked as upstream."
-              else
-                echo "  PR is not yet merged. Skipping."
-              fi
-            else
-              echo "  No upstream PR configured. Issue is closed but no PR link."
-              echo "  Removing patch and updating registry."
-
-              # Remove patch.md since issue is closed
-              rm -f "$PATCH_FILE"
-              echo "  Removed patch.md"
-
-              # Update registry.json
-              FEATURE_ID_ESCAPED=$(echo "$FEATURE_ID" | sed 's/"/\\"/g')
-              jq --arg id "$FEATURE_ID_ESCAPED" \
-                '(.features[] | select(.id==$id)) |= del(.hasPatch, .upstreamIssue, .upstreamPR) | (.features[] | select(.id==$id)) += {"hasPatch": false}' \
-                .relay/registry.json > .relay/registry.json.tmp
-              mv .relay/registry.json.tmp .relay/registry.json
-              echo "  Updated registry.json"
-
-              # Post thank-you comment
-              gh issue comment "$UPSTREAM_ISSUE" \
-                --body "Thank you for addressing this issue! The fork patch has been cleaned up automatically." \
-                2>/dev/null || echo "  WARNING: Failed to post comment on upstream issue."
-
-              CHANGED=$((CHANGED + 1))
-            fi
-
-            echo ""
-          done
-
-          echo "=== Summary ==="
-          echo "Features cleaned up: $CHANGED"
+          $RELAY_CMD patch check-merged
 
       - name: Commit and push changes
         run: |
@@ -272,4 +220,41 @@ jobs:
           git config user.email "relay-patch[bot]@users.noreply.github.com"
           git add -A
           git diff --cached --quiet || git commit -m "chore: clean up merged upstream patches [skip ci]"
+          git push
+
+  analyze:
+    if: github.event.inputs.action == 'analyze'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: |
+          if [ -f package.json ]; then
+            bun install
+          fi
+
+      - name: Run fork analysis
+        run: |
+          if command -v relay &>/dev/null; then
+            RELAY_CMD="relay"
+          elif [ -f src/run.ts ]; then
+            RELAY_CMD="bun src/run.ts"
+          else
+            RELAY_CMD="bun run relay"
+          fi
+
+          $RELAY_CMD patch analyze --save
+
+      - name: Commit analysis
+        run: |
+          git config user.name "relay-patch[bot]"
+          git config user.email "relay-patch[bot]@users.noreply.github.com"
+          git add .relay/registry.json
+          git diff --cached --quiet || git commit -m "chore: update fork health analysis [skip ci]"
           git push
