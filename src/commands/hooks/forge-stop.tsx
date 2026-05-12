@@ -11,7 +11,6 @@
 // - Runs asynchronously (non-blocking) via detached background process
 //===============================================================================
 
-import { query } from "@imbios/forgecode-sdk";
 import { Flags } from "@oclif/core";
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -157,7 +156,7 @@ async function getSubmodulePaths(repoDir: string): Promise<string[]> {
 }
 
 // ---------------------------------------------------------------------------
-// Commit message generation via forgecode-sdk
+// Commit message generation via relay proxy
 // ---------------------------------------------------------------------------
 
 async function generateConventionalCommit(cwd: string): Promise<string> {
@@ -190,81 +189,117 @@ ${stagedFiles || "No staged files"}
 Diff (truncated):
 ${diffContent || "No diff available"}`;
 
+  const baseUrl = process.env.ANTHROPIC_BASE_URL || "http://127.0.0.1:8787/api/anthropic";
+  const authToken = process.env.ANTHROPIC_AUTH_TOKEN || "relay";
+
+  const bodyJson = {
+    model: "glm-5-turbo",
+    max_tokens: 512,
+    messages: [{ role: "user", content: prompt }],
+    stream: false,
+  };
+  const bodyStr = JSON.stringify(bodyJson);
+  const bodyBytes = Buffer.byteLength(bodyStr);
+
+  let responseText = "";
+  let fetchError: string | null = null;
   try {
-    let resultValue: unknown = null;
-
-    for await (const message of query({
-      prompt,
-      options: {
-        model: "MiniMax-M2.7",
-        outputFormat: {
-          type: "json_schema",
-          z: CONVENTIONAL_COMMIT_SCHEMA,
+    const response = await new Promise<{ status: number; body: string }>((resolve, reject) => {
+      const http = require("node:http") as typeof import("node:http");
+      const zlib = require("node:zlib") as typeof import("node:zlib");
+      const [hostname, portStr] = baseUrl.replace(/^http:\/\//, "").split("/")[0].includes(":")
+        ? baseUrl.replace(/^http:\/\//, "").split("/")[0].split(":")
+        : [baseUrl.replace(/^http:\/\//, "").split("/")[0], "8787"];
+      const port = parseInt(portStr, 10);
+      const req = http.request(
+        {
+          hostname,
+          port,
+          path: "/api/anthropic/v1/messages",
+          method: "POST",
+          headers: {
+            "x-api-key": authToken,
+            "anthropic-version": "2023-06-01",
+            "content-type": "application/json",
+            "Content-Length": bodyBytes,
+            "Accept-Encoding": "gzip, deflate",
+          },
         },
-        env: {
-          RELAY_IN_HOOK: "1",
+        (res) => {
+          const chunks: Buffer[] = [];
+          res.on("data", (chunk: Buffer) => chunks.push(chunk));
+          res.on("end", () => {
+            const buf = Buffer.concat(chunks);
+            const encoding = res.headers["content-encoding"];
+            let text = buf.toString("utf8");
+            if (encoding === "gzip" && buf[0] === 0x1f && buf[1] === 0x8b) {
+              try {
+                text = zlib.gunzipSync(buf).toString("utf8");
+              } catch { /* use raw body */ }
+            }
+            resolve({ status: res.statusCode ?? 0, body: text });
+          });
         },
-      },
-    })) {
-      if (message.type === "result") {
-        resultValue = message.result;
-      }
-    }
-
-    if (!resultValue) {
-      throw new Error(
-        "[relay] forgecode-sdk returned no result for commit message generation",
       );
+      req.on("error", (err) => reject(err));
+      req.write(bodyStr);
+      req.end();
+    });
+    if (response.status !== 200) {
+      fetchError = `[relay] proxy returned ${response.status}: ${response.body}`;
+    } else {
+      const json = JSON.parse(response.body) as { content?: Array<{ text?: string }> };
+      responseText = json.content?.[0]?.text ?? "";
     }
-
-    // Case 1: SDK validated the JSON schema — result is a ConventionalCommit object
-    if (typeof resultValue === "object" && resultValue !== null) {
-      const commit = CONVENTIONAL_COMMIT_SCHEMA.safeParse(resultValue);
-      if (commit.success) {
-        const c = commit.data as ConventionalCommit;
-        const scope = c.scope ? `(${c.scope})` : "";
-        const breaking = c.breaking ? "!" : "";
-        return `${c.type}${scope}${breaking}: ${c.message}`;
-      }
-    }
-
-    // Case 2: SDK returned raw text — try to extract JSON from it
-    if (typeof resultValue === "string") {
-      const raw = resultValue.trim();
-
-      // Try JSON extraction (handles markdown fences, embedded JSON, etc.)
-      try {
-        const { extractJsonFromText } = await import("@imbios/forgecode-sdk");
-        const extracted = extractJsonFromText(raw);
-        const commit = CONVENTIONAL_COMMIT_SCHEMA.safeParse(extracted);
-        if (commit.success) {
-          const c = commit.data as ConventionalCommit;
-          const scope = c.scope ? `(${c.scope})` : "";
-          const breaking = c.breaking ? "!" : "";
-          return `${c.type}${scope}${breaking}: ${c.message}`;
-        }
-      } catch {
-        // JSON extraction failed, try plain text parse below
-      }
-
-      // Try to parse as a plain conventional commit line: type(scope)!: message
-      const CONVENTIONAL_LINE_RE = /^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\([^)]+\))?!?:\s*.+$/;
-      const firstLine = raw.split("\n").find((l) => CONVENTIONAL_LINE_RE.test(l.trim()));
-      if (firstLine) {
-        return firstLine.trim();
-      }
-    }
-
-    throw new Error(
-      `[relay] forgecode-sdk returned invalid commit message: ${JSON.stringify(resultValue)}`,
-    );
   } catch (err) {
-    if (err instanceof Error && err.message.startsWith("[relay]")) throw err;
-    throw new Error(
-      `[relay] Failed to generate conventional commit message: ${err instanceof Error ? err.message : String(err)}`,
-    );
+    fetchError = `[relay] Failed to call relay proxy: ${err instanceof Error ? err.message : String(err)}`;
   }
-}
+  if (fetchError) {
+    throw new Error(fetchError);
+  }
+
+  if (!responseText) {
+    throw new Error("[relay] relay proxy returned empty response for commit message generation");
+  }
+
+  const raw = responseText.trim();
+
+  // Try JSON extraction (handles markdown fences, embedded JSON, etc.)
+  try {
+    const rawTrimmed = raw.trim();
+    let extracted: unknown;
+    try { extracted = JSON.parse(rawTrimmed); } catch {
+      const fenceMatch = rawTrimmed.match(/```(?:json)?\s*\n?([\s\S]+?)\n?```/);
+      if (fenceMatch) {
+        try { extracted = JSON.parse(fenceMatch[1].trim()); } catch { /* fall through */ }
+      }
+    }
+    const commit = CONVENTIONAL_COMMIT_SCHEMA.safeParse(
+      typeof extracted === "object" && extracted !== null
+        ? Object.fromEntries(
+            Object.entries(extracted as Record<string, unknown>).map(([k, v]) => [k, v === null ? undefined : v]),
+          )
+        : extracted,
+    );
+    if (commit.success) {
+      const c = commit.data as ConventionalCommit;
+      const scope = c.scope ? `(${c.scope})` : "";
+      const breaking = c.breaking ? "!" : "";
+      return `${c.type}${scope}${breaking}: ${c.message}`;
+    }
+  } catch {
+    // JSON extraction failed, try plain text parse below
+  }
+
+  // Try to parse as a plain conventional commit line: type(scope)!: message
+  const CONVENTIONAL_LINE_RE = /^(feat|fix|docs|style|refactor|test|chore|perf|ci|build|revert)(\([^)]+\))?!?:\s*.+$/;
+  const firstLine = raw.split("\n").find((l) => CONVENTIONAL_LINE_RE.test(l.trim()));
+  if (firstLine) {
+    return firstLine.trim();
+  }
+
+  throw new Error(`[relay] relay proxy returned invalid commit message: ${raw}`);
+  }
 
 // ---------------------------------------------------------------------------
 // Core commit & push logic for a single repo directory
@@ -507,26 +542,31 @@ export default class HooksForgeStop extends BaseCommand<typeof HooksForgeStop> {
 
     if (options.background) {
       // Spawn a detached background process for non-blocking operation.
-      // Use the `relay` CLI directly so oclif routing works correctly.
-      const child = spawn(
-        "relay",
-        [
-          "hooks",
-          "forge-stop",
+      //
+      // Key: do NOT pass RELAY_IN_HOOK to the child. That env var is read by
+      // the guard at the top of run() to prevent re-entrancy — but the child is
+      // a genuinely new process (under setsid), not a nested call. If inherited,
+      // the child's run() would hit the guard and exit immediately, doing nothing.
+      // The parent is already guarded at the top of run() — that's sufficient.
+      const shellCmd = [
+        "setsid bash -c ",
+        JSON.stringify([
+          "relay hooks forge-stop",
           "--no-background",
           ...(options.silent ? ["--silent"] : []),
           ...(options.verbose ? ["--verbose"] : []),
           `--mode=${options.commitMode}`,
-        ],
+        ].join(" ")),
+      ].join("");
+
+      const child = spawn(
+        "bash",
+        ["-c", shellCmd],
         {
           cwd: workDir,
           detached: true,
           stdio: "ignore",
-          env: {
-            ...process.env,
-            // Prevent the child from re-spawning another background process
-            RELAY_FORGE_BACKGROUND: "1",
-          },
+          env: { ...process.env },
         },
       );
       child.unref();
@@ -534,28 +574,37 @@ export default class HooksForgeStop extends BaseCommand<typeof HooksForgeStop> {
     }
 
     // --- Synchronous path (runs in background child or when --no-background) ---
+    try {
+      // Ensure proxy is running before generating commit messages
+      const { ensureRelayProxyRunning } = await import("../../proxy/index");
+      await ensureRelayProxyRunning();
 
-    const changes = await hasUncommittedChanges(workDir);
-    const hasChanges = changes.staged || changes.unstaged || changes.untracked;
+      const changes = await hasUncommittedChanges(workDir);
+      const hasChanges = changes.staged || changes.unstaged || changes.untracked;
 
-    // Recursively commit & push in main repo and all submodules
-    await recursiveCommitAndPush(workDir, "forge", {
-      verbose: options.verbose,
-      silent: options.silent,
-      commitMode: options.commitMode,
-    });
+      // Recursively commit & push in main repo and all submodules
+      await recursiveCommitAndPush(workDir, "forge", {
+        verbose: options.verbose,
+        silent: options.silent,
+        commitMode: options.commitMode,
+      });
 
-    // Send notification
-    if (!options.silent || options.verbose) {
-      sendNotification(
-        "ForgeCode",
-        hasChanges ? "Session ended with auto-commit" : "Session ended",
-      );
-    }
+      // Send notification
+      if (!options.silent || options.verbose) {
+        sendNotification(
+          "ForgeCode",
+          hasChanges ? "Session ended with auto-commit" : "Session ended",
+        );
+      }
 
-    // Show summary in non-silent mode
-    if (options.verbose) {
-      console.log(`\n  ${ok("Git status:")} Staged=${changes.staged ? "Yes" : "No"} Unstaged=${changes.unstaged ? "Yes" : "No"} Untracked=${changes.untracked ? "Yes" : "No"}`);
+      // Show summary in non-silent mode
+      if (options.verbose) {
+        console.log(`\n  ${ok("Git status:")} Staged=${changes.staged ? "Yes" : "No"} Unstaged=${changes.unstaged ? "Yes" : "No"} Untracked=${changes.untracked ? "Yes" : "No"}`);
+      }
+    } catch (err) {
+      if (!options.silent) {
+        console.error(`[relay] forge: error: ${err instanceof Error ? err.message : String(err)}`);
+      }
     }
   }
 }

@@ -1,0 +1,73 @@
+# Docker Compose for Relay Proxy + ForgeCode integration testing.
+#
+# Usage:
+#   1. Generate sanitised configs:
+#        bun scripts/gen-test-configs.ts
+#
+#   2. Run interactive forge session:
+#        docker compose -f docker-compose.forgecode-test.yml up
+#      or
+#        docker compose -f docker-compose.forgecode-test.yml run --rm relay-proxy-forgecode
+#
+#   3. Smoke-test only (proxy health + exit):
+#        ./scripts/test-relay-forgecode.sh --smoke-only
+#
+# Architecture:
+#   ┌─────────────────────────────────────────────────────────────────┐
+#   │  Container (relay-proxy-forgecode)                              │
+#   │                                                                 │
+#   │   forge ──▶ ANTHROPIC_BASE_URL ──▶ relay proxy ──▶ MiniMax API │
+#   │            (http://127.0.0.1:8787/api)    port 8787            │
+#   │                                                                 │
+#   │   /root/.config/relay/settings.json  ← 4× cloned MiniMax accts │
+#   │   /root/forge/.credentials.json       ← minimax + github_copilot│
+#   │   /root/forge/.mcp.json               ← MCP server config       │
+#   └─────────────────────────────────────────────────────────────────┘
+#
+# Safety: ZAI accounts are NEVER copied into the container.
+#
+
+services:
+  relay-proxy-forgecode:
+  # Build context is the monorepo root so we can COPY both relay/ and forgecode-sdk/
+    build:
+      context: ..
+      dockerfile: submodules/relay/Dockerfile.forgecode
+      args:
+        # forge binary is pre-copied into relay submodule by the test script
+        FORGE_BINARY: ./submodules/relay/forge
+    container_name: relay-proxy-forgecode
+    # No host port mapping — smoke test uses `docker exec` to curl from inside
+    # the container. Interactive forge also runs inside, using 127.0.0.1:8787.
+    # Uncomment only if you need to inspect the proxy from the host:
+    # ports:
+    #   - "127.0.0.1:8787:8787"
+    volumes:
+      # ── Configs (read-only) ────────────────────────────────────────────
+      # Sanitised relay settings: 4× cloned MiniMax accounts, zero ZAI
+      - ./test-configs/relay-settings.json:/root/.config/relay/settings.json:ro
+      # Forge credentials: minimax + github_copilot + forge_services (NO zai_coding)
+      - ./test-configs/forge-credentials.json:/root/forge/.credentials.json:ro
+      # Forge MCP server definitions
+      - ./test-configs/forge-mcp.json:/root/forge/.mcp.json:ro
+
+      # ── Ephemeral runtime state (persist logs if needed) ──────────────
+      - relay-claude-state:/root/.claude
+      - relay-forge-logs:/root/forge/logs
+
+    environment:
+      # Forge uses this to route through the relay proxy
+      ANTHROPIC_BASE_URL: http://127.0.0.1:8787/api/anthropic
+      # Any non-empty string satisfies the proxy's auth check
+      ANTHROPIC_AUTH_TOKEN: placeholder
+      RELAY_PROXY_PORT: "8787"
+      HOME: /root
+    # Keep TTY open so interactive `forge` sessions work
+    tty: true
+    stdin_open: true
+    # Restart policy: do not restart between test runs (explicit up/down)
+    restart: "no"
+
+volumes:
+  relay-claude-state:
+  relay-forge-logs:

@@ -48,7 +48,7 @@ export async function spawnClaudeInstance(options: SpawnOptions): Promise<Claude
         "--continue",
         "--no-color",
         "--model",
-        session.provider === "zai" ? "GLM-5" : "MiniMax-M2.5",
+        session.provider === "zai" ? "GLM-5.1" : "MiniMax-M2.7",
       ],
       {
         cwd: session.providerPath,

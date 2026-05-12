@@ -15,7 +15,7 @@ import { join } from "node:path";
 import { getActiveAccount, listAccounts } from "../config/accounts-config.js";
 
 const PORT = Number(process.env.RELAY_PROXY_PORT || "8787");
-const HOST = "127.0.0.1";
+const HOST = process.env["RELAY_HOST"] ?? "0.0.0.0";
 const PROXY_BASE_PATH = "/api/anthropic";
 
 const CONFIG_DIR = join(homedir(), ".claude");
@@ -138,7 +138,7 @@ const server = Bun.serve({
   fetch: handleRequest,
 });
 
-console.log(`relay proxy listening on http://${HOST}:${PORT}`);
+console.log(`relay proxy listening on http://${HOST === "0.0.0.0" ? "0.0.0.0 (all interfaces)" : HOST}:${PORT}`);
 console.log(`  active account: ${getActiveAccount()?.name ?? "none"}`);
 console.log(`  log: ${LOG_FILE}`);
 console.log(`  pid: ${process.pid} → ${PID_FILE}`);

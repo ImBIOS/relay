@@ -1,0 +1,75 @@
+# Build context is the monorepo root.
+# All COPY paths are relative to the monorepo root.
+# relay lives at submodules/relay/ (not relay/ — that's the monorepo Dockerfiles)
+
+FROM oven/bun:1
+
+WORKDIR /relay
+
+# Install minimal system deps
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    ca-certificates curl git \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── Relay source ──────────────────────────────────────────────────────────────
+COPY submodules/relay/package.json ./
+COPY submodules/relay/bunfig.toml ./
+COPY submodules/relay/src/ ./src/
+
+# ── forgecode-sdk workspace dependency ────────────────────────────────────────
+# relay's package.json declares "@imbios/forgecode-sdk": "workspace:*"
+# which resolves to submodules/forgecode-sdk/ at the monorepo root.
+# The actual content lives in submodules/forgecode-sdk/sdks/typescript/.
+# We replicate the layout at /relay/submodules/forgecode-sdk/ so the
+# workspace link resolves correctly.
+COPY submodules/forgecode-sdk/sdks/typescript/package.json ./submodules/forgecode-sdk/sdks/typescript/
+COPY submodules/forgecode-sdk/sdks/typescript/src/          ./submodules/forgecode-sdk/sdks/typescript/src/
+
+# Workspace symlink: ./submodules/forgecode-sdk/package.json → ./sdks/typescript
+RUN mkdir -p ./submodules/forgecode-sdk && \
+    ln -sf ./sdks/typescript ./submodules/forgecode-sdk/package.json
+
+# ── Stub @imbios/forgecode-sdk ──────────────────────────────────────────────
+# relay's package.json has "@imbios/forgecode-sdk": "workspace:*" which cannot
+# resolve outside the monorepo. The relay's proxy commands don't actually need
+# this SDK at runtime — it's only used by patch/ai and hooks/forge-stop commands.
+# Replace the workspace dep with a local stub package so `bun install` succeeds.
+RUN mkdir -p ./stub-forgecode-sdk && \
+    echo '{"name":"@imbios/forgecode-sdk","version":"0.0.0-stub","main":"index.ts"}' > ./stub-forgecode-sdk/package.json && \
+    echo 'export const query = async (...args: unknown[]) => { throw new Error("stub"); };' > ./stub-forgecode-sdk/index.ts && \
+    sed -i 's|"@imbios/forgecode-sdk": "workspace:\*"|"@imbios/forgecode-sdk": "./stub-forgecode-sdk"|' ./package.json
+
+# Install deps (--ignore-scripts to avoid monorepo postinstall hooks that reference
+# other workspaces not present in this standalone container build)
+RUN bun install --ignore-scripts
+
+# ── Forge binary ──────────────────────────────────────────────────────────────
+ARG FORGE_BINARY=./submodules/relay/forge
+COPY ${FORGE_BINARY} /usr/local/bin/forge
+RUN chmod +x /usr/local/bin/forge
+
+# ── Runtime directories ────────────────────────────────────────────────────────
+RUN mkdir -p \
+    /root/.claude \
+    /root/.config/relay \
+    /root/forge \
+    /root/.local/bin
+
+# ── Environment ─────────────────────────────────────────────────────────────────
+# ForgeCode reads ANTHROPIC_BASE_URL to route through the relay proxy.
+# ANTHROPIC_AUTH_TOKEN is any non-empty string — the proxy ignores it.
+ENV ANTHROPIC_BASE_URL=http://127.0.0.1:8787/api/anthropic
+ENV ANTHROPIC_AUTH_TOKEN=placeholder
+ENV RELAY_PROXY_PORT=8787
+ENV HOME=/root
+ENV PATH=/root/.local/bin:${PATH}
+
+EXPOSE 8787
+
+# ── Entrypoint ─────────────────────────────────────────────────────────────────
+# Starts the relay proxy in the background, verifies health, then runs the command.
+COPY submodules/relay/docker-entrypoint-forgecode.sh /relay/docker-entrypoint-forgecode.sh
+RUN chmod +x /relay/docker-entrypoint-forgecode.sh
+ENTRYPOINT ["/relay/docker-entrypoint-forgecode.sh"]
+CMD ["/usr/local/bin/forge"]
