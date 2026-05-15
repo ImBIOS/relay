@@ -18,6 +18,9 @@ const PROVIDERS: Record<string, () => Provider> = {
   minimax: () => minimaxProvider,
 };
 
+/**
+ * TODO: Why we have this? Do we use this in @ImBIOS machines? If not, rmeove it, I don't think we need it.
+ */
 export default class Claude extends BaseCommand<typeof Claude> {
   static description = "Spawn Claude with auto-switch";
   static examples = ["<%= config.bin %> claude", "<%= config.bin %> claude --continue"];

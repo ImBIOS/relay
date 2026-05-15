@@ -1,6 +1,6 @@
 {
   "name": "relay",
-  "description": "CLI for managing AI API providers — switch, rotate, track usage across Z.AI, MiniMax, and more",
+  "description": "Multi-provider AI API proxy — hot-switch between GitHub Copilot, Z.AI, MiniMax, OpenAI, OpenRouter, DeepSeek, Groq, Ollama, and more for Claude Code, ForgeCode & OpenCode",
   "version": "2.1.0",
   "author": {
     "name": "Imamuzzaki Abu Salam",
@@ -29,16 +29,27 @@
     "./sdk": "./src/sdk/index.ts"
   },
   "keywords": [
-    "anthropic",
-    "api",
-    "claude-code",
-    "cli",
-    "glm",
-    "minimax",
-    "opencode",
-    "provider",
+    "ai",
+    "llm",
     "proxy",
-    "rotation"
+    "claude-code",
+    "copilot",
+    "openai",
+    "anthropic",
+    "openrouter",
+    "deepseek",
+    "groq",
+    "ollama",
+    "minimax",
+    "zai",
+    "glm",
+    "cli",
+    "provider-rotation",
+    "api-gateway",
+    "forgecode",
+    "opencode",
+    "bun",
+    "typescript"
   ],
   "oclif": {
     "bin": "relay",
@@ -65,7 +76,7 @@
         "description": "Fork patch management — track, re-apply, and sync customizations with upstream"
       },
       "proxy": {
-        "description": "Anthropic API proxy server for hot-switching providers"
+        "description": "AI API proxy server for hot-switching providers"
       }
     }
   },

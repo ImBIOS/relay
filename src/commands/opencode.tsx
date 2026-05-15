@@ -5,8 +5,8 @@
 // │  It may be broken. Fixes welcome from community contributors.                 │
 // └─────────────────────────────────────────────────────────────────────────────┘
 
-import { type ChildProcess, execSync, spawn } from "node:child_process";
 import { Flags } from "@oclif/core";
+import { type ChildProcess, execSync, spawn } from "node:child_process";
 import * as accountsConfig from "../config/accounts-config";
 import * as settings from "../config/settings";
 import { BaseCommand } from "../oclif/base";
@@ -25,6 +25,9 @@ const PROVIDERS: Record<string, () => Provider> = {
   minimax: () => minimaxProvider,
 };
 
+/**
+ * TODO: Why we have this? Do we use this in @ImBIOS machines? If not, rmeove it, I don't think we need it.
+ */
 export default class OpenCode extends BaseCommand<typeof OpenCode> {
   static description = "Manage OpenCode integration with auto-rotation";
 
