@@ -274,6 +274,7 @@ async function fetchAndUpdateUsage(account: AccountConfig): Promise<number> {
     const usage = await provider.getUsage({
       apiKey: account.apiKey,
       groupId: account.groupId,
+      oauthToken: account.oauthToken,
     });
 
     // Update account config with real usage data

@@ -137,6 +137,56 @@ describe("CopilotProvider", () => {
     delete process.env.GITHUB_COPILOT_TOKEN;
   });
 
+  it("should use oauthToken as primary token for usage", async () => {
+    process.env.GITHUB_COPILOT_TOKEN = "tid=copilot-session-token";
+    let capturedToken = "";
+    const originalFetch2 = globalThis.fetch;
+
+    globalThis.fetch = mock(async (_url: string | URL | Request, init?: RequestInit) => {
+      // Capture the Authorization header from the second attempt
+      const authHeader = init?.headers instanceof Headers
+        ? init.headers.get("Authorization")
+        : (init?.headers as Record<string, string>)?.["Authorization"];
+      capturedToken = authHeader ?? "";
+      // First call (with Copilot session token) fails, second call succeeds
+      if (capturedToken.startsWith("Bearer tid=")) {
+        return new Response(JSON.stringify({ message: "Bad credentials" }), { status: 401 });
+      }
+      return new Response(JSON.stringify({
+        copilot_plan: "individual_pro",
+        quota_reset_date_utc: "2026-06-01T00:00:00.000Z",
+        quota_snapshots: {
+          chat: { percent_remaining: 100.0, unlimited: true },
+          completions: { percent_remaining: 100.0, unlimited: true },
+          premium_interactions: {
+            entitlement: 300,
+            percent_remaining: 77.6,
+            remaining: 233,
+            unlimited: false,
+          },
+        },
+      }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const usage = await provider.getUsage({
+      // Copilot session token (tid=...) — will fail on api.github.com
+      apiKey: "tid=copilot-session-token;exp=999",
+      // GitHub PAT — will succeed
+      oauthToken: "gho_test-github-pat-token",
+    });
+
+    expect(usage.limit).toBe(300);
+    expect(usage.remaining).toBe(233);
+    expect(usage.percentUsed).toBeCloseTo(22.4, 1);
+    expect(usage.copilotPlan).toBe("individual_pro");
+    expect(usage.copilotChat?.unlimited).toBe(true);
+    expect(usage.copilotCompletions?.unlimited).toBe(true);
+    expect(usage.resetsAt).toBe("2026-06-01T00:00:00.000Z");
+
+    globalThis.fetch = originalFetch2;
+    delete process.env.GITHUB_COPILOT_TOKEN;
+  });
+
   it("should return false for testConnection with no API key", async () => {
     delete process.env.GITHUB_COPILOT_TOKEN;
     const result = await provider.testConnection();

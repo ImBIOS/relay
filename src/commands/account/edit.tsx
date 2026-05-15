@@ -15,6 +15,7 @@ export default class AccountEdit extends BaseCommand<typeof AccountEdit> {
   static flags = {
     name: Flags.string({ description: "New account name (email address)" }),
     "api-key": Flags.string({ description: "New API key" }),
+    "oauth-token": Flags.string({ description: "OAuth token for Copilot (github_pat_... or gho_...)" }),
     "group-id": Flags.string({ description: "Group ID (MiniMax only)" }),
     "base-url": Flags.string({ description: "Custom base URL" }),
   };
@@ -34,10 +35,11 @@ export default class AccountEdit extends BaseCommand<typeof AccountEdit> {
     const { flags } = await this.parse(AccountEdit);
     const nameFlag = flags.name as string | undefined;
     const apiKeyFlag = flags["api-key"] as string | undefined;
+    const oauthTokenFlag = flags["oauth-token"] as string | undefined;
     const groupIdFlag = flags["group-id"] as string | undefined;
     const baseUrlFlag = flags["base-url"] as string | undefined;
 
-    const hasFlags = !!(nameFlag || apiKeyFlag || groupIdFlag || baseUrlFlag);
+    const hasFlags = !!(nameFlag || apiKeyFlag || oauthTokenFlag || groupIdFlag || baseUrlFlag);
 
     const account = getAccount(accountId);
     if (!account) {
@@ -64,6 +66,9 @@ export default class AccountEdit extends BaseCommand<typeof AccountEdit> {
         }
         updates.apiKey = apiKeyFlag;
       }
+      if (oauthTokenFlag !== undefined) {
+        updates.oauthToken = oauthTokenFlag?.trim() || undefined;
+      }
       if (groupIdFlag !== undefined) {
         updates.groupId = groupIdFlag || undefined;
       }
@@ -83,18 +88,29 @@ export default class AccountEdit extends BaseCommand<typeof AccountEdit> {
       console.log(ok("Account updated!"));
       if (nameFlag) console.log(label("Name") + `  ${nameFlag}`);
       if (apiKeyFlag) console.log(label("API Key") + `  [updated]`);
+      if (oauthTokenFlag !== undefined) console.log(label("OAuth Token") + `  ${oauthTokenFlag ? "[updated]" : "[cleared]"}`);
       if (groupIdFlag !== undefined) console.log(label("Group ID") + `  ${groupIdFlag ?? "[cleared]"}`);
       if (baseUrlFlag !== undefined) console.log(label("Base URL") + `  ${baseUrlFlag ?? "[default]"}`);
       return;
     }
 
     // ── Interactive ──────────────────────────────────────────────────────────
-    const choices = [
+    const choices: { label: string; value: string }[] = [
       { label: "Name", value: "name" },
       { label: "API Key", value: "api-key" },
-      { label: "Group ID", value: "group-id" },
-      { label: "Base URL", value: "base-url" },
     ];
+
+    // Add oauth-token option for Copilot accounts
+    if (account.provider === "copilot") {
+      choices.push({ label: "OAuth Token", value: "oauth-token" });
+    }
+
+    // group-id is only for MiniMax
+    if (account.provider === "minimax") {
+      choices.push({ label: "Group ID", value: "group-id" });
+    }
+
+    choices.push({ label: "Base URL", value: "base-url" });
 
     const chosen = (await select({
       message: `Edit which field for ${account.name}?`,
@@ -133,6 +149,16 @@ export default class AccountEdit extends BaseCommand<typeof AccountEdit> {
         if (isCancel(value)) return;
         updateAccount(accountId, { apiKey: value.trim() });
         settings.setProviderConfig(account.provider, { apiKey: value.trim(), baseUrl: account.baseUrl ?? "" });
+        updated = true;
+        break;
+      }
+      case "oauth-token": {
+        const value = (await text({
+          message: "GitHub OAuth token (github_pat_... or gho_...):",
+          initialValue: account.oauthToken ?? "",
+        })) as string;
+        if (isCancel(value)) return;
+        updateAccount(accountId, { oauthToken: value.trim() || undefined });
         updated = true;
         break;
       }

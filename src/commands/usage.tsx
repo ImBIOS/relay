@@ -124,7 +124,7 @@ export default class Usage extends BaseCommand<typeof Usage> {
       const providerLabel = PROVIDER_LABELS[account.provider] ?? account.provider;
 
       if (account.provider === "copilot") {
-        const stats = await provider.getUsage({ apiKey: account.apiKey });
+        const stats = await provider.getUsage({ apiKey: account.apiKey, oauthToken: account.oauthToken });
         console.log(`\n  ${account.name}`);
         console.log(`  ${providerLabel}`);
         if (stats.copilotPlan) {

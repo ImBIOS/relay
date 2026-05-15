@@ -1,6 +1,6 @@
 import { getActiveAccount, listAccounts } from "../../config/accounts-config";
 import { BaseCommand } from "../../oclif/base";
-import { bullet, bulletActive, bulletInactive, divider } from "../../utils/console";
+import { bullet, bulletActive, bulletInactive, divider, dim, warn } from "../../utils/console";
 
 export default class AccountList extends BaseCommand<typeof AccountList> {
   static description = "List all accounts";
@@ -23,6 +23,15 @@ export default class AccountList extends BaseCommand<typeof AccountList> {
       const isActive = acc.id === activeAccount?.id;
       const marker = isActive ? bulletActive(acc.name) : bulletInactive(acc.name);
       console.log(`${marker} (${acc.provider}) — ${isActive ? "active" : acc.id}`);
+
+      // Show oauthToken status for Copilot accounts
+      if (acc.provider === "copilot") {
+        if (acc.oauthToken) {
+          console.log(`  ${dim("├─ oauth token:")} ${dim("stored")}`);
+        } else {
+          console.log(`  ${warn("└─ oauth token:")} ${warn("missing")} ${dim("(usage will show Unlimited)")}`);
+        }
+      }
     }
 
     console.log("");

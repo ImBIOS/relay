@@ -22,6 +22,8 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
     provider: Flags.string({ description: "Provider (zai, minimax, or copilot)" }),
     key: Flags.string({ description: "API key" }),
     "group-id": Flags.string({ description: "Group ID (MiniMax only)" }),
+    // For Copilot: a GitHub PAT or OAuth token for usage queries (copilot_internal/user)
+    "github-token": Flags.string({ description: "GitHub token for Copilot (github_pat_... or gho_...)" }),
   };
   // Use non-strict mode to allow flexible argument passing
   static strict = false;
@@ -35,6 +37,7 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
     let apiKey: string;
     let baseUrl: string | undefined;
     let groupId: string | undefined;
+    let githubToken: string | undefined;
 
     // Use flags if provided, otherwise fall back to interactive
     if (flags.name && flags.provider && flags.key) {
@@ -44,6 +47,9 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
       apiKey = flags.key;
       if (flags["group-id"]) {
         groupId = flags["group-id"];
+      }
+      if (flags["github-token"]) {
+        githubToken = flags["github-token"];
       }
     } else if (flags.name || flags.provider || flags.key) {
       // Partial flags provided - need at least name, provider, key
@@ -104,18 +110,26 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
         }
       }
 
-      // Copilot: show PAT instructions
+      // Copilot: show PAT instructions and ask for GitHub token
       if (provider === "copilot") {
         console.log("");
         console.log(dim("  GitHub Copilot requires a fine-grained Personal Access Token"));
         console.log(dim("  with the 'Copilot Requests' permission enabled."));
         console.log(dim("  Create one at: https://github.com/settings/tokens?type=beta"));
         console.log("");
+
+        const raw = (await text({
+          message: "  GitHub token for usage queries (press Enter to skip):",
+          placeholder: "github_pat_... or gho_...",
+        })) as string;
+        if (!isCancel(raw) && raw?.trim()) {
+          githubToken = raw.trim();
+        }
       }
     }
 
     // ── Persist ─────────────────────────────────────────────────────────────
-    const account = addAccount({ name, provider: provider as "zai" | "minimax" | "copilot", apiKey, baseUrl, groupId });
+    const account = addAccount({ name, provider: provider as "zai" | "minimax" | "copilot", apiKey, baseUrl, groupId, oauthToken: githubToken });
 
     const current = getActiveAccount();
     if (!current || current.id !== account.id) {

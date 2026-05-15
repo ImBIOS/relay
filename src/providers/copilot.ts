@@ -58,13 +58,19 @@ export class CopilotProvider implements Provider {
    * Uses GET https://api.github.com/copilot_internal/user which returns
    * quota snapshots for premium_interactions, chat, and completions.
    *
-   * This endpoint works with both PAT and OAuth session tokens.
+   * Authentication priority:
+   * 1. oauthToken (gho_...) from OAuth device flow — best for usage queries
+   * 2. apiKey — Copilot session token (tid=...) or GitHub PAT (github_pat_...)
+   *
+   * The Copilot session token only works on api.githubcopilot.com, NOT on
+   * api.github.com. PATs work on both endpoints.
    */
   async getUsage(options?: UsageOptions): Promise<UsageStats> {
     const config = this.getConfig();
     const apiKey = options?.apiKey || config.apiKey;
+    const oauthToken = options?.oauthToken;
 
-    if (!apiKey) {
+    if (!apiKey && !oauthToken) {
       return { used: 0, limit: 0, remaining: 0, percentUsed: 0 };
     }
 
@@ -72,23 +78,29 @@ export class CopilotProvider implements Provider {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-      // Use OAuth token (gho_...) for usage queries if available.
-      // The Copilot session token (tid=...) only works on api.githubcopilot.com.
-      // PATs (github_pat_...) work directly on copilot_internal/user.
-      const usageToken = options?.oauthToken || apiKey;
+      // Try copilot_internal/user with the best available token.
+      // Priority: oauthToken (gho_...) > PAT (github_pat_...) > Copilot session token (tid=...)
+      // Copilot session tokens (tid=...) only work on api.githubcopilot.com, NOT here.
+      const tokensToTry = [oauthToken, apiKey].filter(Boolean) as string[];
 
-      const response = await fetch("https://api.github.com/copilot_internal/user", {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${usageToken}`,
-          Accept: "application/json",
-          "editor-version": "relay-cli/1.0",
-          "Copilot-Integration-Id": "vscode-chat",
-        },
-        signal: controller.signal,
-      });
+      let response: Response | null = null;
+      for (const token of tokensToTry) {
+        response = await fetch("https://api.github.com/copilot_internal/user", {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            Accept: "application/json",
+            "editor-version": "relay-cli/1.0",
+            "Copilot-Integration-Id": "vscode-chat",
+          },
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
+        if (response.ok) break;
+        response = null;
+      }
+
+      if (!response || !response.ok) {
         clearTimeout(timeoutId);
         return { used: 0, limit: 0, remaining: 0, percentUsed: 0 };
       }
