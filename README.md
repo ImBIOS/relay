@@ -1,19 +1,19 @@
-# Relay — Multi-Provider AI API Proxy
+# Relay — Universal AI API Proxy
 
 [![Bun](https://img.shields.io/badge/Bun-1.2.0+-black?logo=bun)](https://bun.sh)
 [![GitHub](https://img.shields.io/badge/GitHub-ImBIOS/relay-blue?logo=github)](https://github.com/ImBIOS/relay)
 
-A CLI for managing and hot-switching AI API providers with a built-in HTTP proxy. Works with **Claude Code**, **ForgeCode**, **OpenCode**, and any tool that speaks the Anthropic or OpenAI API.
+A CLI for managing and hot-switching LLM providers with a built-in HTTP proxy. Works with **any AI coding agent** (Claude Code, ForgeCode, OpenCode, Cline, Aider, Continue, etc.) and **any provider** that speaks the Anthropic or OpenAI API.
 
 ## Supported Providers
 
 | Provider | Protocol | Model Source | Auth |
 |----------|----------|-------------|------|
 | **GitHub Copilot** | OpenAI | Dynamic (`/models`) | OAuth / PAT |
-| **Z.AI (GLM)** | Anthropic | Static (13 models) | API key |
-| **MiniMax** | Anthropic | Static (7 models) | API key |
 | **OpenAI** | OpenAI | Dynamic (`/v1/models`) | API key |
 | **Anthropic** | Anthropic | Dynamic | API key |
+| **Z.AI (GLM)** | Anthropic | Static (13 models) | API key |
+| **MiniMax** | Anthropic | Static (7 models) | API key |
 | **OpenRouter** | OpenAI | Dynamic | API key |
 | **Google AI Studio** | OpenAI | Static (7 models) | API key |
 | **Groq** | OpenAI | Dynamic | API key |
@@ -28,13 +28,15 @@ Adding a new provider only requires an entry in the provider registry — no cod
 
 ## Why Relay?
 
-Claude Code, ForgeCode, and similar AI coding tools cache the model name and base URL at session start. Swapping providers mid-session requires a full restart. With `relay proxy`, you point your tool at a local proxy once and **hot-switch providers at any time** without restarting.
+AI coding agents cache the model name and base URL at session start. Swapping providers mid-session requires a full restart. With `relay proxy`, you point your agent at a local proxy once and **hot-switch providers at any time** without restarting.
 
 Key features:
 
-- **Hot-switch providers** — change between Copilot, Z.AI, MiniMax, OpenAI, or any supported provider without restarting your session
+- **Agent-agnostic** — works with any tool that speaks Anthropic or OpenAI protocol
+- **Provider-agnostic** — transparently routes to 14+ providers with automatic protocol translation
+- **Hot-switch providers** — change between Copilot, OpenAI, Anthropic, Z.AI, or any supported provider without restarting your session
 - **Auto-rotation** — automatically cycle through accounts when quotas are exhausted
-- **Protocol translation** — transparent Anthropic-to-OpenAI translation so tools speaking one protocol can use providers speaking the other
+- **Protocol translation** — transparent Anthropic-to-OpenAI translation so agents speaking one protocol can use providers speaking the other
 - **Usage tracking** — real-time quota monitoring with percentage used and reset timers
 - **Dynamic model discovery** — fetch available models from provider APIs, with user-overridable model lists
 - **Multi-account** — add multiple accounts per provider, switch freely
@@ -84,6 +86,8 @@ bun src/run.ts proxy status
 
 ## Configuration
 
+Relay exposes a local proxy that any AI agent can connect to. Point your agent at `http://127.0.0.1:8787/api/anthropic` with any auth token (e.g. `relay`).
+
 ### Claude Code
 
 `relay init --install-hooks` writes the required environment and installs a SessionStart hook automatically.
@@ -108,6 +112,25 @@ Add to `.forge.toml`:
 api_key = "relay"
 base_url = "http://127.0.0.1:8787/api/anthropic"
 ```
+
+### OpenCode
+
+Add to `opencode.json`:
+
+```json
+{
+  "provider": {
+    "anthropic": {
+      "apiKey": "relay",
+      "baseURL": "http://127.0.0.1:8787/api/anthropic"
+    }
+  }
+}
+```
+
+### Any Agent
+
+Any tool that supports custom Anthropic or OpenAI base URLs can use Relay. Set the base URL to `http://127.0.0.1:8787/api/anthropic` (for Anthropic-protocol agents) or `http://127.0.0.1:8787/api/openai` (for OpenAI-protocol agents) and use any string as the API key.
 
 ## Commands
 
@@ -164,7 +187,8 @@ base_url = "http://127.0.0.1:8787/api/anthropic"
 ## How It Works
 
 ```
-Claude Code / ForgeCode / OpenCode
+Any AI Agent
+(Claude Code, ForgeCode, OpenCode, Cline, Aider, Continue, ...)
         │
         │  POST /api/anthropic/v1/messages
         │  (Authorization: Bearer relay)
@@ -190,7 +214,7 @@ Z.AI  MiniMax    GitHub Copilot
     ...        ...
 ```
 
-**Model routing**: The proxy routes requests based on the active account's provider. For providers that speak Anthropic protocol (Z.AI, MiniMax, Anthropic), requests pass through directly. For OpenAI-protocol providers (Copilot, OpenAI, DeepSeek, Groq, etc.), the proxy translates between Anthropic and OpenAI wire formats transparently.
+**Routing and translation**: The proxy routes requests based on the active account's provider. For providers that speak Anthropic protocol (Z.AI, MiniMax, Anthropic), requests pass through directly. For OpenAI-protocol providers (Copilot, OpenAI, DeepSeek, Groq, etc.), the proxy translates between Anthropic and OpenAI wire formats transparently — so any agent can talk to any provider.
 
 ## Model Management
 

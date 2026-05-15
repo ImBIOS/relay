@@ -1,6 +1,6 @@
 {
   "name": "relay",
-  "description": "Multi-provider AI API proxy — hot-switch between GitHub Copilot, Z.AI, MiniMax, OpenAI, OpenRouter, DeepSeek, Groq, Ollama, and more for Claude Code, ForgeCode & OpenCode",
+  "description": "Universal AI API proxy — hot-switch between any LLM provider (GitHub Copilot, OpenAI, Anthropic, Z.AI, MiniMax, DeepSeek, Groq, Ollama, and more) from any AI coding agent",
   "version": "2.1.0",
   "author": {
     "name": "Imamuzzaki Abu Salam",
@@ -70,7 +70,7 @@
         "description": "Cross-provider auto-rotation"
       },
       "hooks": {
-        "description": "Claude Code / ForgeCode hook management"
+        "description": "AI agent hook management (Claude Code, ForgeCode, etc.)"
       },
       "patch": {
         "description": "Fork patch management — track, re-apply, and sync customizations with upstream"
