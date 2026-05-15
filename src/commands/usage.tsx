@@ -41,7 +41,7 @@ export default class Usage extends BaseCommand<typeof Usage> {
     console.log(`\n  ${active.name} — ${provider.displayName}`);
     console.log(`  ${dim("Loading usage...")}`);
 
-    const stats = await provider.getUsage({ apiKey: active.apiKey, groupId: active.groupId });
+    const stats = await provider.getUsage({ apiKey: active.apiKey, groupId: active.groupId, oauthToken: active.oauthToken });
 
     console.log(`  ${dim("Provider:")} ${active.provider}`);
 

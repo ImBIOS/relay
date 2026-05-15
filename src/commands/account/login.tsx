@@ -69,10 +69,12 @@ export default class AccountLogin extends BaseCommand<typeof AccountLogin> {
       console.log(`  ${ok("OK")} Authorization successful!`);
 
       // Store as account with the Copilot session token
+      // Also store the OAuth token for usage queries (copilot_internal/user needs gho_ token)
       const account = addAccount({
         name,
         provider: "copilot",
         apiKey: result.copilotToken,
+        oauthToken: result.ghoToken,
       });
 
       const current = getActiveAccount();

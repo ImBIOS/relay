@@ -6,6 +6,7 @@ export interface ProviderConfig {
 export interface UsageOptions {
   apiKey?: string;
   groupId?: string; // For MiniMax usage tracking
+  oauthToken?: string; // For GitHub Copilot: gho_ token for usage queries
 }
 
 export interface WeeklyUsageStats {

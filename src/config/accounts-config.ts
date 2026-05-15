@@ -12,6 +12,9 @@ export interface AccountConfig {
   createdAt: string;
   lastUsed?: string;
   groupId?: string; // Required for MiniMax usage tracking
+  // For GitHub Copilot: OAuth token (gho_...) used for usage queries
+  // The apiKey holds the Copilot session token (tid=...) for API calls
+  oauthToken?: string;
   usage?: {
     used: number;
     limit: number;
@@ -105,8 +108,9 @@ export function addAccount(input: {
   apiKey: string;
   baseUrl?: string;
   groupId?: string;
+  oauthToken?: string;
 }): AccountConfig {
-  const { name, provider, apiKey, baseUrl, groupId } = input;
+  const { name, provider, apiKey, baseUrl, groupId, oauthToken } = input;
   const id = generateAccountId();
   const now = new Date().toISOString();
 
@@ -120,6 +124,7 @@ export function addAccount(input: {
     isActive: true,
     createdAt: now,
     ...(groupId && { groupId }),
+    ...(oauthToken && { oauthToken }),
   };
 
   const config = loadConfig();

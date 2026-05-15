@@ -72,10 +72,15 @@ export class CopilotProvider implements Provider {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000);
 
+      // Use OAuth token (gho_...) for usage queries if available.
+      // The Copilot session token (tid=...) only works on api.githubcopilot.com.
+      // PATs (github_pat_...) work directly on copilot_internal/user.
+      const usageToken = options?.oauthToken || apiKey;
+
       const response = await fetch("https://api.github.com/copilot_internal/user", {
         method: "GET",
         headers: {
-          Authorization: `Bearer ${apiKey}`,
+          Authorization: `Bearer ${usageToken}`,
           Accept: "application/json",
           "editor-version": "relay-cli/1.0",
           "Copilot-Integration-Id": "vscode-chat",
