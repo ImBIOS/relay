@@ -45,7 +45,7 @@ Key features:
 
 ```bash
 # Install globally from GitHub
-bun install -g github:ImBIOS/relay
+pnpm install -g github:ImBIOS/relay
 ```
 
 ### Option A: Non-interactive (Docker/CI)
