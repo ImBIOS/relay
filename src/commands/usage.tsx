@@ -152,7 +152,7 @@ export default class Usage extends BaseCommand<typeof Usage> {
       const limit = formatNumber(stats.limit);
 
       console.log(`\n  ${account.name}`);
-      console.log(`  ${providerLabel} — ${account.provider}`);
+      console.log(`  ${providerLabel}`);
       console.log(`  ${used} / ${limit} tokens · ${pct}% used`);
       console.log(`  Resets at ${resetAbsolute} (${resetRelative})`);
 
