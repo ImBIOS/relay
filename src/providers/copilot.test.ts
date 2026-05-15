@@ -1,6 +1,19 @@
 import { describe, expect, it, mock } from "bun:test";
 import { CopilotProvider } from "./copilot";
 
+// Mock fetch for usage tests
+const originalFetch = globalThis.fetch;
+
+function mockFetch(response: unknown, ok = true, status = 200) {
+  const resp = new Response(JSON.stringify(response), { status });
+  Object.defineProperty(resp, "ok", { value: ok });
+  globalThis.fetch = mock(async () => Promise.resolve(resp)) as unknown as typeof fetch;
+}
+
+function restoreFetch() {
+  globalThis.fetch = originalFetch;
+}
+
 describe("CopilotProvider", () => {
   const provider = new CopilotProvider();
 
@@ -41,12 +54,87 @@ describe("CopilotProvider", () => {
     expect(config.baseUrl).toBe("https://api.githubcopilot.com");
   });
 
-  it("should return subscription stub for usage", async () => {
+  it("should return empty usage when no API key", async () => {
+    delete process.env.GITHUB_COPILOT_TOKEN;
     const usage = await provider.getUsage();
     expect(usage.used).toBe(0);
     expect(usage.limit).toBe(0);
     expect(usage.remaining).toBe(0);
     expect(usage.percentUsed).toBe(0);
+  });
+
+  it("should parse copilot_internal/user response correctly", async () => {
+    process.env.GITHUB_COPILOT_TOKEN = "test-token";
+
+    mockFetch({
+      copilot_plan: "individual_pro",
+      quota_reset_date: "2026-02-01",
+      quota_reset_date_utc: "2026-02-01T00:00:00.000Z",
+      quota_snapshots: {
+        chat: { percent_remaining: 100.0, remaining: 0, unlimited: true },
+        completions: { percent_remaining: 100.0, remaining: 0, unlimited: true },
+        premium_interactions: {
+          entitlement: 1500,
+          percent_remaining: 88.5,
+          remaining: 1327,
+          unlimited: false,
+        },
+      },
+    });
+
+    const usage = await provider.getUsage({ apiKey: "test-key" });
+
+    expect(usage.used).toBe(173); // 1500 - 1327
+    expect(usage.limit).toBe(1500);
+    expect(usage.remaining).toBe(1327);
+    expect(usage.percentUsed).toBeCloseTo(11.5, 1); // 100 - 88.5
+    expect(usage.copilotPlan).toBe("individual_pro");
+    expect(usage.copilotChat?.unlimited).toBe(true);
+    expect(usage.copilotChat?.percentRemaining).toBe(100);
+    expect(usage.copilotCompletions?.unlimited).toBe(true);
+    expect(usage.resetsAt).toBe("2026-02-01T00:00:00.000Z");
+
+    restoreFetch();
+    delete process.env.GITHUB_COPILOT_TOKEN;
+  });
+
+  it("should handle missing premium_interactions gracefully", async () => {
+    process.env.GITHUB_COPILOT_TOKEN = "test-token";
+
+    mockFetch({
+      copilot_plan: "individual_pro",
+      quota_reset_date_utc: "2026-02-01T00:00:00.000Z",
+      quota_snapshots: {
+        chat: { percent_remaining: 100.0, unlimited: true },
+      },
+    });
+
+    const usage = await provider.getUsage({ apiKey: "test-key" });
+
+    expect(usage.used).toBe(0);
+    expect(usage.limit).toBe(0);
+    expect(usage.remaining).toBe(0);
+    expect(usage.percentUsed).toBe(0);
+    expect(usage.resetsAt).toBe("2026-02-01T00:00:00.000Z");
+
+    restoreFetch();
+    delete process.env.GITHUB_COPILOT_TOKEN;
+  });
+
+  it("should handle API error gracefully", async () => {
+    process.env.GITHUB_COPILOT_TOKEN = "test-token";
+
+    mockFetch({ message: "Unauthorized" }, false, 401);
+
+    const usage = await provider.getUsage({ apiKey: "test-key" });
+
+    expect(usage.used).toBe(0);
+    expect(usage.limit).toBe(0);
+    expect(usage.remaining).toBe(0);
+    expect(usage.percentUsed).toBe(0);
+
+    restoreFetch();
+    delete process.env.GITHUB_COPILOT_TOKEN;
   });
 
   it("should return false for testConnection with no API key", async () => {

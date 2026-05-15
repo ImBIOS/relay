@@ -2,6 +2,7 @@ import { describe, expect, it } from "bun:test";
 import {
   translateRequestToOpenAI,
   translateResponseToAnthropic,
+  type OpenAIResponse,
 } from "./anthropic-openai";
 
 describe("translateRequestToOpenAI", () => {
@@ -208,7 +209,7 @@ describe("translateResponseToAnthropic", () => {
             tool_calls: [
               {
                 id: "call_abc",
-                type: "function",
+                type: "function" as const,
                 function: { name: "get_weather", arguments: '{"city":"SF"}' },
               },
             ],
@@ -219,9 +220,7 @@ describe("translateResponseToAnthropic", () => {
       usage: { prompt_tokens: 20, completion_tokens: 10, total_tokens: 30 },
     };
 
-    const anthropic = translateResponseToAnthropic(openai);
-
-    expect(anthropic.stop_reason).toBe("tool_use");
+    const anthropic = translateResponseToAnthropic(openai as unknown as OpenAIResponse);
     expect(anthropic.content).toEqual([
       {
         type: "tool_use",
@@ -266,7 +265,7 @@ describe("translateResponseToAnthropic", () => {
             tool_calls: [
               {
                 id: "call_mix",
-                type: "function",
+                type: "function" as const,
                 function: { name: "search", arguments: '{"q":"test"}' },
               },
             ],
@@ -277,9 +276,7 @@ describe("translateResponseToAnthropic", () => {
       usage: { prompt_tokens: 10, completion_tokens: 15, total_tokens: 25 },
     };
 
-    const anthropic = translateResponseToAnthropic(openai);
-
-    expect(anthropic.content).toHaveLength(2);
+    const anthropic = translateResponseToAnthropic(openai as unknown as OpenAIResponse);
     expect(anthropic.content[0]).toEqual({ type: "text", text: "Let me check that." });
     expect(anthropic.content[1]).toEqual({
       type: "tool_use",

@@ -30,6 +30,10 @@ export interface UsageStats {
   resetsAt?: string; // ISO 8601 timestamp of when the quota resets
   // Weekly limits (if available)
   weeklyUsage?: WeeklyUsageStats;
+  // For GitHub Copilot: plan and per-category quota info
+  copilotPlan?: string;
+  copilotChat?: { percentRemaining: number; unlimited: boolean };
+  copilotCompletions?: { percentRemaining: number; unlimited: boolean };
 }
 
 export interface Provider {

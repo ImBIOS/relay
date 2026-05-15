@@ -7,6 +7,9 @@ import { copilotProvider } from "../providers/copilot";
 import { formatNumber, formatResetsAt, formatResetAtAbsolute } from "../utils/format";
 import { dim, warn } from "../utils/console";
 
+const PROVIDERS = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
+const PROVIDER_LABELS: Record<string, string> = { zai: "Z.AI", minimax: "MiniMax", copilot: "GitHub Copilot" };
+
 export default class Usage extends BaseCommand<typeof Usage> {
   static description = "Show usage for the active account";
   static flags = {
@@ -30,7 +33,6 @@ export default class Usage extends BaseCommand<typeof Usage> {
       this.exit(1);
     }
 
-    const PROVIDERS = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
     const provider = PROVIDERS[active.provider];
     if (!provider) {
       console.error(`Unknown provider: ${active.provider}`);
@@ -42,34 +44,60 @@ export default class Usage extends BaseCommand<typeof Usage> {
     const stats = await provider.getUsage({ apiKey: active.apiKey, groupId: active.groupId });
 
     console.log(`  ${dim("Provider:")} ${active.provider}`);
-    console.log(`  ${dim("Used:")} ${formatNumber(stats.used)}`);
-    console.log(`  ${dim("Limit:")} ${formatNumber(stats.limit)}`);
-    console.log(`  ${dim("Remaining:")} ${formatNumber(stats.remaining)}`);
-    if (stats.percentUsed !== undefined) {
-      console.log(`  ${dim("Usage:")} ${stats.percentUsed.toFixed(1)}%`);
-    }
-    if (stats.resetsAt) {
-      const absolute = formatResetAtAbsolute(stats.resetsAt);
-      const relative = formatResetsAt(stats.resetsAt);
-      console.log(`  ${dim("Resets At:")} ${absolute} (${relative})`);
-    }
-    if (stats.weeklyUsage) {
-      const weeklyPct = stats.weeklyUsage.percentUsed?.toFixed(1) ?? "0.0";
-      const weeklyUsed = formatNumber(stats.weeklyUsage.used);
-      const weeklyLimit = formatNumber(stats.weeklyUsage.limit);
-      const weeklyReset = stats.weeklyUsage.resetsAt
-        ? `${formatResetAtAbsolute(stats.weeklyUsage.resetsAt)} (${formatResetsAt(stats.weeklyUsage.resetsAt)})`
-        : "N/A";
-      console.log(`  ${dim("Weekly:")} ${weeklyUsed} / ${weeklyLimit} · ${weeklyPct}% · resets ${weeklyReset}`);
-    }
-
-    if (active.groupId) console.log(`  ${dim("GroupId:")} ${active.groupId}`);
 
     if (active.provider === "copilot") {
-      console.log(`  ${dim("Usage:")} Subscription-based (no quota endpoint)`);
-    } else if (!stats.remaining && !stats.limit) {
-      console.log("");
-      console.log(warn("  No usage data available. Check your API key."));
+      // Copilot-specific display
+      if (stats.copilotPlan) {
+        console.log(`  ${dim("Plan:")} ${stats.copilotPlan}`);
+      }
+      if (stats.limit > 0) {
+        console.log(`  ${dim("Premium Interactions:")} ${formatNumber(stats.used)} / ${formatNumber(stats.limit)}`);
+        console.log(`  ${dim("Remaining:")} ${formatNumber(stats.remaining)} (${stats.percentUsed.toFixed(1)}% used)`);
+      } else {
+        console.log(`  ${dim("Premium Interactions:")} Unlimited`);
+      }
+      if (stats.copilotChat) {
+        const chatStatus = stats.copilotChat.unlimited ? "unlimited" : `${stats.copilotChat.percentRemaining.toFixed(1)}% remaining`;
+        console.log(`  ${dim("Chat:")} ${chatStatus}`);
+      }
+      if (stats.copilotCompletions) {
+        const compStatus = stats.copilotCompletions.unlimited ? "unlimited" : `${stats.copilotCompletions.percentRemaining.toFixed(1)}% remaining`;
+        console.log(`  ${dim("Completions:")} ${compStatus}`);
+      }
+      if (stats.resetsAt) {
+        const absolute = formatResetAtAbsolute(stats.resetsAt);
+        const relative = formatResetsAt(stats.resetsAt);
+        console.log(`  ${dim("Resets At:")} ${absolute} (${relative})`);
+      }
+    } else {
+      // ZAI / MiniMax display
+      console.log(`  ${dim("Used:")} ${formatNumber(stats.used)}`);
+      console.log(`  ${dim("Limit:")} ${formatNumber(stats.limit)}`);
+      console.log(`  ${dim("Remaining:")} ${formatNumber(stats.remaining)}`);
+      if (stats.percentUsed !== undefined) {
+        console.log(`  ${dim("Usage:")} ${stats.percentUsed.toFixed(1)}%`);
+      }
+      if (stats.resetsAt) {
+        const absolute = formatResetAtAbsolute(stats.resetsAt);
+        const relative = formatResetsAt(stats.resetsAt);
+        console.log(`  ${dim("Resets At:")} ${absolute} (${relative})`);
+      }
+      if (stats.weeklyUsage) {
+        const weeklyPct = stats.weeklyUsage.percentUsed?.toFixed(1) ?? "0.0";
+        const weeklyUsed = formatNumber(stats.weeklyUsage.used);
+        const weeklyLimit = formatNumber(stats.weeklyUsage.limit);
+        const weeklyReset = stats.weeklyUsage.resetsAt
+          ? `${formatResetAtAbsolute(stats.weeklyUsage.resetsAt)} (${formatResetsAt(stats.weeklyUsage.resetsAt)})`
+          : "N/A";
+        console.log(`  ${dim("Weekly:")} ${weeklyUsed} / ${weeklyLimit} · ${weeklyPct}% · resets ${weeklyReset}`);
+      }
+
+      if (active.groupId) console.log(`  ${dim("GroupId:")} ${active.groupId}`);
+
+      if (!stats.remaining && !stats.limit) {
+        console.log("");
+        console.log(warn("  No usage data available. Check your API key."));
+      }
     }
 
     if (flags.json) {
@@ -89,15 +117,30 @@ export default class Usage extends BaseCommand<typeof Usage> {
     console.log("\n  Usage for All Accounts");
     console.log("  " + "─".repeat(50));
 
-    const PROVIDERS = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
-
     for (const account of accounts) {
       const provider = PROVIDERS[account.provider];
       if (!provider) continue;
 
+      const providerLabel = PROVIDER_LABELS[account.provider] ?? account.provider;
+
       if (account.provider === "copilot") {
+        const stats = await provider.getUsage({ apiKey: account.apiKey });
         console.log(`\n  ${account.name}`);
-        console.log(`  GitHub Copilot — subscription-based`);
+        console.log(`  ${providerLabel}`);
+        if (stats.copilotPlan) {
+          console.log(`  Plan: ${stats.copilotPlan}`);
+        }
+        if (stats.limit > 0) {
+          const pct = stats.percentUsed.toFixed(1);
+          console.log(`  Premium: ${formatNumber(stats.used)} / ${formatNumber(stats.limit)} · ${pct}% used`);
+        } else {
+          console.log(`  Premium: Unlimited`);
+        }
+        if (stats.resetsAt) {
+          const absolute = formatResetAtAbsolute(stats.resetsAt);
+          const relative = formatResetsAt(stats.resetsAt);
+          console.log(`  Resets at ${absolute} (${relative})`);
+        }
         continue;
       }
 
@@ -109,8 +152,6 @@ export default class Usage extends BaseCommand<typeof Usage> {
       const limit = formatNumber(stats.limit);
 
       console.log(`\n  ${account.name}`);
-      const PROVIDER_LABELS: Record<string, string> = { zai: "Z.AI", minimax: "MiniMax", copilot: "GitHub Copilot" };
-      const providerLabel = PROVIDER_LABELS[account.provider] ?? account.provider;
       console.log(`  ${providerLabel} — ${account.provider}`);
       console.log(`  ${used} / ${limit} tokens · ${pct}% used`);
       console.log(`  Resets at ${resetAbsolute} (${resetRelative})`);

@@ -172,7 +172,7 @@ export function translateRequestToOpenAI(anthropic: AnthropicRequest): OpenAIReq
 
 // ── OpenAI → Anthropic response translation ───────────────────────────────
 
-interface OpenAIResponseChoice {
+export interface OpenAIResponseChoice {
   index: number;
   message?: {
     role: string;
@@ -186,7 +186,7 @@ interface OpenAIResponseChoice {
   finish_reason?: string;
 }
 
-interface OpenAIResponse {
+export interface OpenAIResponse {
   id: string;
   object: string;
   model: string;
