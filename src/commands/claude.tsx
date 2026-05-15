@@ -68,7 +68,7 @@ export default class Claude extends BaseCommand<typeof Claude> {
 
         // Only rotate if both providers are configured
         if (zaiConfig.apiKey && minimaxConfig.apiKey) {
-          const newProvider: "zai" | "minimax" = currentProvider === "zai" ? "minimax" : "zai";
+          const newProvider: "zai" | "minimax" | "copilot" = currentProvider === "zai" ? "minimax" : "zai";
           settings.setActiveProvider(newProvider);
           this.log(`[auto-switch] ${currentProvider} → ${newProvider}`);
         }

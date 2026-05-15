@@ -8,7 +8,7 @@ import {
 import * as settings from "../../config/settings";
 import { BaseCommand } from "../../oclif/base";
 import { isCancel, select, text } from "@clack/prompts";
-import { divider, label, ok, success } from "../../utils/console";
+import { divider, label, ok, success, dim } from "../../utils/console";
 import { isValidEmail } from "../../utils/validate";
 
 export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
@@ -19,7 +19,7 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
   ];
   static flags = {
     name: Flags.string({ description: "Account name (email address)" }),
-    provider: Flags.string({ description: "Provider (zai or minimax)" }),
+    provider: Flags.string({ description: "Provider (zai, minimax, or copilot)" }),
     key: Flags.string({ description: "API key" }),
     "group-id": Flags.string({ description: "Group ID (MiniMax only)" }),
   };
@@ -103,10 +103,19 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
           groupId = raw.trim();
         }
       }
+
+      // Copilot: show PAT instructions
+      if (provider === "copilot") {
+        console.log("");
+        console.log(dim("  GitHub Copilot requires a fine-grained Personal Access Token"));
+        console.log(dim("  with the 'Copilot Requests' permission enabled."));
+        console.log(dim("  Create one at: https://github.com/settings/tokens?type=beta"));
+        console.log("");
+      }
     }
 
     // ── Persist ─────────────────────────────────────────────────────────────
-    const account = addAccount({ name, provider: provider as "zai" | "minimax", apiKey, baseUrl, groupId });
+    const account = addAccount({ name, provider: provider as "zai" | "minimax" | "copilot", apiKey, baseUrl, groupId });
 
     const current = getActiveAccount();
     if (!current || current.id !== account.id) {
@@ -114,7 +123,7 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
     }
 
     // Mirror to legacy settings so non-oclif tools still work
-    settings.setProviderConfig(provider as "zai" | "minimax", { apiKey, baseUrl: baseUrl ?? "" });
+    settings.setProviderConfig(provider as "zai" | "minimax" | "copilot", { apiKey, baseUrl: baseUrl ?? "" });
 
     console.log("");
     console.log(ok("Account added!"));
@@ -122,7 +131,7 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
     console.log(label("ID") + `  ${account.id}`);
     console.log(label("Name") + `  ${name}`);
     console.log(label("Provider") + `  ${provider}`);
-    console.log(label("Base URL") + `  ${account.baseUrl ?? getDefaultBaseUrl(provider as "zai" | "minimax")}`);
+    console.log(label("Base URL") + `  ${account.baseUrl ?? getDefaultBaseUrl(provider as "zai" | "minimax" | "copilot")}`);
     if (groupId) console.log(label("Group ID") + `  ${groupId}`);
     console.log("");
     console.log(success("Active account set to this account."));

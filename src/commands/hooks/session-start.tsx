@@ -32,11 +32,14 @@ export default class SessionStart extends BaseCommand<typeof SessionStart> {
         provider: account.provider,
         zai: { apiKey: account.apiKey, baseUrl: account.baseUrl ?? "", models: ["claude-3-5-sonnet-4-20250514"] },
         minimax: { apiKey: account.apiKey, baseUrl: account.baseUrl ?? "", models: ["glm-4-flash"] },
+        copilot: { apiKey: account.apiKey, baseUrl: account.baseUrl ?? "", models: [] },
       });
 
       const provider = account.provider === "zai"
         ? (await import("../../providers/zai")).zaiProvider
-        : (await import("../../providers/minimax")).minimaxProvider;
+        : account.provider === "copilot"
+          ? (await import("../../providers/copilot")).copilotProvider
+          : (await import("../../providers/minimax")).minimaxProvider;
 
       log("..." + provider.displayName + " usage...");
       try {

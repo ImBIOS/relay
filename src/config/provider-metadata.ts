@@ -19,8 +19,14 @@ export const PROVIDER_METADATA: Record<RelayProvider, ProviderMetadata> = {
     cliLabel: "MiniMax (minimax)",
     defaultBaseUrl: "https://api.minimax.io/anthropic",
   },
+  // Copilot uses OpenAI format, tested via /models endpoint
+  // Anthropic connection test is not applicable
+  copilot: {
+    displayName: "GitHub Copilot",
+    cliLabel: "GitHub Copilot (copilot)",
+    defaultBaseUrl: "https://api.githubcopilot.com",
+  },
 };
-
 export function isRelayProvider(value: string): value is RelayProvider {
   return value in PROVIDER_METADATA;
 }

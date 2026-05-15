@@ -2,7 +2,11 @@
  * Relay Proxy Server
  *
  * An HTTP proxy that intercepts Anthropic API requests and forwards them
- * to the configured provider (Z.AI, MiniMax, etc.) with the real API key.
+ * to the configured provider (Z.AI, MiniMax, GitHub Copilot, etc.) with the real API key.
+ *
+ * For Z.AI and MiniMax: requests are forwarded as-is (Anthropic wire format).
+ * For GitHub Copilot: requests are translated from Anthropic to OpenAI Chat Completions
+ * format, and responses are translated back.
  *
  * Claude Code settings:
  *   ANTHROPIC_BASE_URL=http://127.0.0.1:8787/api/anthropic
@@ -13,6 +17,11 @@ import { appendFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { getActiveAccount, listAccounts } from "../config/accounts-config.js";
+import {
+  translateRequestToOpenAI,
+  translateResponseToAnthropic,
+  translateStreamToAnthropic,
+} from "./translators/anthropic-openai.js";
 
 const PORT = Number(process.env.RELAY_PROXY_PORT || "8787");
 const HOST = process.env["RELAY_HOST"] ?? "0.0.0.0";
@@ -21,6 +30,13 @@ const PROXY_BASE_PATH = "/api/anthropic";
 const CONFIG_DIR = join(homedir(), ".claude");
 const LOG_FILE = join(CONFIG_DIR, "relay-proxy.log");
 const PID_FILE = join(CONFIG_DIR, "relay-proxy.pid");
+
+// Copilot-specific headers required by GitHub's API
+const COPILOT_HEADERS: Record<string, string> = {
+  "editor-version": "relay-cli/1.0",
+  "editor-plugin-version": "relay/1.0",
+  "Copilot-Integration-Id": "vscode-chat",
+};
 
 // Write PID file so the stop command can kill us
 try {
@@ -39,6 +55,118 @@ function getProviderForModel(model: string): string | null {
   if (lower.startsWith("glm") || lower.startsWith("chatglm")) return "zai";
   if (lower.startsWith("minimax") || lower.startsWith("abab")) return "minimax";
   return null;
+}
+
+/**
+ * Handle Copilot requests: translate Anthropic → OpenAI, call Copilot API, translate back.
+ */
+async function handleCopilotRequest(
+  req: Request,
+  bodyText: string,
+  model: string,
+  account: NonNullable<ReturnType<typeof getActiveAccount>>,
+  url: URL,
+  start: number,
+): Promise<Response> {
+  const parsed = JSON.parse(bodyText) as Record<string, unknown>;
+  const isStream = parsed.stream === true;
+
+  // Translate Anthropic request → OpenAI request
+  const openaiBody = translateRequestToOpenAI(parsed as unknown as Parameters<typeof translateRequestToOpenAI>[0]);
+
+  // Build Copilot target URL: /chat/completions
+  const copilotBaseUrl = account.baseUrl.replace(/\/$/, "");
+  const targetUrl = `${copilotBaseUrl}/chat/completions`;
+
+  // Build headers with Copilot-specific additions
+  const headers = new Headers();
+  headers.set("Authorization", `Bearer ${account.apiKey}`);
+  headers.set("Content-Type", "application/json");
+  for (const [key, value] of Object.entries(COPILOT_HEADERS)) {
+    headers.set(key, value);
+  }
+
+  let upstreamRes: Response;
+  try {
+    upstreamRes = await fetch(targetUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(openaiBody),
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    log({ ts: new Date().toISOString(), error: "copilot_fetch_failed", msg, targetUrl, model });
+    return Response.json({ error: `Copilot unreachable: ${msg}` }, { status: 502 });
+  }
+
+  const latency = Date.now() - start;
+  log({
+    ts: new Date().toISOString(),
+    method: req.method,
+    path: url.pathname,
+    model,
+    provider: "copilot",
+    account: account.name,
+    status: upstreamRes.status,
+    latency_ms: latency,
+    target: targetUrl,
+    translated: true,
+  });
+
+  if (!upstreamRes.ok) {
+    // Forward error as-is but wrap in Anthropic error format
+    const errorBody = await upstreamRes.text();
+    return Response.json(
+      {
+        type: "error",
+        error: {
+          type: "api_error",
+          message: `Copilot API error (${upstreamRes.status}): ${errorBody}`,
+        },
+      },
+      { status: upstreamRes.status },
+    );
+  }
+
+  if (isStream) {
+    // Streaming: translate SSE events from OpenAI → Anthropic format
+    const anthropicStream = translateStreamToAnthropic(
+      upstreamRes.body as ReadableStream<Uint8Array>,
+      openaiBody.model,
+    );
+
+    const readable = new ReadableStream({
+      async start(controller) {
+        try {
+          for await (const chunk of anthropicStream) {
+            controller.enqueue(new TextEncoder().encode(chunk));
+          }
+          controller.close();
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          log({ ts: new Date().toISOString(), error: "copilot_stream_error", msg });
+          controller.error(err);
+        }
+      },
+    });
+
+    return new Response(readable, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  } else {
+    // Non-streaming: translate response body
+    const openaiResponse = (await upstreamRes.json()) as Record<string, unknown>;
+    const anthropicResponse = translateResponseToAnthropic(
+      openaiResponse as unknown as Parameters<typeof translateResponseToAnthropic>[0],
+    );
+
+    return Response.json(anthropicResponse, { status: 200 });
+  }
 }
 
 async function handleRequest(req: Request): Promise<Response> {
@@ -87,7 +215,12 @@ async function handleRequest(req: Request): Promise<Response> {
     );
   }
 
-  // Build target URL: strip /api/anthropic prefix, forward remainder to provider base URL
+  // ── Copilot: protocol translation required ──────────────────────────────
+  if (account.provider === "copilot" && bodyText) {
+    return handleCopilotRequest(req, bodyText, model, account, url, start);
+  }
+
+  // ── ZAI / MiniMax: direct Anthropic wire format passthrough ─────────────
   const remaining = url.pathname.startsWith(PROXY_BASE_PATH)
     ? url.pathname.slice(PROXY_BASE_PATH.length)
     : url.pathname;

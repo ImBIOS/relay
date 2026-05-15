@@ -20,6 +20,7 @@ export default class Account extends BaseCommand<typeof Account> {
     console.log(`  ${item("edit <id>")}  Edit an existing account`);
     console.log(`  ${item("switch <id>")} Switch to an account`);
     console.log(`  ${item("remove <id>")} Remove an account`);
+    console.log(`  ${item("login copilot")} Login to GitHub Copilot`);
     console.log(`  ${item("migrate-names")} Migrate existing names to email format`);
     console.log("");
     console.log(subheading("Edit flags:"));

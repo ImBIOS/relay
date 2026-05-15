@@ -133,7 +133,7 @@ export default class OpenCode extends BaseCommand<typeof OpenCode> {
 
         // Only rotate if both providers are configured
         if (zaiConfig.apiKey && minimaxConfig.apiKey) {
-          const newProvider: "zai" | "minimax" = currentProvider === "zai" ? "minimax" : "zai";
+          const newProvider: "zai" | "minimax" | "copilot" = currentProvider === "zai" ? "minimax" : "zai";
           settings.setActiveProvider(newProvider);
           this.log(`[auto-switch] ${currentProvider} → ${newProvider}`);
         }

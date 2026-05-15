@@ -3,6 +3,7 @@ import { Flags } from "@oclif/core";
 import { loadConfig } from "../config/accounts-config";
 import { zaiProvider } from "../providers/zai";
 import { minimaxProvider } from "../providers/minimax";
+import { copilotProvider } from "../providers/copilot";
 import { formatNumber, formatResetsAt, formatResetAtAbsolute } from "../utils/format";
 import { dim, warn } from "../utils/console";
 
@@ -29,7 +30,12 @@ export default class Usage extends BaseCommand<typeof Usage> {
       this.exit(1);
     }
 
-    const provider = active.provider === "zai" ? zaiProvider : minimaxProvider;
+    const PROVIDERS = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
+    const provider = PROVIDERS[active.provider];
+    if (!provider) {
+      console.error(`Unknown provider: ${active.provider}`);
+      this.exit(1);
+    }
     console.log(`\n  ${active.name} — ${provider.displayName}`);
     console.log(`  ${dim("Loading usage...")}`);
 
@@ -59,7 +65,9 @@ export default class Usage extends BaseCommand<typeof Usage> {
 
     if (active.groupId) console.log(`  ${dim("GroupId:")} ${active.groupId}`);
 
-    if (!stats.remaining && !stats.limit) {
+    if (active.provider === "copilot") {
+      console.log(`  ${dim("Usage:")} Subscription-based (no quota endpoint)`);
+    } else if (!stats.remaining && !stats.limit) {
       console.log("");
       console.log(warn("  No usage data available. Check your API key."));
     }
@@ -81,11 +89,17 @@ export default class Usage extends BaseCommand<typeof Usage> {
     console.log("\n  Usage for All Accounts");
     console.log("  " + "─".repeat(50));
 
-    const PROVIDERS = { zai: zaiProvider, minimax: minimaxProvider };
+    const PROVIDERS = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
 
     for (const account of accounts) {
       const provider = PROVIDERS[account.provider];
       if (!provider) continue;
+
+      if (account.provider === "copilot") {
+        console.log(`\n  ${account.name}`);
+        console.log(`  GitHub Copilot — subscription-based`);
+        continue;
+      }
 
       const stats = await provider.getUsage({ apiKey: account.apiKey, groupId: account.groupId });
       const resetAbsolute = formatResetAtAbsolute(stats.resetsAt ?? undefined);
@@ -95,7 +109,9 @@ export default class Usage extends BaseCommand<typeof Usage> {
       const limit = formatNumber(stats.limit);
 
       console.log(`\n  ${account.name}`);
-      console.log(`  ${account.provider === "zai" ? "Z.AI" : "MiniMax"} — ${account.provider}`);
+      const PROVIDER_LABELS: Record<string, string> = { zai: "Z.AI", minimax: "MiniMax", copilot: "GitHub Copilot" };
+      const providerLabel = PROVIDER_LABELS[account.provider] ?? account.provider;
+      console.log(`  ${providerLabel} — ${account.provider}`);
       console.log(`  ${used} / ${limit} tokens · ${pct}% used`);
       console.log(`  Resets at ${resetAbsolute} (${resetRelative})`);
 

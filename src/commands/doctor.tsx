@@ -3,6 +3,7 @@ import { BaseCommand } from "../oclif/base";
 import { loadConfig } from "../config/accounts-config";
 import { zaiProvider } from "../providers/zai";
 import { minimaxProvider } from "../providers/minimax";
+import { copilotProvider } from "../providers/copilot";
 import { error, info, ok, warn } from "../utils/console";
 
 export default class Doctor extends BaseCommand<typeof Doctor> {
@@ -42,12 +43,17 @@ export default class Doctor extends BaseCommand<typeof Doctor> {
       console.log(`  Account: ${account.name}`);
       console.log(`  ${ok("OK")} Provider: ${account.provider}`);
 
-      const provider = account.provider === "zai" ? zaiProvider : minimaxProvider;
-      const base = account.baseUrl ?? provider.defaultBaseUrl;
+      const PROVIDERS = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
+      const provider = PROVIDERS[account.provider];
+      const base = account.baseUrl ?? (provider ? (provider as { defaultBaseUrl?: string }).defaultBaseUrl : "");
       console.log(`  ${ok("OK")} Base URL: ${base}`);
 
       if (account.provider === "minimax" && !account.groupId) {
         console.log(`  ${warn("WARN")} No groupId — usage tracking disabled.`);
+      }
+
+      if (account.provider === "copilot") {
+        console.log(`  ${ok("OK")} Auth: GitHub Copilot (PAT or session token)`);
       }
 
       try {

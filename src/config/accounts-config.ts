@@ -4,7 +4,7 @@ import { getDefaultBaseUrl } from "./provider-metadata";
 export interface AccountConfig {
   id: string;
   name: string;
-  provider: "zai" | "minimax";
+  provider: "zai" | "minimax" | "copilot";
   apiKey: string;
   baseUrl: string;
   priority: number;
@@ -101,7 +101,7 @@ export function generateAccountId(): string {
 
 export function addAccount(input: {
   name: string;
-  provider: "zai" | "minimax";
+  provider: "zai" | "minimax" | "copilot";
   apiKey: string;
   baseUrl?: string;
   groupId?: string;
@@ -189,7 +189,7 @@ export function listAccounts(): AccountConfig[] {
   return Object.values(config.accounts).sort((a, b) => a.priority - b.priority);
 }
 
-export function rotateApiKey(provider: "zai" | "minimax"): AccountConfig | null {
+export function rotateApiKey(provider: "zai" | "minimax" | "copilot"): AccountConfig | null {
   const config = loadConfig();
   const providerAccounts = Object.values(config.accounts)
     .filter((a) => a.provider === provider && a.isActive)
@@ -260,8 +260,10 @@ async function fetchAndUpdateUsage(account: AccountConfig): Promise<number> {
     // Dynamically import providers to avoid circular dependencies
     const { zaiProvider } = await import("../providers/zai.js");
     const { minimaxProvider } = await import("../providers/minimax.js");
+    const { copilotProvider } = await import("../providers/copilot.js");
 
-    const provider = account.provider === "zai" ? zaiProvider : minimaxProvider;
+    const PROVIDERS = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
+    const provider = PROVIDERS[account.provider];
 
     // Pass account-specific options to getUsage
     const usage = await provider.getUsage({

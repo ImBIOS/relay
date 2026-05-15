@@ -68,19 +68,21 @@ export function saveOpenCodeConfig(config: OpenCodeConfig): void {
 /**
  * Map relay provider name to OpenCode provider name
  */
-function getOpenCodeProviderName(provider: "zai" | "minimax"): string {
+function getOpenCodeProviderName(provider: "zai" | "minimax" | "copilot"): string {
   return provider;
 }
 
 /**
  * Get the model name for OpenCode based on provider
  */
-function getOpenCodeModelName(provider: "zai" | "minimax"): string {
+function getOpenCodeModelName(provider: "zai" | "minimax" | "copilot"): string {
   switch (provider) {
     case "zai":
       return "claude-sonnet-4-5";
     case "minimax":
       return "MiniMax-M2.5";
+    case "copilot":
+      return "gpt-4o";
   }
 }
 

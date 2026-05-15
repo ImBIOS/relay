@@ -5,12 +5,12 @@ export interface IsolatedSession {
   sessionId: string;
   basePath: string;
   providerPath: string;
-  provider: "zai" | "minimax";
+  provider: "zai" | "minimax" | "copilot";
   claudeDir: string;
 }
 
 export function createIsolatedSession(
-  provider: "zai" | "minimax",
+  provider: "zai" | "minimax" | "copilot",
   sessionId?: string,
 ): IsolatedSession {
   const id = sessionId || `compare_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -30,7 +30,7 @@ export function createIsolatedSession(
   };
 }
 
-export function generateClaudeMd(provider: "zai" | "minimax", customInstructions?: string): string {
+export function generateClaudeMd(provider: "zai" | "minimax" | "copilot", customInstructions?: string): string {
   const providerInstructions = {
     zai: `# Z.AI Provider Instructions
 
@@ -64,6 +64,22 @@ When writing code, prefer TypeScript and follow these patterns:
 - Use optional chaining (?.) and nullish coalescing (??)
 
 For MCP tools, use the MiniMax-specific servers when available.
+`,
+    copilot: `# GitHub Copilot Provider Instructions
+
+You are using the GitHub Copilot provider. Your API base URL is configured to use Copilot models.
+
+Available models:
+- gpt-4o (default)
+- claude-3.5-sonnet
+- o1
+- gemini-2.5-pro
+
+When writing code, prefer TypeScript and follow these patterns:
+- Use modern async/await syntax
+- Use arrow functions for callbacks
+- Prefer const over let
+- Use optional chaining (?.) and nullish coalescing (??)
 `,
   };
 
@@ -177,7 +193,7 @@ export interface CompareSessionRecord {
   prompt: string;
   zaiResult?: ClaudeResult;
   minimaxResult?: ClaudeResult;
-  winner?: "zai" | "minimax" | "tie";
+  winner?: "zai" | "minimax" | "copilot" | "tie";
 }
 
 export function saveCompareSession(record: CompareSessionRecord): void {
@@ -226,7 +242,7 @@ export function getCompareSession(id: string): CompareSessionRecord | undefined 
 }
 
 export interface ClaudeResult {
-  provider: "zai" | "minimax";
+  provider: "zai" | "minimax" | "copilot";
   output: string;
   tokens?: number;
   timeMs: number;

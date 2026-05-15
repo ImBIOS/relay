@@ -9,7 +9,7 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 // ── Legacy config interface (matches the old v1 config format) ────────────────
 interface LegacyConfig {
   version?: string;
-  provider?: "zai" | "minimax";
+  provider?: "zai" | "minimax" | "copilot";
   activeModelProviderId?: string;
   activeMcpProviderId?: string;
   zai?: {
@@ -22,6 +22,11 @@ interface LegacyConfig {
     baseUrl?: string;
     models?: string[];
     groupId?: string;
+  };
+  copilot?: {
+    apiKey?: string;
+    baseUrl?: string;
+    models?: string[];
   };
   history?: Array<{
     timestamp: string;
@@ -54,7 +59,7 @@ export function saveSettings(settings: LegacyConfig): LegacyConfig {
 }
 
 // ── Provider config helpers (used by legacy SDK) ────────────────────────────
-export function getProviderConfig(provider: "zai" | "minimax"): Record<string, string> {
+export function getProviderConfig(provider: "zai" | "minimax" | "copilot"): Record<string, string> {
   const config = loadSettings();
   const providerConfig = config[provider];
   if (!providerConfig) return {};
@@ -65,7 +70,7 @@ export function getProviderConfig(provider: "zai" | "minimax"): Record<string, s
 }
 
 export function setProviderConfig(
-  provider: "zai" | "minimax",
+  provider: "zai" | "minimax" | "copilot",
   data: { apiKey: string; baseUrl: string; models?: string[] },
 ): LegacyConfig {
   const settings = loadSettings();
@@ -73,11 +78,11 @@ export function setProviderConfig(
   return saveSettings(updated);
 }
 
-export function getActiveProvider(): "zai" | "minimax" {
+export function getActiveProvider(): "zai" | "minimax" | "copilot" {
   return loadSettings().provider ?? "zai";
 }
 
-export function setActiveProvider(provider: "zai" | "minimax"): LegacyConfig {
+export function setActiveProvider(provider: "zai" | "minimax" | "copilot"): LegacyConfig {
   const settings = loadSettings();
   return saveSettings({ ...settings, provider });
 }
