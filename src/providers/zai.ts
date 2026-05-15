@@ -56,6 +56,8 @@ export class ZAIProvider implements Provider {
         data?: {
           limits?: Array<{
             type: string;
+            unit?: number;
+            number?: number;
             usage: number;
             currentValue: number;
             remaining: number;
@@ -128,7 +130,7 @@ export class ZAIProvider implements Provider {
       const combinedPercent = Math.max(modelUsage.percentUsed, mcpUsage.percentUsed);
 
       // Extract reset time from token limit (they share the same 5-hour window)
-      const resetsAt = tokenLimits[0]?.nextResetTime
+      const resetsAt = tokenLimits?.[0]?.nextResetTime
         ? new Date(tokenLimits[0].nextResetTime).toISOString()
         : undefined;
 

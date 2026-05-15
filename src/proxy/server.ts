@@ -18,6 +18,11 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { getActiveAccount, listAccounts } from "../config/accounts-config.js";
 import {
+  getProviderProtocol,
+  getProviderCustomHeaders,
+  type WireProtocol,
+} from "../config/provider-registry.js";
+import {
   translateRequestToOpenAI,
   translateResponseToAnthropic,
   translateStreamToAnthropic,
@@ -31,12 +36,8 @@ const CONFIG_DIR = join(homedir(), ".claude");
 const LOG_FILE = join(CONFIG_DIR, "relay-proxy.log");
 const PID_FILE = join(CONFIG_DIR, "relay-proxy.pid");
 
-// Copilot-specific headers required by GitHub's API
-const COPILOT_HEADERS: Record<string, string> = {
-  "editor-version": "relay-cli/1.0",
-  "editor-plugin-version": "relay/1.0",
-  "Copilot-Integration-Id": "vscode-chat",
-};
+// Provider-specific headers are now loaded from the provider registry
+// via getProviderCustomHeaders()
 
 // Write PID file so the stop command can kill us
 try {
@@ -58,9 +59,10 @@ function getProviderForModel(model: string): string | null {
 }
 
 /**
- * Handle Copilot requests: translate Anthropic → OpenAI, call Copilot API, translate back.
+ * Handle OpenAI-protocol requests: translate Anthropic → OpenAI, call API, translate back.
+ * Used for providers that speak OpenAI Chat Completions format (copilot, openai, openrouter, etc.)
  */
-async function handleCopilotRequest(
+async function handleOpenAIProtocolRequest(
   req: Request,
   bodyText: string,
   model: string,
@@ -74,15 +76,15 @@ async function handleCopilotRequest(
   // Translate Anthropic request → OpenAI request
   const openaiBody = translateRequestToOpenAI(parsed as unknown as Parameters<typeof translateRequestToOpenAI>[0]);
 
-  // Build Copilot target URL: /chat/completions
-  const copilotBaseUrl = account.baseUrl.replace(/\/$/, "");
-  const targetUrl = `${copilotBaseUrl}/chat/completions`;
+  // Build target URL: /chat/completions
+  const baseUrl = account.baseUrl.replace(/\/$/, "");
+  const targetUrl = `${baseUrl}/chat/completions`;
 
-  // Build headers with Copilot-specific additions
+  // Build headers with provider-specific additions from registry
   const headers = new Headers();
   headers.set("Authorization", `Bearer ${account.apiKey}`);
   headers.set("Content-Type", "application/json");
-  for (const [key, value] of Object.entries(COPILOT_HEADERS)) {
+  for (const [key, value] of Object.entries(getProviderCustomHeaders(account.provider))) {
     headers.set(key, value);
   }
 
@@ -95,8 +97,8 @@ async function handleCopilotRequest(
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    log({ ts: new Date().toISOString(), error: "copilot_fetch_failed", msg, targetUrl, model });
-    return Response.json({ error: `Copilot unreachable: ${msg}` }, { status: 502 });
+    log({ ts: new Date().toISOString(), error: "openai_fetch_failed", msg, targetUrl, model });
+    return Response.json({ error: `Provider unreachable: ${msg}` }, { status: 502 });
   }
 
   const latency = Date.now() - start;
@@ -105,7 +107,7 @@ async function handleCopilotRequest(
     method: req.method,
     path: url.pathname,
     model,
-    provider: "copilot",
+    provider: account.provider,
     account: account.name,
     status: upstreamRes.status,
     latency_ms: latency,
@@ -121,7 +123,7 @@ async function handleCopilotRequest(
         type: "error",
         error: {
           type: "api_error",
-          message: `Copilot API error (${upstreamRes.status}): ${errorBody}`,
+          message: `${account.provider} API error (${upstreamRes.status}): ${errorBody}`,
         },
       },
       { status: upstreamRes.status },
@@ -144,7 +146,7 @@ async function handleCopilotRequest(
           controller.close();
         } catch (err) {
           const msg = err instanceof Error ? err.message : String(err);
-          log({ ts: new Date().toISOString(), error: "copilot_stream_error", msg });
+          log({ ts: new Date().toISOString(), error: "openai_stream_error", msg });
           controller.error(err);
         }
       },
@@ -215,12 +217,14 @@ async function handleRequest(req: Request): Promise<Response> {
     );
   }
 
-  // ── Copilot: protocol translation required ──────────────────────────────
-  if (account.provider === "copilot" && bodyText) {
-    return handleCopilotRequest(req, bodyText, model, account, url, start);
+  // ── OpenAI-protocol providers: protocol translation required ───────────
+  const protocol: WireProtocol = getProviderProtocol(account.provider);
+  if (protocol === "openai" && bodyText) {
+    return handleOpenAIProtocolRequest(req, bodyText, model, account, url, start);
   }
 
-  // ── ZAI / MiniMax: direct Anthropic wire format passthrough ─────────────
+  // ── Anthropic-protocol providers: direct passthrough ────────────────────
+  // This covers Z.AI, MiniMax, Anthropic, and any anthropic_compatible provider
   const remaining = url.pathname.startsWith(PROXY_BASE_PATH)
     ? url.pathname.slice(PROXY_BASE_PATH.length)
     : url.pathname;

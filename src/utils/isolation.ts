@@ -5,12 +5,12 @@ export interface IsolatedSession {
   sessionId: string;
   basePath: string;
   providerPath: string;
-  provider: "zai" | "minimax" | "copilot";
+  provider: string;
   claudeDir: string;
 }
 
 export function createIsolatedSession(
-  provider: "zai" | "minimax" | "copilot",
+  provider: string,
   sessionId?: string,
 ): IsolatedSession {
   const id = sessionId || `compare_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
@@ -30,8 +30,8 @@ export function createIsolatedSession(
   };
 }
 
-export function generateClaudeMd(provider: "zai" | "minimax" | "copilot", customInstructions?: string): string {
-  const providerInstructions = {
+export function generateClaudeMd(provider: string, customInstructions?: string): string {
+  const knownProviders: Record<string, string> = {
     zai: `# Z.AI Provider Instructions
 
 You are using the Z.AI (GLM) provider. Your API base URL is configured to use GLM models.
@@ -83,7 +83,16 @@ When writing code, prefer TypeScript and follow these patterns:
 `,
   };
 
-  let content = providerInstructions[provider];
+  let content = knownProviders[provider] || `# ${provider} Provider Instructions
+
+You are using the ${provider} provider. Your API base URL is configured accordingly.
+
+When writing code, prefer TypeScript and follow these patterns:
+- Use modern async/await syntax
+- Use arrow functions for callbacks
+- Prefer const over let
+- Use optional chaining (?.) and nullish coalescing (??)
+`;
 
   if (customInstructions) {
     content += `\n## Custom Instructions\n\n${customInstructions}`;
@@ -193,7 +202,7 @@ export interface CompareSessionRecord {
   prompt: string;
   zaiResult?: ClaudeResult;
   minimaxResult?: ClaudeResult;
-  winner?: "zai" | "minimax" | "copilot" | "tie";
+  winner?: string;
 }
 
 export function saveCompareSession(record: CompareSessionRecord): void {
@@ -242,7 +251,7 @@ export function getCompareSession(id: string): CompareSessionRecord | undefined 
 }
 
 export interface ClaudeResult {
-  provider: "zai" | "minimax" | "copilot";
+  provider: string;
   output: string;
   tokens?: number;
   timeMs: number;

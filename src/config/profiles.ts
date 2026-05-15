@@ -3,7 +3,7 @@ import * as path from "node:path";
 
 export interface ProfileConfig {
   name: string;
-  provider: "zai" | "minimax" | "copilot";
+  provider: string;
   apiKey: string;
   baseUrl: string;
   createdAt: string;
@@ -14,7 +14,7 @@ export interface ImBIOSConfig {
   activeProfile: string;
   profiles: Record<string, ProfileConfig>;
   settings: {
-    defaultProvider: "zai" | "minimax" | "copilot";
+    defaultProvider: string;
     autoSwitch: boolean;
     logLevel: "info" | "debug" | "silent";
   };
@@ -61,7 +61,7 @@ export function saveProfiles(config: ImBIOSConfig): void {
 
 export function createProfile(
   name: string,
-  provider: "zai" | "minimax" | "copilot",
+  provider: string,
   apiKey: string,
   baseUrl: string,
 ): ProfileConfig {

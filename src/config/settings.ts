@@ -9,7 +9,7 @@ const SETTINGS_PATH = `${SETTINGS_DIR}/settings.json`;
 // ── Legacy config interface (matches the old v1 config format) ────────────────
 interface LegacyConfig {
   version?: string;
-  provider?: "zai" | "minimax" | "copilot";
+  provider?: string;
   activeModelProviderId?: string;
   activeMcpProviderId?: string;
   zai?: {
@@ -36,6 +36,8 @@ interface LegacyConfig {
     outputTokens: number;
     cost: number;
   }>;
+  // Allow dynamic provider keys (e.g. "openai", "deepseek", etc.)
+  [key: string]: unknown;
 }
 
 // ── Load / Save ───────────────────────────────────────────────────────────────
@@ -59,18 +61,19 @@ export function saveSettings(settings: LegacyConfig): LegacyConfig {
 }
 
 // ── Provider config helpers (used by legacy SDK) ────────────────────────────
-export function getProviderConfig(provider: "zai" | "minimax" | "copilot"): Record<string, string> {
+export function getProviderConfig(provider: string): Record<string, string> {
   const config = loadSettings();
   const providerConfig = config[provider];
-  if (!providerConfig) return {};
+  if (!providerConfig || typeof providerConfig !== "object") return {};
+  const obj = providerConfig as Record<string, unknown>;
   return {
-    apiKey: "apiKey" in providerConfig ? (providerConfig.apiKey as string) : "",
-    baseUrl: "baseUrl" in providerConfig ? (providerConfig.baseUrl as string) : "",
+    apiKey: "apiKey" in obj && typeof obj.apiKey === "string" ? obj.apiKey : "",
+    baseUrl: "baseUrl" in obj && typeof obj.baseUrl === "string" ? obj.baseUrl : "",
   };
 }
 
 export function setProviderConfig(
-  provider: "zai" | "minimax" | "copilot",
+  provider: string,
   data: { apiKey: string; baseUrl: string; models?: string[] },
 ): LegacyConfig {
   const settings = loadSettings();
@@ -78,11 +81,11 @@ export function setProviderConfig(
   return saveSettings(updated);
 }
 
-export function getActiveProvider(): "zai" | "minimax" | "copilot" {
+export function getActiveProvider(): string {
   return loadSettings().provider ?? "zai";
 }
 
-export function setActiveProvider(provider: "zai" | "minimax" | "copilot"): LegacyConfig {
+export function setActiveProvider(provider: string): LegacyConfig {
   const settings = loadSettings();
   return saveSettings({ ...settings, provider });
 }

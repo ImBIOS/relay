@@ -2,9 +2,11 @@ import { Flags } from "@oclif/core";
 import { addAccount, getActiveAccount, switchAccount } from "../../config/accounts-config";
 import {
   getDefaultBaseUrl,
-  getProviderCliLabel,
-  listRelayProviders,
 } from "../../config/provider-metadata";
+import {
+  getAllProviders,
+  getProviderSupportsOAuth,
+} from "../../config/provider-registry";
 import * as settings from "../../config/settings";
 import { BaseCommand } from "../../oclif/base";
 import { isCancel, select, text } from "@clack/prompts";
@@ -19,7 +21,7 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
   ];
   static flags = {
     name: Flags.string({ description: "Account name (email address)" }),
-    provider: Flags.string({ description: "Provider (zai, minimax, or copilot)" }),
+    provider: Flags.string({ description: "Provider (e.g. zai, minimax, copilot, openai, anthropic, openrouter)" }),
     key: Flags.string({ description: "API key" }),
     "group-id": Flags.string({ description: "Group ID (MiniMax only)" }),
     // For Copilot: a GitHub PAT or OAuth token for usage queries (copilot_internal/user)
@@ -74,15 +76,22 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
       }
 
       // Interactive: provider
-      const providers = listRelayProviders();
+      const providerDefs = getAllProviders();
       provider = (await select({
         message: "  Provider:",
-        options: providers.map((p) => ({
-          label: getProviderCliLabel(p),
-          value: p,
+        options: providerDefs.map((p) => ({
+          label: `${p.cliLabel.padEnd(20)} ${dim(`(${p.protocol})`)}`,
+          value: p.id,
         })),
       })) as string;
       if (isCancel(provider)) return;
+
+      // If provider supports OAuth, suggest login instead
+      if (getProviderSupportsOAuth(provider)) {
+        console.log("");
+        console.log(dim(`  Tip: You can also use 'relay account login ${provider}' for OAuth device flow.`));
+        console.log("");
+      }
 
       // Interactive: api key
       apiKey = "";
@@ -129,7 +138,7 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
     }
 
     // ── Persist ─────────────────────────────────────────────────────────────
-    const account = addAccount({ name, provider: provider as "zai" | "minimax" | "copilot", apiKey, baseUrl, groupId, oauthToken: githubToken });
+    const account = addAccount({ name, provider, apiKey, baseUrl, groupId, oauthToken: githubToken });
 
     const current = getActiveAccount();
     if (!current || current.id !== account.id) {
@@ -137,7 +146,7 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
     }
 
     // Mirror to legacy settings so non-oclif tools still work
-    settings.setProviderConfig(provider as "zai" | "minimax" | "copilot", { apiKey, baseUrl: baseUrl ?? "" });
+    settings.setProviderConfig(provider, { apiKey, baseUrl: baseUrl ?? "" });
 
     console.log("");
     console.log(ok("Account added!"));
@@ -145,7 +154,7 @@ export default class AccountAdd extends BaseCommand<typeof AccountAdd> {
     console.log(label("ID") + `  ${account.id}`);
     console.log(label("Name") + `  ${name}`);
     console.log(label("Provider") + `  ${provider}`);
-    console.log(label("Base URL") + `  ${account.baseUrl ?? getDefaultBaseUrl(provider as "zai" | "minimax" | "copilot")}`);
+    console.log(label("Base URL") + `  ${account.baseUrl ?? getDefaultBaseUrl(provider)}`);
     if (groupId) console.log(label("Group ID") + `  ${groupId}`);
     console.log("");
     console.log(success("Active account set to this account."));

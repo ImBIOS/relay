@@ -4,11 +4,12 @@ import { loadConfig } from "../config/accounts-config";
 import { zaiProvider } from "../providers/zai";
 import { minimaxProvider } from "../providers/minimax";
 import { copilotProvider } from "../providers/copilot";
+import type { Provider } from "../providers/base";
 import { formatNumber, formatResetsAt, formatResetAtAbsolute } from "../utils/format";
 import { dim, warn } from "../utils/console";
+import { getProviderCliLabel } from "../config/provider-registry";
 
-const PROVIDERS = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
-const PROVIDER_LABELS: Record<string, string> = { zai: "Z.AI", minimax: "MiniMax", copilot: "GitHub Copilot" };
+const PROVIDERS: Record<string, Provider> = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
 
 export default class Usage extends BaseCommand<typeof Usage> {
   static description = "Show usage for the active account";
@@ -121,7 +122,7 @@ export default class Usage extends BaseCommand<typeof Usage> {
       const provider = PROVIDERS[account.provider];
       if (!provider) continue;
 
-      const providerLabel = PROVIDER_LABELS[account.provider] ?? account.provider;
+      const providerLabel = getProviderCliLabel(account.provider);
 
       if (account.provider === "copilot") {
         const stats = await provider.getUsage({ apiKey: account.apiKey, oauthToken: account.oauthToken });

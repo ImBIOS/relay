@@ -1,48 +1,42 @@
-import type { AccountConfig } from "./accounts-config";
+/**
+ * Provider metadata — backward-compatible wrapper around the provider registry.
+ *
+ * The RelayProvider type is now `string` to support any provider from the registry.
+ * Existing code using the old `"zai" | "minimax" | "copilot"` union will still work
+ * since those are valid string values.
+ */
 
-export type RelayProvider = AccountConfig["provider"];
+import {
+  getAllProviders,
+  getDefaultBaseUrl as _getDefaultBaseUrl,
+  getProviderDisplayName as _getProviderDisplayName,
+  getProviderCliLabel as _getProviderCliLabel,
+  isKnownProvider,
+} from "./provider-registry";
 
-interface ProviderMetadata {
-  readonly displayName: string;
-  readonly cliLabel: string;
-  readonly defaultBaseUrl: string;
+export type RelayProvider = string;
+
+export const PROVIDER_METADATA: Record<string, { displayName: string; cliLabel: string; defaultBaseUrl: string }> = {};
+for (const p of getAllProviders()) {
+  PROVIDER_METADATA[p.id] = { displayName: p.displayName, cliLabel: p.cliLabel, defaultBaseUrl: p.defaultBaseUrl };
 }
 
-export const PROVIDER_METADATA: Record<RelayProvider, ProviderMetadata> = {
-  zai: {
-    displayName: "Z.AI (GLM)",
-    cliLabel: "Z.AI (zai)",
-    defaultBaseUrl: "https://api.z.ai/api/anthropic",
-  },
-  minimax: {
-    displayName: "MiniMax",
-    cliLabel: "MiniMax (minimax)",
-    defaultBaseUrl: "https://api.minimax.io/anthropic",
-  },
-  // Copilot uses OpenAI format, tested via /models endpoint
-  // Anthropic connection test is not applicable
-  copilot: {
-    displayName: "GitHub Copilot",
-    cliLabel: "GitHub Copilot (copilot)",
-    defaultBaseUrl: "https://api.githubcopilot.com",
-  },
-};
 export function isRelayProvider(value: string): value is RelayProvider {
-  return value in PROVIDER_METADATA;
+  return isKnownProvider(value);
 }
 
 export function listRelayProviders(): RelayProvider[] {
-  return Object.keys(PROVIDER_METADATA) as RelayProvider[];
+  return getAllProviders().map((p) => p.id);
 }
 
 export function getDefaultBaseUrl(provider: RelayProvider): string {
-  return PROVIDER_METADATA[provider].defaultBaseUrl;
+  return _getDefaultBaseUrl(provider);
 }
 
 export function getProviderDisplayName(provider: RelayProvider): string {
-  return PROVIDER_METADATA[provider].displayName;
+  return _getProviderDisplayName(provider);
 }
 
 export function getProviderCliLabel(provider: RelayProvider): string {
-  return PROVIDER_METADATA[provider].cliLabel;
+  return _getProviderCliLabel(provider);
 }

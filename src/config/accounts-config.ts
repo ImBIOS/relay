@@ -4,7 +4,7 @@ import { getDefaultBaseUrl } from "./provider-metadata";
 export interface AccountConfig {
   id: string;
   name: string;
-  provider: "zai" | "minimax" | "copilot";
+  provider: string; // Any provider ID from the provider registry
   apiKey: string;
   baseUrl: string;
   priority: number;
@@ -104,7 +104,7 @@ export function generateAccountId(): string {
 
 export function addAccount(input: {
   name: string;
-  provider: "zai" | "minimax" | "copilot";
+  provider: string;
   apiKey: string;
   baseUrl?: string;
   groupId?: string;
@@ -194,7 +194,7 @@ export function listAccounts(): AccountConfig[] {
   return Object.values(config.accounts).sort((a, b) => a.priority - b.priority);
 }
 
-export function rotateApiKey(provider: "zai" | "minimax" | "copilot"): AccountConfig | null {
+export function rotateApiKey(provider: string): AccountConfig | null {
   const config = loadConfig();
   const providerAccounts = Object.values(config.accounts)
     .filter((a) => a.provider === provider && a.isActive)
@@ -267,7 +267,7 @@ async function fetchAndUpdateUsage(account: AccountConfig): Promise<number> {
     const { minimaxProvider } = await import("../providers/minimax.js");
     const { copilotProvider } = await import("../providers/copilot.js");
 
-    const PROVIDERS = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
+    const PROVIDERS: Record<string, import("../providers/base.js").Provider> = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
     const provider = PROVIDERS[account.provider];
 
     // Pass account-specific options to getUsage
