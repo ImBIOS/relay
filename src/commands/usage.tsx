@@ -154,7 +154,7 @@ export default class Usage extends BaseCommand<typeof Usage> {
 
       console.log(`\n  ${account.name}`);
       console.log(`  ${providerLabel}`);
-      console.log(`  ${used} / ${limit} tokens · ${pct}% used`);
+      console.log(`  ${used} / ${limit} · ${pct}% used`);
       console.log(`  Resets at ${resetAbsolute} (${resetRelative})`);
 
       if (stats.weeklyUsage) {
