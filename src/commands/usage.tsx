@@ -118,14 +118,28 @@ export default class Usage extends BaseCommand<typeof Usage> {
     console.log("\n  Usage for All Accounts");
     console.log("  " + "─".repeat(50));
 
-    for (const account of accounts) {
-      const provider = PROVIDERS[account.provider];
-      if (!provider) continue;
+    // Fetch all accounts in parallel for better performance
+    const results = await Promise.all(
+      accounts.map(async (account) => {
+        const provider = PROVIDERS[account.provider];
+        if (!provider) return null;
 
-      const providerLabel = getProviderCliLabel(account.provider);
+        if (account.provider === "copilot") {
+          const stats = await provider.getUsage({ apiKey: account.apiKey, oauthToken: account.oauthToken });
+          return { account, providerLabel: getProviderCliLabel(account.provider), stats, isCopilot: true };
+        }
 
-      if (account.provider === "copilot") {
-        const stats = await provider.getUsage({ apiKey: account.apiKey, oauthToken: account.oauthToken });
+        const stats = await provider.getUsage({ apiKey: account.apiKey, groupId: account.groupId });
+        return { account, providerLabel: getProviderCliLabel(account.provider), stats, isCopilot: false };
+      }),
+    );
+
+    for (const result of results) {
+      if (!result) continue;
+
+      const { account, providerLabel, stats, isCopilot } = result;
+
+      if (isCopilot) {
         console.log(`\n  ${account.name}`);
         console.log(`  ${providerLabel}`);
         if (stats.copilotPlan) {
@@ -145,7 +159,6 @@ export default class Usage extends BaseCommand<typeof Usage> {
         continue;
       }
 
-      const stats = await provider.getUsage({ apiKey: account.apiKey, groupId: account.groupId });
       const resetAbsolute = formatResetAtAbsolute(stats.resetsAt ?? undefined);
       const resetRelative = formatResetsAt(stats.resetsAt ?? undefined);
       const pct = stats.percentUsed?.toFixed(1) ?? "0.0";
