@@ -120,27 +120,27 @@ export default class Usage extends BaseCommand<typeof Usage> {
 
     // Fetch all accounts in parallel for better performance
     const results = await Promise.all(
-      accounts.map(async (account) => {
+      accounts.map(async (account, index) => {
         const provider = PROVIDERS[account.provider];
         if (!provider) return null;
 
         if (account.provider === "copilot") {
           const stats = await provider.getUsage({ apiKey: account.apiKey, oauthToken: account.oauthToken });
-          return { account, providerLabel: getProviderCliLabel(account.provider), stats, isCopilot: true };
+          return { account, providerLabel: getProviderCliLabel(account.provider), stats, isCopilot: true, index: index + 1 };
         }
 
         const stats = await provider.getUsage({ apiKey: account.apiKey, groupId: account.groupId });
-        return { account, providerLabel: getProviderCliLabel(account.provider), stats, isCopilot: false };
+        return { account, providerLabel: getProviderCliLabel(account.provider), stats, isCopilot: false, index: index + 1 };
       }),
     );
 
     for (const result of results) {
       if (!result) continue;
 
-      const { account, providerLabel, stats, isCopilot } = result;
+      const { account, providerLabel, stats, isCopilot, index } = result;
 
       if (isCopilot) {
-        console.log(`\n  ${account.name}`);
+        console.log(`\n  [${index}] ${account.name}`);
         console.log(`  ${providerLabel}`);
         if (stats.copilotPlan) {
           console.log(`  Plan: ${stats.copilotPlan}`);
@@ -165,8 +165,8 @@ export default class Usage extends BaseCommand<typeof Usage> {
       const used = formatNumber(stats.used);
       const limit = formatNumber(stats.limit);
 
-      console.log(`\n  ${account.name}`);
-      console.log(`  ${providerLabel}`);
+      console.log(`\n  [${index}] ${account.name}`);
+      console.log(`    ${providerLabel}`);
       console.log(`  ${used} / ${limit} · ${pct}% used`);
       console.log(`  Resets at ${resetAbsolute} (${resetRelative})`);
 
