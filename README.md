@@ -41,13 +41,30 @@ Key features:
 - **Dynamic model discovery** — fetch available models from provider APIs, with user-overridable model lists
 - **Multi-account** — add multiple accounts per provider, switch freely
 
-## Quick Start
+## Installation
 
-### Install
+### Option A: From npm (recommended — after first stable release)
 
 ```bash
-# Install globally from GitHub
+# Install globally once published to npm
+pnpm install -g relay
+```
+
+### Option B: From GitHub (bleeding edge)
+
+```bash
+# Install from main branch — requires git and pnpm
 pnpm install -g github:ImBIOS/relay
+```
+
+### Option C: Run from source
+
+```bash
+# Clone and run from source
+git clone https://github.com/ImBIOS/relay.git
+cd relay
+pnpm install
+bun src/run.ts --help
 ```
 
 ### Option A: Non-interactive (Docker/CI)
