@@ -43,14 +43,13 @@ Key features:
 
 ## Installation
 
-### Option A: From npm (recommended — after first stable release)
+### From npm
 
 ```bash
-# Install globally once published to npm
 pnpm install -g relay
 ```
 
-### Option B: From GitHub (bleeding edge)
+### From GitHub (bleeding edge)
 
 ```bash
 # Install from main branch — requires git and pnpm
