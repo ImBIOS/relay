@@ -93,6 +93,7 @@ smoke() {
     -v "${RELAY_DIR}/test-configs/relay-settings.json:/root/.config/relay/settings.json:ro" \
     -v "${RELAY_DIR}/test-configs/forge-credentials.json:/root/forge/.credentials.json:ro" \
     -v "${RELAY_DIR}/test-configs/forge-mcp.json:/root/forge/.mcp.json:ro" \
+    -v "${RELAY_DIR}/test-configs/forge.toml:/root/forge/.forge.toml:ro" \
     -e "ANTHROPIC_BASE_URL=http://127.0.0.1:8787/api/anthropic" \
     -e "ANTHROPIC_AUTH_TOKEN=placeholder" \
     -e "RELAY_PROXY_PORT=8787" \

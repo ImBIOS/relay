@@ -50,6 +50,8 @@ services:
       - ./test-configs/forge-credentials.json:/root/forge/.credentials.json:ro
       # Forge MCP server definitions
       - ./test-configs/forge-mcp.json:/root/forge/.mcp.json:ro
+      # ForgeCode config with Relay-managed custom provider
+      - ./test-configs/forge.toml:/root/forge/.forge.toml:ro
 
       # ── Ephemeral runtime state (persist logs if needed) ──────────────
       - relay-claude-state:/root/.claude
