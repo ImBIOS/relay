@@ -28,6 +28,11 @@ export default class HooksIndex extends BaseCommand<typeof HooksIndex> {
     console.log(`  ${item("forge-setup")} Install shell wrapper for auto-commit`);
     console.log(`  ${item("forge-stop")}   Auto-commit after forge session ends`);
     console.log("");
+    console.log(subheading("ForgeCode Provider:"));
+    console.log(`  ${item("forge register")}   Register Relay as a ForgeCode provider`);
+    console.log(`  ${item("forge status")}     Check provider registration status`);
+    console.log(`  ${item("forge unregister")} Remove Relay provider from ForgeCode`);
+    console.log("");
     console.log(ok("Hooks enable auto-rotation, formatting, and commit prompts."));
     console.log("  For notifications, we recommend peon-ping instead.");
   }

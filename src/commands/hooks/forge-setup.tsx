@@ -13,6 +13,7 @@ forge() {
     command forge "$@"
   else
     export FORGE_PROXY_SET=1
+    unset FORGE_SESSION__PROVIDER_ID FORGE_SESSION__MODEL_ID
     export ANTHROPIC_BASE_URL="\${ANTHROPIC_BASE_URL:-http://127.0.0.1:8787}"
     export ANTHROPIC_AUTH_TOKEN="\${ANTHROPIC_AUTH_TOKEN:-relay}"
     ${bin} hooks session-start --silent
