@@ -255,7 +255,8 @@ describe("relay hooks - Claude Code Hook Integration Tests", () => {
         rotation: {
           enabled: false,
           strategy: "round-robin" as const,
-          crossProvider: true,
+          providerFilter: "cross-provider" as const,
+          allowedProviders: [],
         },
       };
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2));

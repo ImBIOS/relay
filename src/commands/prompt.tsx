@@ -1,5 +1,5 @@
 import * as accountsConfig from "../config/accounts-config";
-import { loadSettings } from "../config/settings";
+import { getProviderModels, type ModelDefinition } from "../config/provider-registry";
 import { BaseCommand } from "../oclif/base";
 import { Flags } from "@oclif/core";
 
@@ -32,36 +32,18 @@ export default class Prompt extends BaseCommand<typeof Prompt> {
     const config = accountsConfig.loadConfig();
     const activeAccount = accountsConfig.getActiveAccount();
 
-    // Try legacy config format (provider + api key at top level) if v2 has no accounts
     if (!activeAccount) {
-      const settings = loadSettings();
-      const provider = settings.provider ?? "unknown";
-      const model = this.getModelForProvider(settings, provider);
-      const account = this.getAccountLabelForLegacy(settings, provider);
-      const strategy = config.rotation?.enabled
-        ? ((config.rotation?.strategy as string) ?? "off")
-        : "off";
-
-      switch (flags.format) {
-        case "starship":
-          this.printStarship(model, provider, account, strategy);
-          break;
-        case "zsh":
-          this.printZsh(model, provider, account, strategy);
-          break;
-        case "plain":
-          this.printPlain(model, provider, account, strategy);
-          break;
-      }
+      // No v2 accounts — nothing to show
       return;
     }
 
-    // V2 account format
     const provider = activeAccount.provider;
-    const settings = loadSettings();
-    const model = this.getModelForProvider(settings, provider);
-    const account = activeAccount.name.split("@")[0] ?? activeAccount.name;
-    const strategy = config.rotation.enabled ? config.rotation.strategy : "off";
+    const model = this.getModelForProvider(provider);
+    const account = activeAccount.name; // Full email address
+    const providerFilter = config.rotation.providerFilter ?? "cross-provider";
+    const strategy = config.rotation.enabled
+      ? `${config.rotation.strategy}:${providerFilter}`
+      : "off";
 
     switch (flags.format) {
       case "starship":
@@ -77,47 +59,16 @@ export default class Prompt extends BaseCommand<typeof Prompt> {
   }
 
   /**
-   * Get the first model name for a given provider from settings.
+   * Get the first model name for a given provider from the provider registry.
    * Falls back to "Relay" if no models configured.
    */
-  private getModelForProvider(
-    settings: Record<string, unknown>,
-    provider: string,
-  ): string {
-    const providerConfig = settings[provider];
-    if (
-      providerConfig &&
-      typeof providerConfig === "object" &&
-      providerConfig !== null
-    ) {
-      const models = (providerConfig as Record<string, unknown>).models;
-      if (Array.isArray(models) && models.length > 0 && typeof models[0] === "string") {
-        return models[0];
-      }
+  private getModelForProvider(provider: string): string {
+    const models = getProviderModels(provider);
+    if (Array.isArray(models) && models.length > 0) {
+      const first = models[0] as ModelDefinition | string;
+      return typeof first === "string" ? first : first.id;
     }
     return "Relay";
-  }
-
-  /**
-   * Get a short account label from legacy config.
-   * Uses the API key prefix (e.g., "7097...") as identifier.
-   */
-  private getAccountLabelForLegacy(
-    settings: Record<string, unknown>,
-    provider: string,
-  ): string {
-    const providerConfig = settings[provider];
-    if (
-      providerConfig &&
-      typeof providerConfig === "object" &&
-      providerConfig !== null
-    ) {
-      const apiKey = (providerConfig as Record<string, unknown>).apiKey;
-      if (typeof apiKey === "string" && apiKey.length > 8) {
-        return `${apiKey.slice(0, 4)}..${apiKey.slice(-4)}`;
-      }
-    }
-    return provider;
   }
 
   private printStarship(
@@ -157,7 +108,7 @@ export default class Prompt extends BaseCommand<typeof Prompt> {
     account: string,
     strategy: string,
   ): void {
-    const parts = [`relay:`, model, provider, account];
+    const parts = ["relay:", model, provider, account];
     if (strategy !== "off") parts.push(strategy);
     console.log(parts.join(" "));
   }

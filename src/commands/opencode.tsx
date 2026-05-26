@@ -112,7 +112,7 @@ export default class OpenCode extends BaseCommand<typeof OpenCode> {
       // v2 multi-account rotation
       if (accounts.length > 1) {
         const previousAccount = accountsConfig.getActiveAccount();
-        const rotationResult = config.rotation.crossProvider
+        const rotationResult = config.rotation.providerFilter !== "same-provider"
           ? await accountsConfig.rotateAcrossProviders()
           : previousAccount?.provider
             ? {
@@ -129,7 +129,7 @@ export default class OpenCode extends BaseCommand<typeof OpenCode> {
         }
       }
       // Legacy provider rotation (switch between zai/minimax)
-      else if (config.rotation.crossProvider) {
+      else if (config.rotation.providerFilter !== "same-provider") {
         const currentProvider = settings.getActiveProvider();
         const zaiConfig = settings.getProviderConfig("zai");
         const minimaxConfig = settings.getProviderConfig("minimax");

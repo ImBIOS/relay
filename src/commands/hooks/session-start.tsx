@@ -2,6 +2,7 @@ import { BaseCommand } from "../../oclif/base";
 import { Flags } from "@oclif/core";
 import { rotateAcrossProviders } from "../../config/accounts-config";
 import { saveSettings } from "../../config/settings";
+import { getProviderModels, type ModelDefinition } from "../../config/provider-registry";
 import { error, ok, success, warn } from "../../utils/console";
 
 export default class SessionStart extends BaseCommand<typeof SessionStart> {
@@ -30,13 +31,20 @@ export default class SessionStart extends BaseCommand<typeof SessionStart> {
 
       // Only update the active provider field and the specific provider's
       // credentials — do NOT overwrite other provider configs.
+      // Read model list from the provider registry, not hardcoded.
+      const registryModels = getProviderModels(account.provider);
+      const modelIds = Array.isArray(registryModels)
+        ? (registryModels as Array<ModelDefinition | string>).map((m) =>
+            typeof m === "string" ? m : m.id,
+          )
+        : [];
       const providerUpdate: Record<string, unknown> = {
         provider: account.provider,
       };
       providerUpdate[account.provider] = {
         apiKey: account.apiKey,
         baseUrl: account.baseUrl ?? "",
-        models: ["claude-3-5-sonnet-4-20250514"],
+        models: modelIds,
       };
       saveSettings(providerUpdate);
 

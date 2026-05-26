@@ -55,7 +55,8 @@ describe("usage timeout integration", () => {
       rotation: {
         enabled: false,
         strategy: "round-robin",
-        crossProvider: false,
+        providerFilter: "cross-provider",
+        allowedProviders: [],
       },
     };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));

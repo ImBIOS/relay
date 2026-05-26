@@ -104,7 +104,7 @@ export async function exchangeCopilotToken(ghoToken: string): Promise<CopilotTok
       Authorization: `token ${ghoToken}`,
       Accept: "application/json",
       "editor-version": "relay-cli/1.0",
-      "Copilot-Integration-Id": "vscode-chat",
+      "Copilot-Integration-Id": "relay-cli",
     },
   });
 

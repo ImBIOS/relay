@@ -124,7 +124,8 @@ const newRelaySettings = {
   rotation: {
     enabled: true,
     strategy: "least-used",
-    crossProvider: false,
+    providerFilter: "cross-provider",
+    allowedProviders: [],
     lastRotation: new Date().toISOString(),
   },
   // providers config block

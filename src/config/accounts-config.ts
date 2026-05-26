@@ -24,10 +24,17 @@ export interface AccountConfig {
 
 export type RotationStrategy = "round-robin" | "least-used" | "priority" | "random";
 
+export type ProviderFilter = "same-provider" | "cross-provider" | "selected-providers";
+
 export interface RotationConfig {
   enabled: boolean;
   strategy: RotationStrategy;
-  crossProvider: boolean;
+  providerFilter: ProviderFilter;
+  /**
+   * List of provider IDs to rotate through when providerFilter is "selected-providers".
+   * Ignored for other filter modes.
+   */
+  allowedProviders: string[];
   maxUsesPerKey?: number;
   lastRotation?: string;
 }
@@ -46,7 +53,8 @@ export const DEFAULT_CONFIG: RELAYConfig = {
   rotation: {
     enabled: true,
     strategy: "least-used",
-    crossProvider: true,
+    providerFilter: "cross-provider",
+    allowedProviders: [],
   },
 };
 
@@ -224,15 +232,19 @@ export function rotateApiKey(provider: string): AccountConfig | null {
 export function configureRotation(
   enabled: boolean,
   strategy?: RotationStrategy,
-  crossProvider?: boolean,
+  providerFilter?: ProviderFilter,
+  allowedProviders?: string[],
 ): void {
   const config = loadConfig();
   config.rotation.enabled = enabled;
   if (strategy) {
     config.rotation.strategy = strategy;
   }
-  if (crossProvider !== undefined) {
-    config.rotation.crossProvider = crossProvider;
+  if (providerFilter) {
+    config.rotation.providerFilter = providerFilter;
+  }
+  if (allowedProviders) {
+    config.rotation.allowedProviders = allowedProviders;
   }
   saveConfig(config);
 }
@@ -320,14 +332,46 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
     return { account: null, rotated: false };
   }
 
+  // Filter accounts based on providerFilter setting
+  const currentAccount = config.activeAccountId
+    ? config.accounts[config.activeAccountId]
+    : null;
+  const currentProvider = currentAccount?.provider;
+
+  let eligibleAccounts: AccountConfig[];
+  switch (config.rotation.providerFilter) {
+    case "same-provider":
+      eligibleAccounts = currentProvider
+        ? allAccounts.filter((a) => a.provider === currentProvider)
+        : allAccounts;
+      break;
+    case "selected-providers":
+      if (config.rotation.allowedProviders.length > 0) {
+        eligibleAccounts = allAccounts.filter((a) =>
+          config.rotation.allowedProviders.includes(a.provider),
+        );
+      } else {
+        eligibleAccounts = allAccounts;
+      }
+      break;
+    case "cross-provider":
+    default:
+      eligibleAccounts = allAccounts;
+      break;
+  }
+
+  if (eligibleAccounts.length === 0) {
+    return { account: null, rotated: false };
+  }
+
   const currentId = config.activeAccountId;
   let nextAccount: AccountConfig | null = null;
 
   switch (config.rotation.strategy) {
     case "random": {
-      const otherAccounts = allAccounts.filter((a) => a.id !== currentId);
+      const otherAccounts = eligibleAccounts.filter((a) => a.id !== currentId);
       if (otherAccounts.length === 0) {
-        nextAccount = allAccounts[0] ?? null;
+        nextAccount = eligibleAccounts[0] ?? null;
       } else {
         nextAccount = otherAccounts[Math.floor(Math.random() * otherAccounts.length)] ?? null;
       }
@@ -335,7 +379,7 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
     }
 
     case "round-robin": {
-      const sorted = allAccounts.sort((a, b) => a.priority - b.priority);
+      const sorted = eligibleAccounts.sort((a, b) => a.priority - b.priority);
       const currentIndex = sorted.findIndex((a) => a.id === currentId);
       const nextIndex = (currentIndex + 1) % sorted.length;
       nextAccount = sorted[nextIndex] ?? null;
@@ -345,7 +389,7 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
     case "least-used": {
       // Fetch real usage data from all provider APIs
       const accountsWithUsage = await Promise.all(
-        allAccounts.map(async (acc) => ({
+        eligibleAccounts.map(async (acc) => ({
           account: acc,
           usage: await fetchAndUpdateUsage(acc),
         })),
@@ -360,7 +404,7 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
     case "priority": {
       // Priority-based selection: use highest priority account that has quota available
       // Sort by priority (highest first), then find first with available quota
-      const sorted = allAccounts.sort((a, b) => b.priority - a.priority);
+      const sorted = eligibleAccounts.sort((a, b) => b.priority - a.priority);
 
       // Check if current account still has quota - if so, don't rotate
       if (currentId) {

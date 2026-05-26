@@ -128,7 +128,7 @@ const PROVIDER_REGISTRY: ProviderDefinition[] = [
     customHeaders: {
       "editor-version": "relay-cli/1.0",
       "editor-plugin-version": "relay/1.0",
-      "Copilot-Integration-Id": "vscode-chat",
+      "Copilot-Integration-Id": "relay-cli",
     },
     supportsOAuth: true,
     oauthConfig: {

@@ -40,7 +40,7 @@ export class CopilotProvider implements Provider {
           Authorization: `Bearer ${config.apiKey}`,
           "Content-Type": "application/json",
           "editor-version": "relay-cli/1.0",
-          "Copilot-Integration-Id": "vscode-chat",
+          "Copilot-Integration-Id": "relay-cli",
         },
         signal: controller.signal,
       });
@@ -91,7 +91,7 @@ export class CopilotProvider implements Provider {
             Authorization: `Bearer ${token}`,
             Accept: "application/json",
             "editor-version": "relay-cli/1.0",
-            "Copilot-Integration-Id": "vscode-chat",
+            "Copilot-Integration-Id": "relay-cli",
           },
           signal: controller.signal,
         });
@@ -171,7 +171,7 @@ export class CopilotProvider implements Provider {
           Authorization: `Bearer ${key}`,
           "Content-Type": "application/json",
           "editor-version": "relay-cli/1.0",
-          "Copilot-Integration-Id": "vscode-chat",
+          "Copilot-Integration-Id": "relay-cli",
         },
         signal: controller.signal,
       });

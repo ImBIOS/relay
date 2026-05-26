@@ -53,7 +53,8 @@ describe("relay hook - Disaster Prevention Tests", () => {
       rotation: {
         enabled: true,
         strategy: "round-robin" as const,
-        crossProvider: true,
+        providerFilter: "cross-provider" as const,
+        allowedProviders: [],
       },
     };
 
