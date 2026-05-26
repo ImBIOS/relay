@@ -225,6 +225,7 @@ Relay supports three sources of model definitions, resolved in priority order:
 3. **Built-in static** — hardcoded defaults from the provider registry
 
 This means you can always stay current:
+
 - Run `relay models refresh` to fetch the latest models from providers that support it
 - Add custom models with `relay models add` if a provider releases a new model before Relay is updated
 - Reset to defaults with `relay models reset` at any time
@@ -263,7 +264,7 @@ $ relay usage
 
 ## Repo Structure
 
-```
+```txt
 relay/
 ├── src/
 │   ├── commands/
@@ -295,4 +296,4 @@ relay/
 
 ## License
 
-MIT
+See [LICENSE](./LICENSE)
