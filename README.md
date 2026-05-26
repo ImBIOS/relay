@@ -43,27 +43,11 @@ Key features:
 
 ## Installation
 
-### From npm
-
-```bash
-pnpm install -g relay
-```
-
-### From GitHub (bleeding edge)
+### From GitHub
 
 ```bash
 # Install from main branch — requires git and pnpm
 pnpm install -g github:ImBIOS/relay
-```
-
-### Option C: Run from source
-
-```bash
-# Clone and run from source
-git clone https://github.com/ImBIOS/relay.git
-cd relay
-pnpm install
-bun src/run.ts --help
 ```
 
 ### Option A: Non-interactive (Docker/CI)
