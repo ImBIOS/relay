@@ -126,9 +126,9 @@ const PROVIDER_REGISTRY: ProviderDefinition[] = [
     models: "https://api.githubcopilot.com/models",
     hasUsageApi: true,
     customHeaders: {
-      "editor-version": "relay-cli/1.0",
-      "editor-plugin-version": "relay/1.0",
-      "Copilot-Integration-Id": "relay-cli",
+      "User-Agent": "GitHubCopilotChat/0.26.7",
+      "editor-version": "vscode/1.99.3",
+      "editor-plugin-version": "copilot-chat/0.26.7",
     },
     supportsOAuth: true,
     oauthConfig: {

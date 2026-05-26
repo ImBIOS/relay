@@ -39,8 +39,9 @@ export class CopilotProvider implements Provider {
         headers: {
           Authorization: `Bearer ${config.apiKey}`,
           "Content-Type": "application/json",
-          "editor-version": "relay-cli/1.0",
-          "Copilot-Integration-Id": "relay-cli",
+          "User-Agent": "GitHubCopilotChat/0.26.7",
+          "editor-version": "vscode/1.99.3",
+          "editor-plugin-version": "copilot-chat/0.26.7",
         },
         signal: controller.signal,
       });
@@ -90,8 +91,9 @@ export class CopilotProvider implements Provider {
           headers: {
             Authorization: `Bearer ${token}`,
             Accept: "application/json",
-            "editor-version": "relay-cli/1.0",
-            "Copilot-Integration-Id": "relay-cli",
+            "User-Agent": "GitHubCopilotChat/0.26.7",
+            "editor-version": "vscode/1.99.3",
+            "editor-plugin-version": "copilot-chat/0.26.7",
           },
           signal: controller.signal,
         });
@@ -170,8 +172,9 @@ export class CopilotProvider implements Provider {
         headers: {
           Authorization: `Bearer ${key}`,
           "Content-Type": "application/json",
-          "editor-version": "relay-cli/1.0",
-          "Copilot-Integration-Id": "relay-cli",
+          "User-Agent": "GitHubCopilotChat/0.26.7",
+          "editor-version": "vscode/1.99.3",
+          "editor-plugin-version": "copilot-chat/0.26.7",
         },
         signal: controller.signal,
       });
