@@ -35,6 +35,7 @@ src/
 - Proxy server (`relay proxy start/stop/status`)
 - Account management (`relay account add/list/switch/edit/remove/migrate-names`)
 - ForgeCode hooks (`relay hooks forge-setup`, `relay hooks forge-stop`)
+- Codex CLI hooks (`relay hooks codex-setup`, `relay hooks codex-stop`)
 - Claude Code hook integration (`relay hooks session-start`, `relay hooks install/uninstall/status`)
 - Usage & diagnostics (`relay usage`, `relay doctor`)
 - Auto-rotation (`relay auto enable/disable/status`)
@@ -119,7 +120,7 @@ docker run --rm \
 | `src/providers/minimax.ts`      | MiniMax provider (usage, config)          |
 | `src/config/accounts-config.ts` | Account management (primary config)       |
 | `src/config/settings.ts`        | Legacy provider config (backward compat)  |
-| `src/commands/hooks/`           | ForgeCode hook commands                   |
+| `src/commands/hooks/`           | Hook commands (ForgeCode, Codex CLI, Claude Code) |
 | `src/utils/telemetry.ts`        | Append-only JSONL telemetry               |
 | `src/utils/validate.ts`         | Email validation                          |
 | `src/utils/format.ts`           | Shared number/time formatting             |

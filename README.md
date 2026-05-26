@@ -3,7 +3,7 @@
 [![Bun](https://img.shields.io/badge/Bun-1.2.0+-black?logo=bun)](https://bun.sh)
 [![GitHub](https://img.shields.io/badge/GitHub-ImBIOS/relay-blue?logo=github)](https://github.com/ImBIOS/relay)
 
-A CLI for managing and hot-switching LLM providers with a built-in HTTP proxy. Works with **any AI coding agent** (Claude Code, ForgeCode, OpenCode, Cline, Aider, Continue, etc.) and **any provider** that speaks the Anthropic or OpenAI API.
+A CLI for managing and hot-switching LLM providers with a built-in HTTP proxy. Works with **any AI coding agent** (Claude Code, ForgeCode, OpenAI Codex CLI, OpenCode, Cline, Aider, Continue, etc.) and **any provider** that speaks the Anthropic or OpenAI API.
 
 ## Supported Providers
 
@@ -113,6 +113,36 @@ api_key = "relay"
 base_url = "http://127.0.0.1:8787/api/anthropic"
 ```
 
+Or use the shell wrapper:
+
+```bash
+relay hooks forge-setup     # Install wrapper + config
+relay hooks forge-setup --uninstall  # Remove
+```
+
+### OpenAI Codex CLI
+
+Install the shell wrapper and config:
+
+```bash
+relay hooks codex-setup     # Install wrapper + ~/.codex/config.toml
+relay hooks codex-setup --uninstall  # Remove
+```
+
+After setup, just run `codex` as usual — Relay handles the rest:
+
+- Sets `OPENAI_API_KEY` and `OPENAI_BASE_URL` to route through the proxy
+- Starts proxy and rotates accounts on launch
+- Configures `~/.codex/config.toml` with the right model and provider
+
+To configure manually, set environment variables:
+
+```bash
+export OPENAI_API_KEY="relay"
+export OPENAI_BASE_URL="http://127.0.0.1:8787/api/openai/v1"
+codex
+```
+
 ### OpenCode
 
 Add to `opencode.json`:
@@ -130,7 +160,7 @@ Add to `opencode.json`:
 
 ### Any Agent
 
-Any tool that supports custom Anthropic or OpenAI base URLs can use Relay. Set the base URL to `http://127.0.0.1:8787/api/anthropic` (for Anthropic-protocol agents) or `http://127.0.0.1:8787/api/openai` (for OpenAI-protocol agents) and use any string as the API key.
+Any tool that supports custom Anthropic or OpenAI base URLs can use Relay. Set the base URL to `http://127.0.0.1:8787/api/anthropic` (for Anthropic-protocol agents like Claude Code, ForgeCode) or `http://127.0.0.1:8787/api/openai/v1` (for OpenAI-protocol agents like Codex CLI) and use any string as the API key.
 
 ## Commands
 
@@ -188,9 +218,9 @@ Any tool that supports custom Anthropic or OpenAI base URLs can use Relay. Set t
 
 ```
 Any AI Agent
-(Claude Code, ForgeCode, OpenCode, Cline, Aider, Continue, ...)
+(Claude Code, ForgeCode, OpenAI Codex CLI, OpenCode, Cline, Aider, Continue, ...)
         │
-        │  POST /api/anthropic/v1/messages
+        │  POST /api/anthropic/v1/messages  (or /api/openai/v1/chat/completions)
         │  (Authorization: Bearer relay)
         │
   ┌─────▼──────┐
@@ -199,6 +229,7 @@ Any AI Agent
   │  • Auth: replaces token with real API key
   │  • Routing: sends to active provider
   │  • Translation: Anthropic ↔ OpenAI as needed
+  │  • Passthrough: OpenAI → OpenAI (Codex CLI)
   │  • Logging: timestamp, model, provider, latency
   └─────┬──────┘
         │
@@ -214,7 +245,7 @@ Z.AI  MiniMax    GitHub Copilot
     ...        ...
 ```
 
-**Routing and translation**: The proxy routes requests based on the active account's provider. For providers that speak Anthropic protocol (Z.AI, MiniMax, Anthropic), requests pass through directly. For OpenAI-protocol providers (Copilot, OpenAI, DeepSeek, Groq, etc.), the proxy translates between Anthropic and OpenAI wire formats transparently — so any agent can talk to any provider.
+**Routing and translation**: The proxy routes requests based on the active account's provider. For providers that speak Anthropic protocol (Z.AI, MiniMax, Anthropic), requests pass through directly. For OpenAI-protocol providers (Copilot, OpenAI, DeepSeek, Groq, etc.), the proxy translates between Anthropic and OpenAI wire formats transparently — so any agent can talk to any provider. Requests arriving at `/api/openai` (from tools like Codex CLI) are forwarded as-is to OpenAI-protocol providers without translation.
 
 ## Model Management
 
@@ -271,7 +302,7 @@ relay/
 │   │   ├── account/       # add, list, switch, edit, remove, login, migrate
 │   │   ├── proxy/         # start, stop, status
 │   │   ├── auto/          # enable, disable, status
-│   │   ├── hooks/         # session-start, forge-setup, install
+│   │   ├── hooks/         # session-start, forge-setup, codex-setup, install
 │   │   ├── models.tsx     # list, add, remove, refresh, reset
 │   │   ├── usage.tsx      # usage tracking
 │   │   └── doctor.tsx     # diagnostics

@@ -11,6 +11,8 @@ export default class HooksIndex extends BaseCommand<typeof HooksIndex> {
     "<%= config.bin %> hooks stop",
     "<%= config.bin %> hooks forge-setup",
     "<%= config.bin %> hooks forge-stop",
+    "<%= config.bin %> hooks codex-setup",
+    "<%= config.bin %> hooks codex-stop",
   ];
 
   async run(): Promise<void> {
@@ -27,6 +29,10 @@ export default class HooksIndex extends BaseCommand<typeof HooksIndex> {
     console.log(subheading("ForgeCode:"));
     console.log(`  ${item("forge-setup")} Install shell wrapper for auto-commit`);
     console.log(`  ${item("forge-stop")}   Auto-commit after forge session ends`);
+    console.log("");
+    console.log(subheading("Codex CLI:"));
+    console.log(`  ${item("codex-setup")} Install shell wrapper + config for Codex CLI`);
+    console.log(`  ${item("codex-stop")}   Session end hook for Codex CLI`);
     console.log("");
     console.log(subheading("ForgeCode Provider:"));
     console.log(`  ${item("forge register")}   Register Relay as a ForgeCode provider`);

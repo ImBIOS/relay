@@ -31,6 +31,7 @@ import {
 const PORT = Number(process.env.RELAY_PROXY_PORT || "8787");
 const HOST = process.env["RELAY_HOST"] ?? "0.0.0.0";
 const PROXY_BASE_PATH = "/api/anthropic";
+const OPENAI_BASE_PATH = "/api/openai";
 
 const CONFIG_DIR = join(homedir(), ".claude");
 const LOG_FILE = join(CONFIG_DIR, "relay-proxy.log");
@@ -215,6 +216,51 @@ async function handleRequest(req: Request): Promise<Response> {
       { error: "No active account configured. Run 'relay account switch <id>'." },
       { status: 503 },
     );
+  }
+
+  // ── OpenAI-format incoming requests (e.g. Codex CLI): simple passthrough ──
+  // Requests arriving at /api/openai are already in OpenAI wire format.
+  // Just replace auth and forward to the upstream provider — no translation.
+  if (url.pathname.startsWith(OPENAI_BASE_PATH)) {
+    const remaining = url.pathname.slice(OPENAI_BASE_PATH.length) || "/";
+    const targetUrl = `${account.baseUrl.replace(/\/$/, "")}${remaining}${url.search}`;
+
+    const headers = new Headers(req.headers);
+    headers.set("Authorization", `Bearer ${account.apiKey}`);
+    headers.delete("host");
+
+    let upstreamRes: Response;
+    try {
+      upstreamRes = await fetch(targetUrl, {
+        method: req.method,
+        headers,
+        body: bodyText,
+      });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      log({ ts: new Date().toISOString(), error: "openai_passthrough_failed", msg, targetUrl, model });
+      return Response.json({ error: `Provider unreachable: ${msg}` }, { status: 502 });
+    }
+
+    const latency = Date.now() - start;
+    log({
+      ts: new Date().toISOString(),
+      method: req.method,
+      path: url.pathname,
+      model,
+      provider: account.provider,
+      account: account.name,
+      status: upstreamRes.status,
+      latency_ms: latency,
+      target: targetUrl,
+      passthrough: "openai",
+    });
+
+    return new Response(upstreamRes.body, {
+      status: upstreamRes.status,
+      statusText: upstreamRes.statusText,
+      headers: upstreamRes.headers,
+    });
   }
 
   // ── OpenAI-protocol providers: protocol translation required ───────────
