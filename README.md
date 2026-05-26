@@ -238,7 +238,7 @@ Relay fetches real usage data from providers that expose quota APIs:
 - **Z.AI**: Token limits (daily and weekly) with reset timers
 - **MiniMax**: Token usage with quota tracking
 
-```
+```txt
 $ relay usage
 
   github-copilot@ImBIOS — GitHub Copilot

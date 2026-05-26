@@ -16,8 +16,8 @@
  *   - MiniMax API key is duplicated (not moved) so host config stays valid
  */
 
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from "node:fs";
-import { join, dirname } from "node:path";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 // ── Paths ──────────────────────────────────────────────────────────────────────
@@ -160,19 +160,20 @@ console.log(
 // ── 3. Copy forge-mcp.json verbatim ───────────────────────────────────────────
 writeJson(join(OUT_DIR, "forge-mcp.json"), forgeMcp, "forge-mcp.json");
 
-// ── 4. Generate .forge.toml with Relay-managed custom provider ────────────────
+// ── 4. Generate .forge.toml with Relay custom provider ────────────────
 // This configures ForgeCode to use the Relay proxy as a custom provider.
 // The relay proxy speaks Anthropic protocol and routes to MiniMax.
+// Single model "Relay" — the proxy handles actual model routing.
 const forgeToml = `# Auto-generated ForgeCode config for Relay Proxy integration testing.
-# Provider "Relay-managed" routes through the local relay proxy.
+# Provider "relay" routes through the local relay proxy.
 
 [session]
-provider_id = "relay-managed"
-model_id = "MiniMax-M2.7"
+provider_id = "relay"
+model_id = "Relay"
 
-# Relay-managed custom provider — speaks Anthropic protocol via relay proxy
+# Relay custom provider — speaks Anthropic protocol via relay proxy
 [[providers]]
-id = "relay-managed"
+id = "relay"
 url = "http://127.0.0.1:8787/api/anthropic/v1/messages"
 api_key_vars = "ANTHROPIC_AUTH_TOKEN"
 url_param_vars = []
@@ -180,29 +181,9 @@ response_type = "Anthropic"
 auth_methods = ["api_key"]
 
 [[providers.models]]
-id = "MiniMax-M2.7"
-name = "Relay-managed MiniMax M2.7"
-description = "MiniMax M2.7 via Relay Proxy (Anthropic protocol)"
-context_length = 204800
-tools_supported = true
-supports_parallel_tool_calls = true
-supports_reasoning = true
-input_modalities = ["text"]
-
-[[providers.models]]
-id = "MiniMax-M2.5"
-name = "Relay-managed MiniMax M2.5"
-description = "MiniMax M2.5 via Relay Proxy (Anthropic protocol)"
-context_length = 204800
-tools_supported = true
-supports_parallel_tool_calls = true
-supports_reasoning = true
-input_modalities = ["text"]
-
-[[providers.models]]
-id = "MiniMax-M2.1"
-name = "Relay-managed MiniMax M2.1"
-description = "MiniMax M2.1 via Relay Proxy (Anthropic protocol)"
+id = "Relay"
+name = "Relay"
+description = "All models routed via Relay Proxy (Anthropic protocol)"
 context_length = 204800
 tools_supported = true
 supports_parallel_tool_calls = true
@@ -223,12 +204,12 @@ read_timeout_secs = 120
 `;
 
 writeFileSync(join(OUT_DIR, "forge.toml"), forgeToml);
-console.log("✅ Written: forge.toml (Relay-managed provider with MiniMax models)");
+console.log("✅ Written: forge.toml (Relay provider with MiniMax models)");
 
 // ── Summary ───────────────────────────────────────────────────────────────────
 console.log("\n✅ Test configs generated in ./test-configs/");
 console.log("   ZAI accounts: 0 (none in output)");
 console.log(`   MiniMax accounts: ${Object.keys(clonedAccounts).length} (duplicated from host, host unchanged)`);
-console.log("   ForgeCode provider: relay-managed (routes via local proxy)");
+console.log("   ForgeCode provider: relay (routes via local proxy)");
 console.log("\nRun the container with:");
 console.log("   docker compose -f docker-compose.forgecode-test.yml run --rm relay-proxy-forgecode");

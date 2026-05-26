@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname } from "node:path";
 
@@ -53,11 +53,18 @@ export function loadSettings(): LegacyConfig {
   return {};
 }
 
-export function saveSettings(settings: LegacyConfig): LegacyConfig {
+export function saveSettings(partial: LegacyConfig): LegacyConfig {
   const dir = dirname(SETTINGS_PATH);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2));
-  return settings;
+  // Merge with existing config on disk so callers never accidentally
+  // wipe fields they don't know about (accounts, rotation, version, etc.)
+  const existing = loadSettings();
+  const merged = { ...existing, ...partial };
+  // Atomic write per project rules
+  const tmpPath = `${SETTINGS_PATH}.tmp`;
+  writeFileSync(tmpPath, JSON.stringify(merged, null, 2));
+  renameSync(tmpPath, SETTINGS_PATH);
+  return merged;
 }
 
 // ── Provider config helpers (used by legacy SDK) ────────────────────────────

@@ -28,12 +28,17 @@ export default class SessionStart extends BaseCommand<typeof SessionStart> {
       await ensureRelayProxyRunning();
       log(`${ok("OK")} Proxy running on http://127.0.0.1:8787`);
 
-      saveSettings({
+      // Only update the active provider field and the specific provider's
+      // credentials — do NOT overwrite other provider configs.
+      const providerUpdate: Record<string, unknown> = {
         provider: account.provider,
-        zai: { apiKey: account.apiKey, baseUrl: account.baseUrl ?? "", models: ["claude-3-5-sonnet-4-20250514"] },
-        minimax: { apiKey: account.apiKey, baseUrl: account.baseUrl ?? "", models: ["glm-4-flash"] },
-        copilot: { apiKey: account.apiKey, baseUrl: account.baseUrl ?? "", models: [] },
-      });
+      };
+      providerUpdate[account.provider] = {
+        apiKey: account.apiKey,
+        baseUrl: account.baseUrl ?? "",
+        models: ["claude-3-5-sonnet-4-20250514"],
+      };
+      saveSettings(providerUpdate);
 
       const provider = account.provider === "zai"
         ? (await import("../../providers/zai")).zaiProvider

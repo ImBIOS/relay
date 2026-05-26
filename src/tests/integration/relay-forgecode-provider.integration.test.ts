@@ -1,13 +1,13 @@
 /**
- * Integration test: Relay Proxy as ForgeCode provider with "Relay-managed" model.
+ * Integration test: Relay Proxy as ForgeCode provider with "Relay" model.
  *
  * Tests the full pipeline:
  *   ForgeCode → ANTHROPIC_BASE_URL → Relay Proxy → MiniMax API
  *
  * Verifies:
  *   1. Relay proxy is healthy and has MiniMax accounts configured
- *   2. .forge.toml contains the "relay-managed" custom provider
- *   3. "Relay-managed" is a valid provider string in the ForgeCode model config
+ *   2. .forge.toml contains the "relay" custom provider
+ *   3. "Relay" is a valid provider string in the ForgeCode model config
  *   4. A real Anthropic-format messages request through the proxy returns a valid response
  *
  * Must run inside the Docker test container (Dockerfile.forgecode) with MiniMax credentials.
@@ -72,13 +72,13 @@ describe("Relay Proxy as ForgeCode provider", () => {
     expect(zaiCount).toBe(0);
   });
 
-  // ── 3. .forge.toml contains "relay-managed" provider ──────────────────────
-  test(".forge.toml contains relay-managed custom provider", () => {
+  // ── 3. .forge.toml contains "relay" provider ──────────────────────
+  test(".forge.toml contains relay custom provider", () => {
     expect(existsSync(FORGE_CONFIG_PATH)).toBe(true);
     const toml = readFileSync(FORGE_CONFIG_PATH, "utf-8");
 
     // Verify the provider ID exists
-    expect(toml).toContain('id = "relay-managed"');
+    expect(toml).toContain('id = "relay"');
 
     // Verify it uses Anthropic response type
     expect(toml).toContain('response_type = "Anthropic"');
@@ -86,23 +86,19 @@ describe("Relay Proxy as ForgeCode provider", () => {
     // Verify it points to the relay proxy
     expect(toml).toContain("http://127.0.0.1:8787/api/anthropic");
 
-    // Verify session uses relay-managed provider
-    expect(toml).toContain('provider_id = "relay-managed"');
+    // Verify session uses relay provider
+    expect(toml).toContain('provider_id = "relay"');
   });
 
-  // ── 4. "Relay-managed" is a valid model string in .forge.toml ─────────────
-  test("Relay-managed models are defined with correct model IDs", () => {
+  // ── 4. "Relay" is a valid model string in .forge.toml ─────────────
+  test("Relay model is defined with correct ID", () => {
     const toml = readFileSync(FORGE_CONFIG_PATH, "utf-8");
 
-    // Check that the model names contain "Relay-managed"
-    expect(toml).toContain("Relay-managed MiniMax M2.7");
-    expect(toml).toContain("Relay-managed MiniMax M2.5");
-    expect(toml).toContain("Relay-managed MiniMax M2.1");
+    // Check that the model name is "Relay"
+    expect(toml).toContain('name = "Relay"');
 
-    // Check model IDs match what the proxy expects
-    expect(toml).toContain('id = "MiniMax-M2.7"');
-    expect(toml).toContain('id = "MiniMax-M2.5"');
-    expect(toml).toContain('id = "MiniMax-M2.1"');
+    // Check model ID matches the session model_id
+    expect(toml).toContain('id = "Relay"');
   });
 
   // ── 5. End-to-end: real API call through relay proxy ──────────────────────
@@ -119,12 +115,12 @@ describe("Relay Proxy as ForgeCode provider", () => {
           anthropic_version: "2023-06-01",
         },
         body: JSON.stringify({
-          model: "MiniMax-M2.7",
+          model: "Relay",
           max_tokens: 64,
           messages: [
             {
               role: "user",
-              content: "Say exactly: Relay-managed test OK",
+              content: "Say exactly: Relay test OK",
             },
           ],
         }),
@@ -177,7 +173,7 @@ describe("Relay Proxy as ForgeCode provider", () => {
           anthropic_version: "2023-06-01",
         },
         body: JSON.stringify({
-          model: "MiniMax-M2.7",
+          model: "Relay",
           max_tokens: 32,
           stream: true,
           messages: [
