@@ -1,11 +1,85 @@
 import { BaseCommand } from "../../oclif/base";
 import { Flags } from "@oclif/core";
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { divider, ok, success, warn } from "../../utils/console";
 
 const WRAPPER_MARKER = "# ── Relay Forge wrapper";
+
+const FORGE_TOML_DIR = join(homedir(), ".forge");
+const FORGE_TOML_PATH = join(FORGE_TOML_DIR, ".forge.toml");
+
+/** Top-level keys to apply (key → value). */
+const TOML_TOP_LEVEL: Record<string, number> = {
+  max_requests_per_turn: 10000,
+  max_tool_failure_per_turn: 200,
+};
+
+/** Keys to apply inside the [retry] section. */
+const TOML_RETRY: Record<string, number> = {
+  initial_backoff_ms: 100,
+  min_delay_ms: 500,
+  max_attempts: 100,
+};
+
+/**
+ * Replace or insert a key=value pair in a TOML string.
+ * When `section` is given the key is scoped to that section header.
+ */
+function setTomlKey(content: string, key: string, value: number, section?: string): string {
+  if (section) {
+    const keyRe = new RegExp(`^(${key}\\s*=\\s*)\\S+`, "m");
+    if (keyRe.test(content)) {
+      return content.replace(keyRe, `${key} = ${value}`);
+    }
+    const sectionRe = new RegExp(`^\\[${section}\\]`, "m");
+    if (sectionRe.test(content)) {
+      return content.replace(sectionRe, `[${section}]\n${key} = ${value}`);
+    }
+    return `${content}\n[${section}]\n${key} = ${value}\n`;
+  }
+
+  const keyRe = new RegExp(`^(${key}\\s*=\\s*)\\S+`, "m");
+  if (keyRe.test(content)) {
+    return content.replace(keyRe, `${key} = ${value}`);
+  }
+
+  const firstSection = content.search(/^\[/m);
+  if (firstSection !== -1) {
+    return content.slice(0, firstSection) + `${key} = ${value}\n` + content.slice(firstSection);
+  }
+  return `${content}\n${key} = ${value}\n`;
+}
+
+/**
+ * Idempotently applies the Relay autonomy settings to ~/.forge/.forge.toml.
+ * Returns the number of keys that were actually changed.
+ */
+function applyForgeTomlSettings(): number {
+  const tmpPath = `${FORGE_TOML_PATH}.tmp`;
+
+  if (!existsSync(FORGE_TOML_DIR)) {
+    mkdirSync(FORGE_TOML_DIR, { recursive: true });
+  }
+
+  let content = existsSync(FORGE_TOML_PATH) ? readFileSync(FORGE_TOML_PATH, "utf-8") : "";
+  const original = content;
+
+  for (const [k, v] of Object.entries(TOML_TOP_LEVEL)) {
+    content = setTomlKey(content, k, v);
+  }
+  for (const [k, v] of Object.entries(TOML_RETRY)) {
+    content = setTomlKey(content, k, v, "retry");
+  }
+
+  if (content === original) return 0;
+
+  writeFileSync(tmpPath, content, "utf-8");
+  renameSync(tmpPath, FORGE_TOML_PATH);
+
+  return Object.keys(TOML_TOP_LEVEL).length + Object.keys(TOML_RETRY).length;
+}
 const WRAPPER_BODY = (bin: string) => `
 ${WRAPPER_MARKER}
 forge() {
@@ -62,15 +136,32 @@ export default class ForgeSetup extends BaseCommand<typeof ForgeSetup> {
     const content = readFileSync(rc, "utf-8");
     if (content.includes(WRAPPER_MARKER)) {
       console.log(`  ${ok("Already installed.")}`);
-      return;
+    } else {
+      writeFileSync(rc, content + "\n" + WRAPPER_BODY(bin), "utf-8");
+      console.log(`  ${success("Installed!")} Shell wrapper added to ${rc}`);
+      console.log("  Restart your shell or run: source " + rc);
+      console.log("");
+      console.log("  After sourcing, use `forge` instead of `claude`:");
+      console.log("  $ forge");
     }
 
-    writeFileSync(rc, content + "\n" + WRAPPER_BODY(bin), "utf-8");
-    console.log(`  ${success("Installed!")} Shell wrapper added to ${rc}`);
-    console.log("  Restart your shell or run: source " + rc);
-    console.log("");
-    console.log("  After sourcing, use `forge` instead of `claude`:");
-    console.log("  $ forge");
+    // Apply autonomy settings to ~/.forge/.forge.toml so Forge requires
+    // minimal human intervention (higher turn limits, more retry attempts).
+    const changed = applyForgeTomlSettings();
+    if (changed > 0) {
+      console.log("");
+      console.log(
+        `  ${success("Applied")} autonomy settings to ${FORGE_TOML_PATH}:`,
+      );
+      console.log(`    max_requests_per_turn  = ${TOML_TOP_LEVEL.max_requests_per_turn}`);
+      console.log(`    max_tool_failure_per_turn = ${TOML_TOP_LEVEL.max_tool_failure_per_turn}`);
+      console.log(`    retry.max_attempts     = ${TOML_RETRY.max_attempts}`);
+      console.log(`    retry.initial_backoff_ms = ${TOML_RETRY.initial_backoff_ms}`);
+      console.log(`    retry.min_delay_ms     = ${TOML_RETRY.min_delay_ms}`);
+    } else {
+      console.log("");
+      console.log(`  ${ok("Autonomy settings already up-to-date.")} (${FORGE_TOML_PATH})`);
+    }
   }
 
   private async uninstall(rc: string): Promise<void> {
