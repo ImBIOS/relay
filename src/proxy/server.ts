@@ -29,6 +29,24 @@ import {
 } from "./translators/anthropic-openai.js";
 
 const PORT = Number(process.env.RELAY_PROXY_PORT || "8787");
+
+/**
+ * Headers forwarded verbatim to Anthropic-compatible upstream providers (Z.AI, MiniMax).
+ *
+ * This allowlist exists to prevent client fingerprinting that can trigger ZAI's
+ * "multiple users" detection. Different AI tools (Claude Code, ForgeCode, Codex CLI)
+ * each send distinct identifying headers — User-Agent, x-stainless-*, anthropic-client-id,
+ * anthropic-client-version — that make every tool look like a different "user" to ZAI
+ * even though they all share the same API key through relay.
+ *
+ * By only forwarding API-relevant headers and letting relay present itself as a single
+ * consistent client, all requests are indistinguishable to the upstream provider.
+ */
+const ANTHROPIC_HEADER_ALLOWLIST = new Set([
+  "content-type",
+  "anthropic-version",
+  "anthropic-beta",
+]);
 const HOST = process.env["RELAY_HOST"] ?? "0.0.0.0";
 const PROXY_BASE_PATH = "/api/anthropic";
 const OPENAI_BASE_PATH = "/api/openai";
@@ -276,10 +294,20 @@ async function handleRequest(req: Request): Promise<Response> {
     : url.pathname;
   const targetUrl = `${account.baseUrl.replace(/\/$/, "")}${remaining}${url.search}`;
 
-  // Forward headers, replace Authorization with real API key
-  const headers = new Headers(req.headers);
+  // Build a clean, normalized header set — only forward what the Anthropic-compatible
+  // API actually needs. Stripping client-identifying headers (User-Agent, x-stainless-*,
+  // anthropic-client-id, anthropic-client-version, etc.) ensures relay presents itself
+  // as a single consistent client to ZAI, preventing "multiple users" detection.
+  const headers = new Headers();
   headers.set("Authorization", `Bearer ${account.apiKey}`);
-  headers.delete("host");
+  for (const name of ANTHROPIC_HEADER_ALLOWLIST) {
+    const value = req.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  // Guarantee Content-Type is always present
+  if (!headers.has("content-type")) {
+    headers.set("content-type", "application/json");
+  }
 
   let upstreamRes: Response;
   try {
