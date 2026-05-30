@@ -1,7 +1,6 @@
+import { Command, Flags } from "@oclif/core";
 import * as accountsConfig from "../config/accounts-config";
 import { getProviderModels, type ModelDefinition } from "../config/provider-registry";
-import { BaseCommand } from "../oclif/base";
-import { Flags } from "@oclif/core";
 
 /**
  * `relay prompt` — outputs a compact status string for shell prompts (Starship, etc.)
@@ -15,10 +14,13 @@ import { Flags } from "@oclif/core";
  *
  * The command is designed to be fast (<5ms) — it only reads the config file,
  * no network calls. Starship calls it on every prompt render via `command_timeout`.
+ *
+ * IMPORTANT: This extends Command directly (not BaseCommand) to skip telemetry
+ * and MiniMax groupId checks. Those add I/O overhead that causes Starship timeouts.
  */
-export default class Prompt extends BaseCommand<typeof Prompt> {
+export default class Prompt extends Command {
   static description = "Output active relay info for shell prompts";
-  static hidden = true; // Internal, not shown in help
+  static hidden = true;
   static flags = {
     format: Flags.string({
       description: "Output format",
@@ -33,13 +35,12 @@ export default class Prompt extends BaseCommand<typeof Prompt> {
     const activeAccount = accountsConfig.getActiveAccount();
 
     if (!activeAccount) {
-      // No v2 accounts — nothing to show
       return;
     }
 
     const provider = activeAccount.provider;
     const model = this.getModelForProvider(provider);
-    const account = activeAccount.name; // Full email address
+    const account = activeAccount.name;
     const providerFilter = config.rotation.providerFilter ?? "cross-provider";
     const strategy = config.rotation.enabled
       ? `${config.rotation.strategy}:${providerFilter}`
@@ -58,10 +59,6 @@ export default class Prompt extends BaseCommand<typeof Prompt> {
     }
   }
 
-  /**
-   * Get the first model name for a given provider from the provider registry.
-   * Falls back to "Relay" if no models configured.
-   */
   private getModelForProvider(provider: string): string {
     const models = getProviderModels(provider);
     if (Array.isArray(models) && models.length > 0) {
