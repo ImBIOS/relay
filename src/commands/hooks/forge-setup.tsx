@@ -23,7 +23,7 @@ const TOML_RETRY: Record<string, number> = {
   max_attempts: 100,
 };
 
-/** The single Relay provider block to inject into .forge.toml. */
+/** The single Relay provider block to inject into ~/forge/.forge.toml. */
 const RELAY_PROVIDER_BLOCK = `
 [[providers]]
 id = "relay"
@@ -176,6 +176,62 @@ function getRcFile(shell: string): string {
   return join(home, ".bashrc");
 }
 
+/**
+ * Idempotently re-order the forge plugin/theme evals to load before starship.
+ * Only applies to zsh .zshrc. Returns content unchanged if already ordered.
+ */
+function fixZshrcOrder(content: string): string {
+  const pluginLine = 'eval "$(forge zsh plugin)"';
+  const themeLine = 'eval "$(forge zsh theme)"';
+  const starLine = 'eval "$(starship init zsh)"';
+  const forgeBlocks = [
+    { name: "plugin", line: pluginLine },
+    { name: "theme", line: themeLine },
+  ];
+
+  const hasPlugin = content.includes(pluginLine);
+  const hasTheme = content.includes(themeLine);
+  const starshipIdx = content.indexOf(starLine);
+  if (starshipIdx === -1) return content;
+  if (!hasPlugin && !hasTheme) return content;
+
+  // Already ordered: plugin/theme evals appear directly before starship
+  const rightBeforeStarship = content.slice(0, starshipIdx);
+  const alreadyOrdered =
+    rightBeforeStarship.includes(pluginLine) ||
+    rightBeforeStarship.includes(themeLine);
+  if (alreadyOrdered) return content;
+
+  // Extract the plugin/theme eval lines from wherever they currently live
+  let removed = "";
+  for (const block of forgeBlocks) {
+    const relIdx = content.indexOf(block.line);
+    if (relIdx !== -1) {
+      removed += block.line + "\n";
+    }
+  }
+  // Remove the forge evals from content
+  let updated = content;
+  for (const block of forgeBlocks) {
+    updated = updated.split(block.line + "\n").join("");
+    // Also remove without trailing newline (last occurrence)
+    const parts = updated.split(block.line);
+    const lastIdx = parts.length - 1;
+    if (lastIdx > 0) {
+      parts[lastIdx] = parts[lastIdx].replace(/^\n/, "");
+      updated = parts.join(block.line);
+    }
+  }
+
+  const starBlock = updated.indexOf(starLine);
+  if (starBlock === -1) return content;
+  const before = updated.slice(0, starBlock);
+  const after = updated.slice(starBlock + starLine.length);
+
+  const cleaned = before.replace(/\s+$/, "");
+  return cleaned + "\n\n# ── Relay Forge plugin + theme\n" + removed + starLine + after;
+}
+
 export default class ForgeSetup extends BaseCommand<typeof ForgeSetup> {
   static description = "Install/uninstall the forge() shell wrapper";
   static flags = {
@@ -209,12 +265,21 @@ export default class ForgeSetup extends BaseCommand<typeof ForgeSetup> {
     if (content.includes(WRAPPER_MARKER)) {
       console.log(`  ${ok("Already installed.")}`);
     } else {
-      writeFileSync(rc, content + "\n" + WRAPPER_BODY(bin), "utf-8");
+      const newContent = content + "\n" + WRAPPER_BODY(bin);
+      const applied = shell === "zsh" ? fixZshrcOrder(newContent) : newContent;
+      writeFileSync(rc, applied, "utf-8");
       console.log(`  ${success("Installed!")} Shell wrapper added to ${rc}`);
-      console.log("  Restart your shell or run: source " + rc);
-      console.log("");
-      console.log("  After sourcing, use `forge` instead of `claude`:");
-      console.log("  $ forge");
+    }
+
+    // Reorder forge plugin/theme evals above starship in existing .zshrc files
+    // so starship always gets the last word on the prompt.
+    if (shell === "zsh" && existsSync(rc)) {
+      const existing = readFileSync(rc, "utf-8");
+      const reordered = fixZshrcOrder(existing);
+      if (reordered !== existing) {
+        writeFileSync(rc, reordered, "utf-8");
+        console.log(`  ${success("Fixed")} forge/starship load order in ${rc}`);
+      }
     }
 
     // Apply autonomy + provider settings to ~/forge/.forge.toml so Forge
