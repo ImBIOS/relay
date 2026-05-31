@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  relay: 'link:'
+
 importers:
 
   .:
@@ -26,6 +29,9 @@ importers:
       jsonc:
         specifier: ^2.0.0
         version: 2.0.0
+      relay:
+        specifier: 'link:'
+        version: 'link:'
       zod:
         specifier: ^4.0.0
         version: 4.4.3

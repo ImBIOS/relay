@@ -17,6 +17,7 @@
     "@imbios/forgecode-sdk": "github:ImBIOS/forgecode-sdk#main",
     "@oclif/core": "^4.8.0",
     "jsonc": "^2.0.0",
+    "relay": "link:",
     "zod": "^4.0.0"
   },
   "devDependencies": {
