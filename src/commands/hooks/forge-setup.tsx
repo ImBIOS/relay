@@ -164,9 +164,13 @@ forge() {
     ${bin} hooks session-start --silent >/dev/null 2>&1
     trap "${bin} hooks forge-stop --silent >/dev/null 2>&1" EXIT
     command forge "$@"
-    printf '\\r\\n'
+    [[ -t 1 ]] && printf '\\r\\n'
   fi
 }
+# Bypass the wrapper for forge plugin internals (_forge_prompt_info, conversation new, etc.)
+# Without this, _FORGE_BIN="forge" resolves to the shell function, and every $() call
+# (e.g. RPROMPT, conversation new) runs the full relay setup and captures \\r in its output.
+_FORGE_BIN="\$(command -v forge)"
 `;
 
 function getRcFile(shell: string): string {
