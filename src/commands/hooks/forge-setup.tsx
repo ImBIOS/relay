@@ -164,7 +164,7 @@ forge() {
     ${bin} hooks session-start --silent >/dev/null 2>&1
     trap "${bin} hooks forge-stop --silent >/dev/null 2>&1" EXIT
     command forge "$@"
-    printf '\\n'
+    printf '\\r\\n'
   fi
 }
 `;
