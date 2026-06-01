@@ -166,11 +166,16 @@ forge() {
     command forge "$@"
   fi
   # Always clean up terminal state after forge exits (guards: only on real TTY).
-  # \\033[9999B  — move cursor to screen bottom (forge's TUI leaves cursor mid-screen
-  #               after cursor-up redraws; without this Starship overwrites last N lines)
-  # \\033[0m     — reset text attributes (color/bold/etc. forge may not have reset)
-  # \\r\\n        — ensure we start at column 0 on a fresh line
-  [[ -t 1 ]] && printf '\\033[9999B\\033[0m\\r\\n'
+  # ForgeCode's TUI uses cursor-up (\\033[A) to redraw lines in-place. When it
+  # exits, the cursor is left mid-screen. Without cleanup, Starship renders its
+  # prompt at that position, overwriting the last N lines of forge output.
+  #
+  # \\033[?25h  — ensure cursor is visible (forge may hide it during TUI)
+  # \\033[9999B — move cursor to the bottom of the terminal viewport
+  # \\033[0J    — clear from cursor to end of screen (removes stale TUI artifacts)
+  # \\033[0m    — reset text attributes (color/bold/etc. forge may not have reset)
+  # \\n\\n      — two newlines so starship prompt renders below all forge output
+  [[ -t 1 ]] && printf '\\033[?25h\\033[9999B\\033[0J\\033[0m\\n\\n'
 }
 # Bypass the wrapper for forge plugin internals (_forge_prompt_info, conversation new, etc.)
 # Without this, _FORGE_BIN="forge" resolves to the shell function, and every $() call
