@@ -1,0 +1,62 @@
+# Staging — auto-deploy on push to master
+# Publishes to npm with "next" tag (not latest) and deploys to staging-0 VPS
+name: Staging
+
+on:
+  push:
+    branches: [master]
+
+concurrency:
+  group: staging
+  cancel-in-progress: false
+
+jobs:
+  # Gate: ensure CI passes first
+  ci:
+    name: CI Gate
+    uses: ./.github/workflows/ci.yml
+
+  publish-next:
+    name: Publish to npm (next tag)
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Setup npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to npm as "next"
+        run: npm publish --tag next --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  deploy-staging:
+    name: Deploy to staging-0
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: staging
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        run: bash scripts/deploy-staging.sh
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+          STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          STAGING_PORT: ${{ secrets.STAGING_PORT }}

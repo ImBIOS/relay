@@ -170,12 +170,22 @@ forge() {
   # exits, the cursor is left mid-screen. Without cleanup, Starship renders its
   # prompt at that position, overwriting the last N lines of forge output.
   #
-  # \\033[?25h  — ensure cursor is visible (forge may hide it during TUI)
-  # \\033[9999B — move cursor to the bottom of the terminal viewport
-  # \\033[0J    — clear from cursor to end of screen (removes stale TUI artifacts)
-  # \\033[0m    — reset text attributes (color/bold/etc. forge may not have reset)
-  # \\n\\n      — two newlines so starship prompt renders below all forge output
-  [[ -t 1 ]] && printf '\\033[?25h\\033[9999B\\033[0J\\033[0m\\n\\n'
+  # Strategy: scroll the entire viewport so all forge output moves above the
+  # visible area, then let starship render on a clean screen.
+  if [[ -t 1 ]]; then
+    # Ensure cursor is visible (forge may hide it during TUI)
+    printf '\\033[?25h'
+    # Reset text attributes
+    printf '\\033[0m'
+    # Scroll the entire terminal height + a few extra lines to push all
+    # forge output above the viewport. This is more reliable than trying
+    # to position the cursor precisely — it guarantees starship renders
+    # below all forge content regardless of terminal size or cursor position.
+    local _relay_i
+    for (( _relay_i = 0; _relay_i < \${LINES:-24} + 3; _relay_i++ )); do
+      echo
+    done
+  fi
 }
 # Bypass the wrapper for forge plugin internals (_forge_prompt_info, conversation new, etc.)
 # Without this, _FORGE_BIN="forge" resolves to the shell function, and every $() call

@@ -14,6 +14,7 @@ If separate, should the production workflow trigger a deployment there too?
 ## 2. VPS Deployment Method
 
 How should the VPS deployment work?
+
 - SSH + Docker compose?
 - Ansible?
 - Something else?

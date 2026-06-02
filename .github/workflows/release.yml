@@ -1,0 +1,80 @@
+# Release — manual trigger on release/* branches
+# Publishes to npm with "latest" tag and deploys to prod-0 VPS
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: "Type RELEASE to confirm production deployment"
+        required: true
+        type: string
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/heads/release/')
+    steps:
+      - name: Check confirmation
+        run: |
+          if [[ "${{ inputs.confirm }}" != "RELEASE" ]]; then
+            echo "Error: You must type RELEASE to confirm."
+            exit 1
+          fi
+          echo "Release confirmed for ${{ github.ref_name }}"
+
+  ci:
+    name: CI Gate
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+
+  publish-latest:
+    name: Publish to npm (latest tag)
+    needs: ci
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+
+      - name: Build
+        run: bun run build
+
+      - name: Setup npm auth
+        run: echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to npm as "latest"
+        run: npm publish --tag latest --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  deploy-production:
+    name: Deploy to prod-0
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Deploy via SSH
+        run: bash scripts/deploy-prod.sh
+        env:
+          PROD_HOST: ${{ secrets.PROD_HOST }}
+          PROD_USER: ${{ secrets.PROD_USER }}
+          PROD_SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+          PROD_PORT: ${{ secrets.PROD_PORT }}
