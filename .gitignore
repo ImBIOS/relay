@@ -42,3 +42,6 @@ test-configs/
 
 # Forge binary (copied from host at build time)
 forge
+
+# Local plans (not tracked by git)
+plans/
