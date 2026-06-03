@@ -15,6 +15,8 @@ export interface WeeklyUsageStats {
   remaining: number;
   percentUsed: number;
   resetsAt?: string; // ISO timestamp
+  // For MiniMax: weekly limit may be unlimited (e.g. 100% remaining with no concrete count)
+  unlimited?: boolean;
 }
 
 export interface UsageStats {
@@ -24,6 +26,10 @@ export interface UsageStats {
   percentUsed: number;
   // For MiniMax: percentRemaining shows what's left (for display)
   percentRemaining?: number;
+  // For MiniMax: when the API no longer exposes absolute counts (only a remaining
+  // percentage for the 5-hour window), used/limit/remaining cannot be derived
+  // honestly. The display should hide absolute values and emphasise the percentage.
+  intervalPercentageOnly?: boolean;
   // For ZAI provider: separate model and MCP usage
   modelUsage?: UsageStats;
   mcpUsage?: UsageStats;

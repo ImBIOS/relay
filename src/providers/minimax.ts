@@ -47,13 +47,14 @@ export class MiniMaxProvider implements Provider {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s for full round-trip
 
-      const url = `https://platform.minimax.io/v1/api/openplatform/coding_plan/remains?GroupId=${groupId}`;
+      const url = `https://platform.minimax.io/v1/api/openplatform/coding_plan/remains`;
 
       const response = await fetch(url, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${apiKey}`,
           "Content-Type": "application/json",
+          "x-group-id": groupId,
         },
         signal: controller.signal,
       });
@@ -68,15 +69,21 @@ export class MiniMaxProvider implements Provider {
           start_time: number; // Unix timestamp in ms
           end_time: number; // Unix timestamp in ms (reset time)
           remains_time: number; // ms remaining until reset
+          // Legacy absolute count fields (may be 0 now that the API is percentage-only)
           current_interval_total_count: number;
           current_interval_usage_count: number;
           model_name: string;
+          // 5-hour window: remaining percentage (0-100). The API no longer exposes absolute counts.
+          current_interval_status?: number;
+          current_interval_remaining_percent?: number;
           // Weekly limits
           current_weekly_total_count?: number;
           current_weekly_usage_count?: number;
           weekly_start_time?: number; // Unix timestamp in ms
           weekly_end_time?: number; // Unix timestamp in ms
           weekly_remains_time?: number; // ms remaining until weekly reset
+          current_weekly_status?: number;
+          current_weekly_remaining_percent?: number; // 100 typically means unlimited
         }>;
         base_resp?: { status_code: number };
       };
@@ -87,28 +94,96 @@ export class MiniMaxProvider implements Provider {
       }
 
       const modelRemains = data.model_remains[0];
-      const limit = modelRemains.current_interval_total_count;
-      const remaining = modelRemains.current_interval_usage_count; // This field is actually "remaining", not "used"
-      const used = Math.max(0, limit - remaining);
-      const percentUsed = limit > 0 ? (used / limit) * 100 : 0;
-      const percentRemaining = limit > 0 ? (remaining / limit) * 100 : 0;
 
-      // Extract reset time from end_time (Unix timestamp in milliseconds)
+      // Prefer the absolute counts when the API provides them; otherwise fall back
+      // to the new percentage-only field (current_interval_total_count is now 0).
+      const rawTotal = modelRemains.current_interval_total_count;
+      const rawRemaining = modelRemains.current_interval_usage_count; // Legacy: this field is "remaining", not "used"
+      const intervalRemainingPercent = modelRemains.current_interval_remaining_percent;
+
+      let used: number;
+      let limit: number;
+      let remaining: number;
+      let percentRemaining: number;
+      let intervalPercentageOnly: boolean;
+
+      if (rawTotal > 0) {
+        // Old API shape: derive everything from absolute counts.
+        limit = rawTotal;
+        remaining = Math.max(0, rawRemaining);
+        used = Math.max(0, limit - remaining);
+        percentRemaining = limit > 0 ? (remaining / limit) * 100 : 0;
+        intervalPercentageOnly = false;
+      } else if (typeof intervalRemainingPercent === "number") {
+        // New API shape: only percentage is exposed. The display should rely on
+        // percentUsed/percentRemaining rather than the absolute counts.
+        const clamped = Math.max(0, Math.min(100, intervalRemainingPercent));
+        used = 0;
+        limit = 0;
+        remaining = 0;
+        percentRemaining = clamped;
+        intervalPercentageOnly = true;
+      } else {
+        used = 0;
+        limit = 0;
+        remaining = 0;
+        percentRemaining = 0;
+        intervalPercentageOnly = true;
+      }
+
+      const percentUsed = Math.max(0, Math.min(100, 100 - percentRemaining));
+
       // Extract reset time from end_time (Unix timestamp in milliseconds)
       const resetsAt = modelRemains.end_time
         ? new Date(modelRemains.end_time).toISOString()
         : undefined;
 
-      // Extract weekly limits if available
+      // Extract weekly limits. The API may expose the legacy absolute counts,
+      // the new percentage field, or both. When the total count is 0 and the
+      // remaining percent is 100 with status 3, the weekly bucket is unlimited.
       let weeklyUsage: WeeklyUsageStats | undefined;
-      if (modelRemains.current_weekly_total_count && modelRemains.current_weekly_total_count > 0) {
-        const weeklyLimit = modelRemains.current_weekly_total_count;
-        const weeklyUsed = modelRemains.current_weekly_usage_count ?? 0;
+      const weeklyTotal = modelRemains.current_weekly_total_count ?? 0;
+      const weeklyUsedRaw = modelRemains.current_weekly_usage_count ?? 0;
+      const weeklyRemainingPercent = modelRemains.current_weekly_remaining_percent;
+      const weeklyStatus = modelRemains.current_weekly_status;
+
+      // Detect unlimited weekly: no concrete limit, 100% remaining, status flag 3.
+      const weeklyIsUnlimited =
+        weeklyTotal === 0 &&
+        weeklyUsedRaw === 0 &&
+        (weeklyStatus === 3 || weeklyRemainingPercent === 100) &&
+        typeof weeklyRemainingPercent === "number";
+
+      if (weeklyIsUnlimited) {
+        weeklyUsage = {
+          used: 0,
+          limit: 0,
+          remaining: 0,
+          percentUsed: 0,
+          unlimited: true,
+          resetsAt: modelRemains.weekly_end_time
+            ? new Date(modelRemains.weekly_end_time).toISOString()
+            : undefined,
+        };
+      } else if (weeklyTotal > 0) {
+        const weeklyUsed = weeklyUsedRaw;
         weeklyUsage = {
           used: weeklyUsed,
-          limit: weeklyLimit,
-          remaining: Math.max(0, weeklyLimit - weeklyUsed),
-          percentUsed: weeklyLimit > 0 ? (weeklyUsed / weeklyLimit) * 100 : 0,
+          limit: weeklyTotal,
+          remaining: Math.max(0, weeklyTotal - weeklyUsed),
+          percentUsed: weeklyTotal > 0 ? (weeklyUsed / weeklyTotal) * 100 : 0,
+          resetsAt: modelRemains.weekly_end_time
+            ? new Date(modelRemains.weekly_end_time).toISOString()
+            : undefined,
+        };
+      } else if (typeof weeklyRemainingPercent === "number") {
+        // Percentage-only weekly (no unlimited flag and no absolute count).
+        const weeklyPctRemaining = Math.max(0, Math.min(100, weeklyRemainingPercent));
+        weeklyUsage = {
+          used: 100 - weeklyPctRemaining,
+          limit: 100,
+          remaining: weeklyPctRemaining,
+          percentUsed: 100 - weeklyPctRemaining,
           resetsAt: modelRemains.weekly_end_time
             ? new Date(modelRemains.weekly_end_time).toISOString()
             : undefined,
@@ -124,6 +199,7 @@ export class MiniMaxProvider implements Provider {
         percentUsed,
         // For MiniMax, display remaining percentage (like web interface)
         percentRemaining,
+        intervalPercentageOnly,
         resetsAt,
         weeklyUsage,
       };

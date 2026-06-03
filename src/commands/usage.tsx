@@ -9,7 +9,11 @@ import { formatNumber, formatResetsAt, formatResetAtAbsolute } from "../utils/fo
 import { dim, warn } from "../utils/console";
 import { getProviderCliLabel } from "../config/provider-registry";
 
-const PROVIDERS: Record<string, Provider> = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
+const PROVIDERS: Record<string, Provider> = {
+  zai: zaiProvider,
+  minimax: minimaxProvider,
+  copilot: copilotProvider,
+};
 
 export default class Usage extends BaseCommand<typeof Usage> {
   static description = "Show usage for the active account";
@@ -42,7 +46,11 @@ export default class Usage extends BaseCommand<typeof Usage> {
     console.log(`\n  ${active.name} — ${provider.displayName}`);
     console.log(`  ${dim("Loading usage...")}`);
 
-    const stats = await provider.getUsage({ apiKey: active.apiKey, groupId: active.groupId, oauthToken: active.oauthToken });
+    const stats = await provider.getUsage({
+      apiKey: active.apiKey,
+      groupId: active.groupId,
+      oauthToken: active.oauthToken,
+    });
 
     console.log(`  ${dim("Provider:")} ${active.provider}`);
 
@@ -52,17 +60,25 @@ export default class Usage extends BaseCommand<typeof Usage> {
         console.log(`  ${dim("Plan:")} ${stats.copilotPlan}`);
       }
       if (stats.limit > 0) {
-        console.log(`  ${dim("Premium Interactions:")} ${formatNumber(stats.used)} / ${formatNumber(stats.limit)}`);
-        console.log(`  ${dim("Remaining:")} ${formatNumber(stats.remaining)} (${stats.percentUsed.toFixed(1)}% used)`);
+        console.log(
+          `  ${dim("Premium Interactions:")} ${formatNumber(stats.used)} / ${formatNumber(stats.limit)}`,
+        );
+        console.log(
+          `  ${dim("Remaining:")} ${formatNumber(stats.remaining)} (${stats.percentUsed.toFixed(1)}% used)`,
+        );
       } else {
         console.log(`  ${dim("Premium Interactions:")} Unlimited`);
       }
       if (stats.copilotChat) {
-        const chatStatus = stats.copilotChat.unlimited ? "unlimited" : `${stats.copilotChat.percentRemaining.toFixed(1)}% remaining`;
+        const chatStatus = stats.copilotChat.unlimited
+          ? "unlimited"
+          : `${stats.copilotChat.percentRemaining.toFixed(1)}% remaining`;
         console.log(`  ${dim("Chat:")} ${chatStatus}`);
       }
       if (stats.copilotCompletions) {
-        const compStatus = stats.copilotCompletions.unlimited ? "unlimited" : `${stats.copilotCompletions.percentRemaining.toFixed(1)}% remaining`;
+        const compStatus = stats.copilotCompletions.unlimited
+          ? "unlimited"
+          : `${stats.copilotCompletions.percentRemaining.toFixed(1)}% remaining`;
         console.log(`  ${dim("Completions:")} ${compStatus}`);
       }
       if (stats.resetsAt) {
@@ -72,11 +88,19 @@ export default class Usage extends BaseCommand<typeof Usage> {
       }
     } else {
       // ZAI / MiniMax display
-      console.log(`  ${dim("Used:")} ${formatNumber(stats.used)}`);
-      console.log(`  ${dim("Limit:")} ${formatNumber(stats.limit)}`);
-      console.log(`  ${dim("Remaining:")} ${formatNumber(stats.remaining)}`);
-      if (stats.percentUsed !== undefined) {
-        console.log(`  ${dim("Usage:")} ${stats.percentUsed.toFixed(1)}%`);
+      if (stats.intervalPercentageOnly) {
+        // MiniMax new API shape: only the remaining percentage is exposed for the 5-hour window.
+        // Don't fabricate absolute counts.
+        if (typeof stats.percentUsed === "number")
+          console.log(`  ${dim("Usage:")} ${stats.percentUsed.toFixed(1)}% used`);
+        if (typeof stats.percentRemaining === "number")
+          console.log(`  ${dim("Remaining:")} ${stats.percentRemaining.toFixed(1)}%`);
+      } else {
+        console.log(`  ${dim("Used:")} ${formatNumber(stats.used)}`);
+        console.log(`  ${dim("Limit:")} ${formatNumber(stats.limit)}`);
+        console.log(`  ${dim("Remaining:")} ${formatNumber(stats.remaining)}`);
+        if (stats.percentUsed !== undefined)
+          console.log(`  ${dim("Usage:")} ${stats.percentUsed.toFixed(1)}%`);
       }
       if (stats.resetsAt) {
         const absolute = formatResetAtAbsolute(stats.resetsAt);
@@ -84,13 +108,19 @@ export default class Usage extends BaseCommand<typeof Usage> {
         console.log(`  ${dim("Resets At:")} ${absolute} (${relative})`);
       }
       if (stats.weeklyUsage) {
-        const weeklyPct = stats.weeklyUsage.percentUsed?.toFixed(1) ?? "0.0";
-        const weeklyUsed = formatNumber(stats.weeklyUsage.used);
-        const weeklyLimit = formatNumber(stats.weeklyUsage.limit);
         const weeklyReset = stats.weeklyUsage.resetsAt
           ? `${formatResetAtAbsolute(stats.weeklyUsage.resetsAt)} (${formatResetsAt(stats.weeklyUsage.resetsAt)})`
           : "N/A";
-        console.log(`  ${dim("Weekly:")} ${weeklyUsed} / ${weeklyLimit} · ${weeklyPct}% · resets ${weeklyReset}`);
+        if (stats.weeklyUsage.unlimited) {
+          console.log(`  ${dim("Weekly:")} Unlimited · resets ${weeklyReset}`);
+        } else {
+          const weeklyPct = stats.weeklyUsage.percentUsed?.toFixed(1) ?? "0.0";
+          const weeklyUsed = formatNumber(stats.weeklyUsage.used);
+          const weeklyLimit = formatNumber(stats.weeklyUsage.limit);
+          console.log(
+            `  ${dim("Weekly:")} ${weeklyUsed} / ${weeklyLimit} · ${weeklyPct}% · resets ${weeklyReset}`,
+          );
+        }
       }
 
       if (active.groupId) console.log(`  ${dim("GroupId:")} ${active.groupId}`);
@@ -102,7 +132,9 @@ export default class Usage extends BaseCommand<typeof Usage> {
     }
 
     if (flags.json) {
-      console.log(JSON.stringify({ account: active.name, provider: active.provider, usage: stats }, null, 2));
+      console.log(
+        JSON.stringify({ account: active.name, provider: active.provider, usage: stats }, null, 2),
+      );
     }
   }
 
@@ -125,12 +157,27 @@ export default class Usage extends BaseCommand<typeof Usage> {
         if (!provider) return null;
 
         if (account.provider === "copilot") {
-          const stats = await provider.getUsage({ apiKey: account.apiKey, oauthToken: account.oauthToken });
-          return { account, providerLabel: getProviderCliLabel(account.provider), stats, isCopilot: true, index: index + 1 };
+          const stats = await provider.getUsage({
+            apiKey: account.apiKey,
+            oauthToken: account.oauthToken,
+          });
+          return {
+            account,
+            providerLabel: getProviderCliLabel(account.provider),
+            stats,
+            isCopilot: true,
+            index: index + 1,
+          };
         }
 
         const stats = await provider.getUsage({ apiKey: account.apiKey, groupId: account.groupId });
-        return { account, providerLabel: getProviderCliLabel(account.provider), stats, isCopilot: false, index: index + 1 };
+        return {
+          account,
+          providerLabel: getProviderCliLabel(account.provider),
+          stats,
+          isCopilot: false,
+          index: index + 1,
+        };
       }),
     );
 
@@ -147,7 +194,9 @@ export default class Usage extends BaseCommand<typeof Usage> {
         }
         if (stats.limit > 0) {
           const pct = stats.percentUsed.toFixed(1);
-          console.log(`  Premium: ${formatNumber(stats.used)} / ${formatNumber(stats.limit)} · ${pct}% used`);
+          console.log(
+            `  Premium: ${formatNumber(stats.used)} / ${formatNumber(stats.limit)} · ${pct}% used`,
+          );
         } else {
           console.log(`  Premium: Unlimited`);
         }
@@ -167,7 +216,13 @@ export default class Usage extends BaseCommand<typeof Usage> {
 
       console.log(`\n  [${index}] ${account.name}`);
       console.log(`    ${providerLabel}`);
-      console.log(`  ${used} / ${limit} · ${pct}% used`);
+      if (stats.intervalPercentageOnly) {
+        // MiniMax new API: only the remaining percentage is exposed for the 5-hour window.
+        const remainingPct = stats.percentRemaining?.toFixed(1) ?? "100.0";
+        console.log(`  ${pct}% used · ${remainingPct}% remaining`);
+      } else {
+        console.log(`  ${used} / ${limit} · ${pct}% used`);
+      }
       console.log(`  Resets at ${resetAbsolute} (${resetRelative})`);
 
       if (stats.weeklyUsage) {
@@ -176,7 +231,15 @@ export default class Usage extends BaseCommand<typeof Usage> {
         const weeklyLimit = formatNumber(stats.weeklyUsage.limit);
         const weeklyResetAbsolute = formatResetAtAbsolute(stats.weeklyUsage.resetsAt ?? undefined);
         const weeklyResetRelative = formatResetsAt(stats.weeklyUsage.resetsAt ?? undefined);
-        console.log(`  Weekly: ${weeklyUsed} / ${weeklyLimit} · ${weeklyPct}% · resets ${weeklyResetAbsolute} (${weeklyResetRelative})`);
+        if (stats.weeklyUsage.unlimited) {
+          console.log(
+            `  Weekly: Unlimited · resets ${weeklyResetAbsolute} (${weeklyResetRelative})`,
+          );
+        } else {
+          console.log(
+            `  Weekly: ${weeklyUsed} / ${weeklyLimit} · ${weeklyPct}% · resets ${weeklyResetAbsolute} (${weeklyResetRelative})`,
+          );
+        }
       }
     }
   }
