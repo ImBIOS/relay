@@ -1,6 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import * as accountsConfig from "../config/accounts-config";
-import { getProviderModels, type ModelDefinition } from "../config/provider-registry";
+import { formatPromptOutput, type PromptFormat } from "../prompt-fast";
 
 /**
  * `relay prompt` — outputs a compact status string for shell prompts (Starship, etc.)
@@ -31,82 +30,7 @@ export default class Prompt extends Command {
 
   async run(): Promise<void> {
     const { flags } = await this.parse(Prompt);
-    const config = accountsConfig.loadConfig();
-    const activeAccount = accountsConfig.getActiveAccount();
-
-    if (!activeAccount) {
-      return;
-    }
-
-    const provider = activeAccount.provider;
-    const model = this.getModelForProvider(provider);
-    const account = activeAccount.name;
-    const providerFilter = config.rotation.providerFilter ?? "cross-provider";
-    const strategy = config.rotation.enabled
-      ? `${config.rotation.strategy}:${providerFilter}`
-      : "off";
-
-    switch (flags.format) {
-      case "starship":
-        this.printStarship(model, provider, account, strategy);
-        break;
-      case "zsh":
-        this.printZsh(model, provider, account, strategy);
-        break;
-      case "plain":
-        this.printPlain(model, provider, account, strategy);
-        break;
-    }
-  }
-
-  private getModelForProvider(provider: string): string {
-    const models = getProviderModels(provider);
-    if (Array.isArray(models) && models.length > 0) {
-      const first = models[0] as ModelDefinition | string;
-      return typeof first === "string" ? first : first.id;
-    }
-    return "Relay";
-  }
-
-  private printStarship(
-    model: string,
-    provider: string,
-    account: string,
-    strategy: string,
-  ): void {
-    const parts = [model, provider, account];
-    if (strategy !== "off") parts.push(strategy);
-    console.log(parts.join(" "));
-  }
-
-  private printZsh(
-    model: string,
-    provider: string,
-    account: string,
-    strategy: string,
-  ): void {
-    const dim = "%F{240}";
-    const cyan = "%F{6}";
-    const green = "%F{2}";
-    const yellow = "%F{3}";
-    const reset = "%f";
-    const label = `${dim}relay${reset}`;
-    const modelStr = `${cyan}${model}${reset}`;
-    const providerStr = `${green}${provider}${reset}`;
-    const accountStr = `${green}${account}${reset}`;
-    const stratStr =
-      strategy !== "off" ? ` ${yellow}${strategy}${reset}` : "";
-    console.log(`${label} ${modelStr} ${providerStr} ${accountStr}${stratStr}`);
-  }
-
-  private printPlain(
-    model: string,
-    provider: string,
-    account: string,
-    strategy: string,
-  ): void {
-    const parts = ["relay:", model, provider, account];
-    if (strategy !== "off") parts.push(strategy);
-    console.log(parts.join(" "));
+    const output = formatPromptOutput(flags.format as PromptFormat);
+    if (output) console.log(output);
   }
 }

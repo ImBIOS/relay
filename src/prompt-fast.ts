@@ -4,15 +4,14 @@ import { getProviderModels, type ModelDefinition } from "./config/provider-regis
 export type PromptFormat = "starship" | "zsh" | "plain";
 
 export function parsePromptFormat(argv: string[]): PromptFormat {
-  for (const arg of argv) {
-    if (arg === "--format=starship" || arg === "--format" && argv.includes("starship")) {
-      return "starship";
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg.startsWith("--format=")) {
+      const value = arg.slice("--format=".length);
+      if (value === "zsh" || value === "plain" || value === "starship") return value;
     }
-    if (arg === "--format=zsh") return "zsh";
-    if (arg === "--format=plain") return "plain";
     if (arg === "--format") {
-      const idx = argv.indexOf(arg);
-      const next = argv[idx + 1];
+      const next = argv[i + 1];
       if (next === "zsh" || next === "plain" || next === "starship") return next;
     }
   }
