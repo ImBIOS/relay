@@ -278,8 +278,9 @@ async function fetchAndUpdateUsage(account: AccountConfig): Promise<number> {
     const { zaiProvider } = await import("../providers/zai.js");
     const { minimaxProvider } = await import("../providers/minimax.js");
     const { copilotProvider } = await import("../providers/copilot.js");
+    const { cursorProvider } = await import("../providers/cursor.js");
 
-    const PROVIDERS: Record<string, import("../providers/base.js").Provider> = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider };
+    const PROVIDERS: Record<string, import("../providers/base.js").Provider> = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider, cursor: cursorProvider };
     const provider = PROVIDERS[account.provider];
 
     // Pass account-specific options to getUsage

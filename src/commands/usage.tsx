@@ -4,6 +4,7 @@ import { loadConfig } from "../config/accounts-config";
 import { zaiProvider } from "../providers/zai";
 import { minimaxProvider } from "../providers/minimax";
 import { copilotProvider } from "../providers/copilot";
+import { cursorProvider } from "../providers/cursor";
 import type { Provider } from "../providers/base";
 import { formatNumber, formatResetsAt, formatResetAtAbsolute } from "../utils/format";
 import { dim, warn } from "../utils/console";
@@ -13,6 +14,7 @@ const PROVIDERS: Record<string, Provider> = {
   zai: zaiProvider,
   minimax: minimaxProvider,
   copilot: copilotProvider,
+  cursor: cursorProvider,
 };
 
 export default class Usage extends BaseCommand<typeof Usage> {
@@ -85,6 +87,36 @@ export default class Usage extends BaseCommand<typeof Usage> {
         const absolute = formatResetAtAbsolute(stats.resetsAt);
         const relative = formatResetsAt(stats.resetsAt);
         console.log(`  ${dim("Resets At:")} ${absolute} (${relative})`);
+      }
+    } else if (active.provider === "cursor") {
+      // Cursor-specific display
+      if (stats.membershipType) {
+        console.log(`  ${dim("Plan:")} ${stats.membershipType}`);
+      }
+      if (stats.isUnlimited) {
+        console.log(`  ${dim("Usage:")} Unlimited`);
+      } else if (stats.limit > 0) {
+        console.log(
+          `  ${dim("Usage:")} ${formatNumber(stats.used)} / ${formatNumber(stats.limit)} (${stats.percentUsed.toFixed(1)}% used)`,
+        );
+        console.log(`  ${dim("Remaining:")} ${formatNumber(stats.remaining)}`);
+      } else if (stats.percentUsed > 0) {
+        console.log(`  ${dim("Usage:")} ${stats.percentUsed.toFixed(1)}% used`);
+      }
+      if (stats.autoPercentUsed !== undefined) {
+        console.log(`  ${dim("Auto Usage:")} ${stats.autoPercentUsed.toFixed(1)}%`);
+      }
+      if (stats.apiPercentUsed !== undefined) {
+        console.log(`  ${dim("API Usage:")} ${stats.apiPercentUsed.toFixed(1)}%`);
+      }
+      if (stats.resetsAt) {
+        const absolute = formatResetAtAbsolute(stats.resetsAt);
+        const relative = formatResetsAt(stats.resetsAt);
+        console.log(`  ${dim("Resets At:")} ${absolute} (${relative})`);
+      }
+      if (!stats.percentUsed && !stats.remaining && !stats.limit) {
+        console.log("");
+        console.log(warn("  No usage data available. Check your session token."));
       }
     } else {
       // ZAI / MiniMax display
@@ -165,7 +197,18 @@ export default class Usage extends BaseCommand<typeof Usage> {
             account,
             providerLabel: getProviderCliLabel(account.provider),
             stats,
-            isCopilot: true,
+            displayType: "copilot" as const,
+            index: index + 1,
+          };
+        }
+
+        if (account.provider === "cursor") {
+          const stats = await provider.getUsage({ apiKey: account.apiKey });
+          return {
+            account,
+            providerLabel: getProviderCliLabel(account.provider),
+            stats,
+            displayType: "cursor" as const,
             index: index + 1,
           };
         }
@@ -175,7 +218,7 @@ export default class Usage extends BaseCommand<typeof Usage> {
           account,
           providerLabel: getProviderCliLabel(account.provider),
           stats,
-          isCopilot: false,
+          displayType: "default" as const,
           index: index + 1,
         };
       }),
@@ -184,9 +227,9 @@ export default class Usage extends BaseCommand<typeof Usage> {
     for (const result of results) {
       if (!result) continue;
 
-      const { account, providerLabel, stats, isCopilot, index } = result;
+      const { account, providerLabel, stats, displayType, index } = result;
 
-      if (isCopilot) {
+      if (displayType === "copilot") {
         console.log(`\n  [${index}] ${account.name}`);
         console.log(`  ${providerLabel}`);
         if (stats.copilotPlan) {
@@ -199,6 +242,30 @@ export default class Usage extends BaseCommand<typeof Usage> {
           );
         } else {
           console.log(`  Premium: Unlimited`);
+        }
+        if (stats.resetsAt) {
+          const absolute = formatResetAtAbsolute(stats.resetsAt);
+          const relative = formatResetsAt(stats.resetsAt);
+          console.log(`  Resets at ${absolute} (${relative})`);
+        }
+        continue;
+      }
+
+      if (displayType === "cursor") {
+        console.log(`\n  [${index}] ${account.name}`);
+        console.log(`  ${providerLabel}`);
+        if (stats.membershipType) {
+          console.log(`  Plan: ${stats.membershipType}`);
+        }
+        if (stats.isUnlimited) {
+          console.log(`  Usage: Unlimited`);
+        } else if (stats.limit > 0) {
+          const pct = stats.percentUsed.toFixed(1);
+          console.log(
+            `  Usage: ${formatNumber(stats.used)} / ${formatNumber(stats.limit)} · ${pct}% used`,
+          );
+        } else if (stats.percentUsed > 0) {
+          console.log(`  Usage: ${stats.percentUsed.toFixed(1)}% used`);
         }
         if (stats.resetsAt) {
           const absolute = formatResetAtAbsolute(stats.resetsAt);

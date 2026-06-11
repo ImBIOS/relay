@@ -10,7 +10,7 @@ export function formatNumber(num: number): string {
 }
 
 /**
- * Format reset time as relative time (e.g., "2h 30m left").
+ * Format reset time as relative time (e.g., "2h 30m left", "3d 5h left", "1w 2d left").
  */
 export function formatResetsAt(isoTime: string | undefined): string {
   if (!isoTime) return "N/A";
@@ -21,9 +21,17 @@ export function formatResetsAt(isoTime: string | undefined): string {
 
     if (diffMs <= 0) return "Now";
 
-    const hours = Math.floor(diffMs / (1000 * 60 * 60));
+    const weeks = Math.floor(diffMs / (1000 * 60 * 60 * 24 * 7));
+    const days = Math.floor((diffMs % (1000 * 60 * 60 * 24 * 7)) / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
 
+    if (weeks > 0) {
+      return `${weeks}w ${days}d left`;
+    }
+    if (days > 0) {
+      return `${days}d ${hours}h left`;
+    }
     if (hours > 0) {
       return `${hours}h ${minutes}m left`;
     }

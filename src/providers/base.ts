@@ -41,6 +41,11 @@ export interface UsageStats {
   copilotPlan?: string;
   copilotChat?: { percentRemaining: number; unlimited: boolean };
   copilotCompletions?: { percentRemaining: number; unlimited: boolean };
+  // For Cursor: membership type and per-category usage percentages
+  membershipType?: string;
+  isUnlimited?: boolean;
+  autoPercentUsed?: number;
+  apiPercentUsed?: number;
 }
 
 export interface Provider {

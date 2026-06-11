@@ -140,6 +140,19 @@ const PROVIDER_REGISTRY: ProviderDefinition[] = [
     },
   },
 
+  // ── Cursor ─────────────────────────────────────────────────────────────
+  {
+    id: "cursor",
+    displayName: "Cursor",
+    cliLabel: "Cursor",
+    protocol: "openai",
+    defaultBaseUrl: "https://cursor.com",
+    apiKeyEnvVar: "CURSOR_API_KEY",
+    authMethods: ["api_key"],
+    models: [],
+    hasUsageApi: true,
+  },
+
   // ── OpenAI ──────────────────────────────────────────────────────────────
   {
     id: "openai",
