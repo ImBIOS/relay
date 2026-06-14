@@ -95,5 +95,8 @@
     "test:watch": "bun test --watch",
     "typecheck": "bun tsc --noEmit --skipLibCheck"
   },
-  "type": "module"
+  "type": "module",
+  "overrides": {
+    "relay": "link:"
+  }
 }

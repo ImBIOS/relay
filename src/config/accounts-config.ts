@@ -175,6 +175,60 @@ export function deleteAccount(id: string): AccountConfig | null {
   saveConfig(config);
   return account;
 }
+
+/**
+ * Deduplicate accounts: keep only the most recently created account for each
+ * (name, provider) pair. Older duplicates are deleted.
+ */
+export function deduplicateAccounts(): number {
+  const config = loadConfig();
+  const seen = new Set<string>();
+  const toDelete: string[] = [];
+  const keptByKey = new Map<string, string>();
+
+  const sorted = Object.values(config.accounts).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+
+  for (const acc of sorted) {
+    const key = `${acc.name}::${acc.provider}`;
+    if (seen.has(key)) {
+      toDelete.push(acc.id);
+    } else {
+      seen.add(key);
+      keptByKey.set(key, acc.id);
+    }
+  }
+
+  if (toDelete.length === 0) {
+    return 0;
+  }
+
+  const activeWasDeleted =
+    config.activeAccountId !== null && toDelete.includes(config.activeAccountId);
+
+  let replacementActiveId: string | null = null;
+  if (activeWasDeleted && config.activeAccountId) {
+    const active = config.accounts[config.activeAccountId];
+    if (active) {
+      const key = `${active.name}::${active.provider}`;
+      replacementActiveId = keptByKey.get(key) ?? null;
+    }
+  }
+
+  for (const id of toDelete) {
+    delete config.accounts[id];
+  }
+
+  if (activeWasDeleted) {
+    const remainingIds = Object.keys(config.accounts);
+    config.activeAccountId =
+      replacementActiveId ?? (remainingIds.length > 0 ? remainingIds[0]! : null);
+  }
+
+  saveConfig(config);
+  return toDelete.length;
+}
 export function getAccount(id: string): AccountConfig | null {
   const config = loadConfig();
   return config.accounts[id] ?? null;
@@ -280,7 +334,12 @@ async function fetchAndUpdateUsage(account: AccountConfig): Promise<number> {
     const { copilotProvider } = await import("../providers/copilot.js");
     const { cursorProvider } = await import("../providers/cursor.js");
 
-    const PROVIDERS: Record<string, import("../providers/base.js").Provider> = { zai: zaiProvider, minimax: minimaxProvider, copilot: copilotProvider, cursor: cursorProvider };
+    const PROVIDERS: Record<string, import("../providers/base.js").Provider> = {
+      zai: zaiProvider,
+      minimax: minimaxProvider,
+      copilot: copilotProvider,
+      cursor: cursorProvider,
+    };
     const provider = PROVIDERS[account.provider];
 
     // Pass account-specific options to getUsage
@@ -334,9 +393,7 @@ export async function rotateAcrossProviders(): Promise<RotationResult> {
   }
 
   // Filter accounts based on providerFilter setting
-  const currentAccount = config.activeAccountId
-    ? config.accounts[config.activeAccountId]
-    : null;
+  const currentAccount = config.activeAccountId ? config.accounts[config.activeAccountId] : null;
   const currentProvider = currentAccount?.provider;
 
   let eligibleAccounts: AccountConfig[];

@@ -146,7 +146,7 @@ const PROVIDER_REGISTRY: ProviderDefinition[] = [
     displayName: "Cursor",
     cliLabel: "Cursor",
     protocol: "openai",
-    defaultBaseUrl: "https://cursor.com",
+    defaultBaseUrl: "https://api.cursor.com",
     apiKeyEnvVar: "CURSOR_API_KEY",
     authMethods: ["api_key"],
     models: [],

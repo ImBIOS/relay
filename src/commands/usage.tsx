@@ -116,7 +116,15 @@ export default class Usage extends BaseCommand<typeof Usage> {
       }
       if (!stats.percentUsed && !stats.remaining && !stats.limit) {
         console.log("");
-        console.log(warn("  No usage data available. Check your session token."));
+        if (active.apiKey.startsWith("crsr_")) {
+          console.log(warn("  API key verified, but usage data requires a session token."));
+          console.log(warn("  Run this to get one automatically:"));
+          console.log(warn("    relay account login cursor"));
+        } else {
+          console.log(warn("  No usage data available. Your session token may have expired."));
+          console.log(warn("  Run this to refresh:"));
+          console.log(warn("    relay account login cursor"));
+        }
       }
     } else {
       // ZAI / MiniMax display
@@ -271,6 +279,18 @@ export default class Usage extends BaseCommand<typeof Usage> {
           const absolute = formatResetAtAbsolute(stats.resetsAt);
           const relative = formatResetsAt(stats.resetsAt);
           console.log(`  Resets at ${absolute} (${relative})`);
+        }
+        if (!stats.percentUsed && !stats.remaining && !stats.limit) {
+          console.log("");
+          if (account.apiKey.startsWith("crsr_")) {
+            console.log(warn("  API key verified, but usage data requires a session token."));
+            console.log(warn("  Run this to get one automatically:"));
+            console.log(warn("    relay account login cursor"));
+          } else {
+            console.log(warn("  No usage data available. Your session token may have expired."));
+            console.log(warn("  Run this to refresh:"));
+            console.log(warn("    relay account login cursor"));
+          }
         }
         continue;
       }
