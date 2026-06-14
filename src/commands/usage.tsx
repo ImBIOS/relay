@@ -97,24 +97,24 @@ export default class Usage extends BaseCommand<typeof Usage> {
         console.log(`  ${dim("Usage:")} Unlimited`);
       } else if (stats.limit > 0) {
         console.log(
-          `  ${dim("Usage:")} ${formatNumber(stats.used)} / ${formatNumber(stats.limit)} (${stats.percentUsed.toFixed(1)}% used)`,
+          `  ${dim("Requests:")} ${formatNumber(stats.used)} / ${formatNumber(stats.limit)} (${stats.percentUsed.toFixed(1)}%)`,
         );
         console.log(`  ${dim("Remaining:")} ${formatNumber(stats.remaining)}`);
-      } else if (stats.percentUsed > 0) {
-        console.log(`  ${dim("Usage:")} ${stats.percentUsed.toFixed(1)}% used`);
       }
-      if (stats.autoPercentUsed !== undefined) {
-        console.log(`  ${dim("Auto Usage:")} ${stats.autoPercentUsed.toFixed(1)}%`);
+      if (stats.totalPercentUsed !== undefined && stats.totalPercentUsed > 0) {
+        console.log(`  ${dim("Overall:")} ${stats.totalPercentUsed.toFixed(1)}% plan usage`);
       }
-      if (stats.apiPercentUsed !== undefined) {
-        console.log(`  ${dim("API Usage:")} ${stats.apiPercentUsed.toFixed(1)}%`);
+      if (stats.autoPercentUsed !== undefined && stats.apiPercentUsed !== undefined) {
+        console.log(
+          `  ${dim("Breakdown:")} Auto ${stats.autoPercentUsed.toFixed(1)}% · API ${stats.apiPercentUsed.toFixed(1)}%`,
+        );
       }
       if (stats.resetsAt) {
         const absolute = formatResetAtAbsolute(stats.resetsAt);
         const relative = formatResetsAt(stats.resetsAt);
         console.log(`  ${dim("Resets At:")} ${absolute} (${relative})`);
       }
-      if (!stats.percentUsed && !stats.remaining && !stats.limit) {
+      if (!stats.percentUsed && !stats.totalPercentUsed && !stats.remaining && !stats.limit) {
         console.log("");
         if (active.apiKey.startsWith("crsr_")) {
           console.log(warn("  API key verified, but usage data requires a session token."));
@@ -270,17 +270,23 @@ export default class Usage extends BaseCommand<typeof Usage> {
         } else if (stats.limit > 0) {
           const pct = stats.percentUsed.toFixed(1);
           console.log(
-            `  Usage: ${formatNumber(stats.used)} / ${formatNumber(stats.limit)} · ${pct}% used`,
+            `  Requests: ${formatNumber(stats.used)} / ${formatNumber(stats.limit)} · ${pct}%`,
           );
-        } else if (stats.percentUsed > 0) {
-          console.log(`  Usage: ${stats.percentUsed.toFixed(1)}% used`);
+        }
+        if (stats.totalPercentUsed !== undefined && stats.totalPercentUsed > 0) {
+          console.log(`  Overall: ${stats.totalPercentUsed.toFixed(1)}% plan usage`);
+        }
+        if (stats.autoPercentUsed !== undefined && stats.apiPercentUsed !== undefined) {
+          console.log(
+            `  Breakdown: Auto ${stats.autoPercentUsed.toFixed(1)}% · API ${stats.apiPercentUsed.toFixed(1)}%`,
+          );
         }
         if (stats.resetsAt) {
           const absolute = formatResetAtAbsolute(stats.resetsAt);
           const relative = formatResetsAt(stats.resetsAt);
           console.log(`  Resets at ${absolute} (${relative})`);
         }
-        if (!stats.percentUsed && !stats.remaining && !stats.limit) {
+        if (!stats.percentUsed && !stats.totalPercentUsed && !stats.remaining && !stats.limit) {
           console.log("");
           if (account.apiKey.startsWith("crsr_")) {
             console.log(warn("  API key verified, but usage data requires a session token."));

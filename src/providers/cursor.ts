@@ -217,10 +217,10 @@ export class CursorProvider implements Provider {
       return null;
     }
 
-    const percentUsed = plan.totalPercentUsed ?? 0;
     const used = plan.used ?? 0;
     const limit = plan.limit ?? 0;
     const remaining = plan.remaining ?? 0;
+    const percentUsed = limit > 0 ? (used / limit) * 100 : 0;
 
     return {
       used,
@@ -230,6 +230,7 @@ export class CursorProvider implements Provider {
       resetsAt: data.billingCycleEnd || undefined,
       membershipType: data.membershipType,
       isUnlimited: data.isUnlimited,
+      totalPercentUsed: plan.totalPercentUsed,
       autoPercentUsed: plan.autoPercentUsed,
       apiPercentUsed: plan.apiPercentUsed,
     };

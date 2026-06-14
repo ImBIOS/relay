@@ -44,6 +44,7 @@ export interface UsageStats {
   // For Cursor: membership type and per-category usage percentages
   membershipType?: string;
   isUnlimited?: boolean;
+  totalPercentUsed?: number;
   autoPercentUsed?: number;
   apiPercentUsed?: number;
 }
